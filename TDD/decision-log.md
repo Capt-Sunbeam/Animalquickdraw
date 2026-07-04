@@ -1,0 +1,98 @@
+# Decision Log: Animal Quickdraw
+
+**Purpose:** Track design decisions made during development. New entries are added at the top of the Decisions section.
+
+**Last Updated:** 2026-07-04
+
+---
+
+## Decisions
+
+*New entries go here, at the top of this section.*
+
+---
+
+### TDD drafting reconciliation — contract refinements & judgment calls
+**Date:** 2026-07-04 | **Slice:** Multiple | **Type:** Quick
+
+**Decision:** The following calls were made while drafting slice TDDs 01–15 in parallel; the consistency guide and skeleton guide were amended to match. If any are wrong, veto before the affected chunk starts.
+
+*Contract refinements (consistency/skeleton guides updated):*
+- Authoritative rasterization (fill, replay, export, golden tests) is **CPU-side** (`DocRasterizer`); GPU/SubViewport is display-only — cross-platform determinism (Slice 1).
+- `collection/index.json` uses a versioned envelope `{"v":1,"items":[...]}` (Slices 4/8 converged independently).
+- Canonical `SessionClient` (all peers, owns RPCs) / host-only `GameSession` simulation split (Slice 3).
+- `PlatformBackend.create_host_peer/create_client_peer` are awaitable coroutines (Steam lobby ops are callback-async; Slice 12).
+- Nested data classes referenced qualified (`Roster.PlayerState`).
+
+*Design judgment calls (owner may veto):*
+- **Superlative-winning drawings also earn the +1 title point** (literal reading of brief §11 "titles/superlatives: +1 each"), gated by `title_points_enabled` (Slice 10).
+- Rotating canvas orientation mid-drawing clears the canvas after a confirm dialog (Slice 1).
+- Captions are not persisted with collection saves in v1 (Slice 5/8).
+- `kudos_allotment = 0` (kudos off) allowed in Custom only; min-1 clamp applies to auto-compute (Slice 4/6).
+- Lobby public/private visibility fixed at creation; all Steam lobbies are search-public, "private" = `aq_public="0"` metadata + code/invite as the privacy bar (Slices 12/13).
+- Mid-turn judge disconnect: seat holds, window lapses → −1 no-pick; late joiners draw from the next round but react/kudos immediately (Slices 3/9).
+- Defaults pending playtest: `DRAW_TIME_DEFAULT_SEC = 30`, pool-setup force-continue at 120s.
+- Slice 14 adds a `Stats` autoload beyond the skeleton's original five.
+
+**Context:** Fifteen TDDs drafted by five parallel agents against shared contracts; cross-interface audit fixed three mismatches (Slice 14's `winner_player_id` + `kudos_given`, Slice 13's lobby-metadata key names) and confirmed the rest (kudos ledger fields, `joined_order`, opaque drawing ids).
+
+---
+
+### Session pacing: hard 180k context budget, 18 chunks
+**Date:** 2026-07-04 | **Slice:** All | **Type:** Quick
+
+**Decision:** Work sessions follow the original 18-chunk plan with a hard ~180k-token context budget per session, ending every session at a clean checkpoint via the Session End workflow.
+
+**Context:** The AI (Claude Fable 5) has a 1M-token context window, so consolidation to ~11 sessions with a soft 300k ceiling was proposed and viable. Owner chose maximum conservatism: cheaper individual sessions, more frequent playtest gates, guaranteed-clean handoffs. Chunk boundaries may still flex if a session runs cool (pull work forward) or hot (checkpoint early).
+
+---
+
+### Slice TDD authoring: shared docs centralized, per-slice TDDs drafted in parallel
+**Date:** 2026-07-04 | **Slice:** All | **Type:** Quick
+
+**Decision:** The consistency guide, skeleton guide, and all cross-slice contracts (RPC conventions, DrawingDoc format, save layout, phase enum, EventBus pattern) were authored centrally first; the 15 per-slice TDDs were then drafted by parallel subagents against those contracts and reviewed for coherence.
+
+**Context:** Keeps the initialization session inside its own context budget while preventing agents from inventing conflicting patterns.
+
+---
+
+## Initial Tech Stack Decisions
+
+### Initial Tech Stack Selection
+**Date:** 2026-07-04 | **Slice:** All | **Type:** Full
+
+#### Context
+Project initialization — selecting the technology stack for a 3–8 player online drawing party game shipping on Steam for Windows/macOS/Linux from a single codebase, with Steam relay networking, a custom stroke-based drawing canvas, and local-first persistence.
+
+#### Decision
+- **Engine:** Godot 4.6 (stable), typed GDScript (static typing mandatory)
+- **Steam integration:** GodotSteam GDExtension — lobbies, invites, achievements, SteamMultiplayerPeer relay transport
+- **Networking architecture:** host-authoritative sessions over Godot high-level multiplayer; transport swappable behind a `PlatformService` (ENet backend for dev/LAN, Steam backend for shipping)
+- **Persistence:** JSON files in `user://` (one file per saved drawing + index; profile; stats)
+- **Testing:** GdUnit4, headless-runnable
+- **Dev App ID:** Steam 480 (Spacewar) until a real App ID is registered (needed by Slice 12)
+
+#### Rationale
+- Godot: best-in-class 2D/UI for a menu-and-canvas game, free/open-source, single-codebase export to all three target OSes, small binaries.
+- GodotSteam's SteamMultiplayerPeer plugs Steam Datagram Relay directly into Godot's RPC system, matching the host-authoritative design and §13 IP-privacy requirement.
+- Typed GDScript: engine-native speed of iteration with most of the type-safety benefit; enforced via the consistency guide.
+- ENet dev mode: multiplayer testing as multiple local instances without Steam accounts; also the seam for any future non-Steam build.
+- JSON over SQLite: all persisted data is small (stroke data is KBs); human-readable, zero dependencies; v1 collection browser needs no querying.
+
+#### Alternatives Considered
+1. **Unity + Steamworks.NET/Mirror:** workable but heavier editor, more boilerplate, licensing overhead, weaker fit for 2D UI-heavy game.
+2. **Electron/Tauri + TypeScript:** best canvas APIs, but weakest Steam relay networking story — ruled out on the §13 requirement.
+3. **C# in Godot:** stronger tooling but adds .NET export complexity; Steam bindings a step behind the GDScript path.
+4. **SQLite (godot-sqlite):** unnecessary dependency for v1 data shapes.
+5. **Steam-only, no dev transport:** rejected — every multiplayer test would need multiple Steam accounts.
+
+#### Impact
+- **Affects:** All slices
+- **Migration needed:** N/A (initial setup)
+- **Breaking change:** N/A
+
+#### Status
+- [x] Documentation updated (Recipe, Consistency Guide, Skeleton Build Guide)
+- [ ] Code implemented (Skeleton — Chunk 1)
+- [ ] Tests updated
+- [ ] Integration verified
