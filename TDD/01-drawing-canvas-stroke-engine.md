@@ -400,7 +400,10 @@ Node structure: `DrawingCanvas (VBoxContainer)` → `CanvasToolbar`, `AspectRati
 ### PalettePicker Component
 
 **Files: `ui/canvas/palette_picker.tscn` + `ui/canvas/palette_picker.gd`**
-12 base swatches (one per family, showing `base_index(family)`); expanding a family opens a `PopupPanel` with its `SHADES_PER_FAMILY` preset shades. Selecting any shade selects that exact `c` index and shows it as the current-color indicator. No freeform color mixing anywhere (brief §6). Output: `color_selected(color_index: int)` signal.
+
+> **Update (2026-07-06):** Redesigned per owner playtest — see Decision Log "Palette picker redesign". Per-family shade popups replaced by: an **"All colors" overlay grid** (all 60 presets at once, families as light→dark columns) plus **3 custom quick-slots** the player fills by dragging colors from the grid/base row (click to reuse, right-click to clear, session-only). Selection is an explicit outlined-swatch state that persists until the next pick. Supporting components: `palette_swatch.gd` (drag source + selection visual), `palette_slot.gd` (drop target).
+
+12 base swatches (one per family, showing `base_index(family)`). Selecting any swatch selects that exact `c` index and shows it as the current-color indicator. No freeform color mixing anywhere (brief §6). Output: `color_selected(color_index: int)` signal.
 
 ### CanvasToolbar Component
 

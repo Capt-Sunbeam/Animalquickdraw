@@ -12,6 +12,28 @@
 
 ---
 
+### Palette picker redesign: all-colors overlay + drag-to-pin quick slots
+**Date:** 2026-07-06 | **Slice:** 1 | **Decided by:** Owner (playtest feedback)
+
+**Context:** Owner playtested the Canvas Sandbox ("works really good") but found (a) a stuck selected-outline bug after picking a shade from the per-family popup, and (b) the per-family long-press popups force players to hunt for shades one family at a time — bad fit for a 15–30 s draw timer.
+
+**Decision:** Replace per-family shade popups with:
+1. An **"All colors" toggle** that opens an overlay grid of the full 60-color table above the palette bar (families as light→dark columns). Click any swatch to select; selection persists until the next pick.
+2. **Three custom quick-slots** on the bar: drag any color (from grid or base row) onto a blank slot to pin it; click to reuse; right-click to clear. **Session-only** — not persisted (persistence to profile.json is a cheap later add if playtests want it).
+3. Selection shown as an explicit outlined-swatch state driven by the picker (root-cause fix for the stuck-outline bug — never rely on button hover/focus leftovers).
+
+**Rationale:** Brief §6 prescribes preset shades behind an "expand" — it does not prescribe per-family popups. One sweep of all 60 presets beats serial hunting under time pressure; pinned slots let players set a per-drawing palette once and draw at speed. No freeform mixing anywhere (unchanged).
+
+**Alternatives considered:** Inline expand pushing the canvas smaller (rejected: layout jump mid-drawing); persistent slots (deferred).
+
+**Impact:**
+- Affects: `ui/canvas/palette_picker.gd` internals only (+ new `palette_swatch.gd`, `palette_slot.gd`). The `color_selected(color_index)` contract is unchanged; no other slice touched. Slice 11's avatar editor inherits the new picker automatically.
+- Migration needed: No. Breaking change: No.
+
+**Status:** [x] Code implemented [x] Tests updated (13 new; 102 total green) [x] Slice 1 TDD + implementation notes updated
+
+---
+
 ### Slice 1: palette hex values + raster implementation choices
 **Date:** 2026-07-06 | **Slice:** 1 | **Type:** Quick
 

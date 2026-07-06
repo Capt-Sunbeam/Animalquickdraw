@@ -30,6 +30,11 @@ The full slice — both TDD parts in one pass (this session runs continuously, s
 **Actual Implementation:** Mathematically identical row spans (`|dx| <= floor(sqrt(r² − dy²))`) filled with native `fill_rect` calls — ~29 native calls per large stamp instead of ~841 pixel writes. The per-pixel path is retained verbatim for the masked (Slice 11) branch.
 **Impact:** None — pixel-identical, verified by the golden tests.
 
+### Palette picker redesigned after owner playtest (2026-07-06, same session)
+**Original Plan:** Per-family shade popups via long-press/right-click.
+**Actual Implementation:** "All colors" overlay grid (60 presets at once) + 3 drag-to-pin quick-slots (session-only) + explicit selection outline. Owner-requested after playtesting; full rationale and impact in the decision log entry "Palette picker redesign".
+**Impact:** `color_selected` contract unchanged; fixed the stuck-outline bug at the root (selection state is drawn deliberately, not left to button hover/focus styles). New files: `ui/canvas/palette_swatch.gd`, `ui/canvas/palette_slot.gd`; new suite `tests/ui/canvas/test_palette_picker.gd` (13 tests).
+
 ### Stale class cache after adding new `class_name` scripts
 **Not a design deviation — a workflow gotcha:** after creating new `class_name` scripts, `godot --headless --path . --import` must run before the test CLI, or every new class fails to resolve. Now part of the session's standard test loop.
 

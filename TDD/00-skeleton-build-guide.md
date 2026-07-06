@@ -145,3 +145,16 @@ signal scene_changed(route: String)
 ## 6. Exit Criteria
 
 All checklist items done; tests green; owner confirmed two-instance connect; no startup warnings; docs updated.
+
+---
+
+## Implementation Status
+
+**Status:** COMPLETE
+**Completed:** 2026-07-06 (owner confirmed the two-instance connect gate)
+**Implementation Notes:** `TDD/00-skeleton-implementation-notes.md`
+
+### Summary of Deviations
+- GdUnit4 headless runs need `--ignoreHeadlessMode` (consistency guide §9 updated)
+- `config/version` plain-numeric only; ETC2/ASTC enabled for macOS export
+- SteamBackend stub fails loudly (no silent ENet fallback) — anticipates Slice 12's rule

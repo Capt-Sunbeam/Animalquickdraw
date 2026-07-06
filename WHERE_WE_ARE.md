@@ -2,19 +2,18 @@
 
 **Purpose:** Single source of truth for project status and session continuity. Any developer or AI can read this to understand the current state and resume work seamlessly.
 
-**Last Updated:** 2026-07-06 (session 2, in progress — continuous multi-chunk session per decision log)
-**Total Sessions:** 2 (session 2 in progress)
+**Last Updated:** 2026-07-06 (end of session 2)
+**Total Sessions:** 2
 
 ---
 
 ## Current Status
 
-**Active Slice:** Slice 2: Lobby & Session Roster
-**Current Objective:** Implement Slice 2 per `TDD/02-lobby-session-roster.md`
+**Active Slice:** Slice 2: Lobby & Session Roster (not started — next session is Chunk 4)
+**Current Objective:** Implement Slice 2 per `TDD/02-lobby-session-roster.md` (read the FULL TDD at session start)
 **Blockers:** None
-**Pending owner confirmations (batched for session end):**
-- Slice 0: windowed two-instance playtest via `tools/dev_run.sh`
-- Slice 1: drawing feel; fill + replay correctness in the Canvas Sandbox (debug menu); batchable UI list in its implementation notes
+**Pending owner confirmations:**
+- Slice 1 batchable polish list only (letterboxing at odd window sizes, portrait layout, rotate-confirm wording, undo disabled-state timing) — formal Slice 1 sign-off at next session start; nothing in Slice 2 depends on these
 
 ---
 
@@ -28,7 +27,7 @@
 | Consistency Guide | `TDD/consistency-guide.md` | Patterns and standards — read before coding |
 | Recipe | `TDD/recipe.md` | Approved project contract |
 | Overview + Chunk Plan | `TDD/overview-of-slices.md` | Slice deps + 18-chunk session plan |
-| Latest Session Log | `TDD/logs/2026-07-04-session-1.md` | Initialization session |
+| Latest Session Log | `TDD/logs/2026-07-06-session-2.md` | Slices 0+1 built and playtested |
 | Decision Log | `TDD/decision-log.md` | Tech stack + pacing decisions |
 | Design Brief | `game-design-brief.md` | Authoritative game spec (§1–§15) |
 
@@ -40,20 +39,21 @@
 
 | Slice | Name | Completed | Notes |
 |-------|------|-----------|-------|
-| 0 | Skeleton | 2026-07-06 | Implementation complete, 32/32 tests green, 3-platform exports build, automated connect gate PASS. **Pending owner playtest** (batched) |
-| 1 | Drawing Canvas & Stroke Engine | 2026-07-06 | Implementation complete (both parts), 89 total tests green incl. 6 baked goldens. **Pending owner playtest** (batched) |
+| 0 | Skeleton | 2026-07-06 | **COMPLETE** — owner confirmed the two-instance connect gate (all 4 steps); 3-platform exports build; automated connect check also PASS |
+| 1 | Drawing Canvas & Stroke Engine | 2026-07-06 | Implementation complete (both parts) + owner playtested ("works really good"); palette redesigned from feedback and re-confirmed. 102 total tests green incl. 6 baked goldens. **Formal sign-off pending batchable polish list only** |
 
 ### In Progress
 
 | Slice | Name | Started | Status | % Complete |
 |-------|------|---------|--------|------------|
-| 2 | Lobby & Session Roster | 2026-07-06 | Starting | 0% |
+| — | — | — | — | — |
 
 ### Upcoming (see chunk plan in overview-of-slices.md)
 
 | Slice | Name | Dependencies | Priority |
 |-------|------|--------------|----------|
-| 3 | Core Round Loop → playable MVP | 1, 2 | This session |
+| 2 | Lobby & Session Roster | 0 | **Next (Chunk 4)** |
+| 3 | Core Round Loop → playable MVP | 1, 2 | Chunks 5–6 |
 
 ---
 
@@ -61,20 +61,22 @@
 
 | Date | Session | Summary | Status |
 |------|---------|---------|--------|
+| 2026-07-06 | #2 | Slices 0+1 implemented and playtested: skeleton (5 autoloads, tests, exports, connect gate owner-confirmed → COMPLETE), full canvas/stroke engine (goldens, replay, sandbox), palette picker redesigned from owner playtest feedback. 102 tests green | Completed |
 | 2026-07-04 | #1 | Project initialization: learned 3 Pillars, tech stack decided (Godot 4.6 + typed GDScript + GodotSteam + JSON + ENet dev mode), Recipe approved (16 slices / 18 chunks / hard 180k budget), full TDD folder generated | Completed |
 
 ---
 
 ## Next Steps
 
-**Immediate (this session, in order):**
-1. Slice 1 Part 1: stroke model, palette, DocRasterizer + goldens, DrawingCanvas, toolbar/palette UI, sandbox screen, serialization tests
-2. Slice 1 Part 2: bucket fill, rotate, ReplayPlayer, save-toggle stub, determinism goldens
-3. Slice 2: lobby & roster (Session autoload, registration/chat/settings RPCs, lobby screen)
-4. Slice 3: core round loop (headless state machine + content, then phase screens) → playable MVP
-5. Session end: batched playtest checklist, session log, owner check-in
+**Immediate (Next Session — Chunk 4: Slice 2 Lobby & Roster):**
+1. Session Start workflow: read this file fully, then the FULL `TDD/02-lobby-session-roster.md` (all 12 sections), then consistency guide Quick Reference
+2. Confirm Slice 1 batchable polish list with owner (5 min) → mark Slice 1 COMPLETE
+3. Implement Slice 2: Roster + PlayerState, GameSettings, `Session` autoload (registration/chat/settings RPCs with 5-step validation), lobby screen, ChatPanel with prominence, PlayerList, join dialog, start gate
+4. Blocking gates at end: 3-instance roster sync; join-by-code failure recovery; start-gate enable/disable
 
-**After this session:** owner playtests the batched checklist; then Slice 4 (reactions/kudos) per chunk plan.
+**Workflow gotchas (established session 2):** run `godot --headless --path . --import` after creating new class_name scripts, before tests; test command needs `--ignoreHeadlessMode`; `DRAW_TIME_DEFAULT_SEC = 30` per decision log (Slice 2 TDD's 45 is superseded).
+
+**After Slice 2:** Slice 3 core round loop (Chunks 5–6) → playable MVP.
 
 ---
 

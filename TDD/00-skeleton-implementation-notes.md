@@ -1,6 +1,6 @@
 # Implementation Notes: Slice 0 — Skeleton
 
-**Completed:** 2026-07-06 (implementation complete; owner playtest confirmation pending — see Testing Summary)
+**Completed:** 2026-07-06 — **COMPLETE.** Owner confirmed the two-instance connect playtest (host, join, both rosters, host-quit recovery) at end of session 2.
 **TDD Document:** `TDD/00-skeleton-build-guide.md`
 
 ## Implementation Summary
@@ -66,7 +66,7 @@ The full skeleton per the build guide: Godot 4.6 project at repo root, folder st
 - Integration: `tools/verify_connect.sh` → PASS (host and client both observed the connection).
 - Exports: Linux, macOS, Windows debug exports build from CLI with no warnings.
 - Startup: `godot --headless --quit-after 30` produces zero errors/warnings.
-- **User confirmation: PENDING** — windowed `tools/dev_run.sh` two-instance connect + peer-list check is on the batched playtest list (session-end checklist).
+- **User confirmation: CONFIRMED 2026-07-06** — owner ran the windowed two-instance test ("it worked perfectly"): host status + self-in-list, client connect, both rosters at 2 peers, host-quit toast with clean recovery. Zero engine errors in the instance logs.
 
 ## Lessons Learned
 

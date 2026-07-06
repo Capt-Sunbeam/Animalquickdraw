@@ -67,6 +67,6 @@ func test_palette_selection_emits_index() -> void:
 	await await_idle_frame()
 	var selected: Array[int] = []
 	picker.color_selected.connect(func(idx: int) -> void: selected.append(idx))
-	picker._on_family_clicked(6)  # blue family
+	picker.select_index(Palette.base_index(6))  # blue family base
 	assert_array(selected).is_equal([Palette.base_index(6)])
 	assert_int(picker.get_current_index()).is_equal(Palette.base_index(6))
