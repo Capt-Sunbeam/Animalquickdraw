@@ -88,8 +88,8 @@ Hard ~180k-token context budget per session (Decision Log 2026-07-04). One chunk
 
 | Slice | TDD Document | Implementation Notes |
 |-------|--------------|----------------------|
-| 0 | `TDD/00-skeleton-build-guide.md` | — |
-| 1 | `TDD/01-drawing-canvas-stroke-engine.md` | — |
+| 0 | `TDD/00-skeleton-build-guide.md` | `TDD/00-skeleton-implementation-notes.md` |
+| 1 | `TDD/01-drawing-canvas-stroke-engine.md` | `TDD/01-drawing-canvas-stroke-engine-implementation-notes.md` |
 | 2 | `TDD/02-lobby-session-roster.md` | — |
 | 3 | `TDD/03-core-round-loop.md` | — |
 | 4 | `TDD/04-reactions-kudos-saving.md` | — |

@@ -1,0 +1,46 @@
+; Engine configuration file.
+; It's best edited using the editor UI and not directly,
+; since the parameters that go here are not all obvious.
+;
+; Format:
+;   [section] ; section goes between []
+;   param=value ; assign values to parameters
+
+config_version=5
+
+[application]
+
+config/name="Animal Quickdraw"
+config/version="0.1.0"
+run/main_scene="res://ui/menu/main_menu_screen.tscn"
+config/features=PackedStringArray("4.6")
+config/icon="res://icon.svg"
+
+[autoload]
+
+EventBus="*res://core/events/event_bus.gd"
+Platform="*res://core/platform/platform_service.gd"
+Net="*res://core/network/network_manager.gd"
+Save="*res://core/save/save_service.gd"
+Nav="*res://core/nav/scene_manager.gd"
+
+[debug]
+
+gdscript/warnings/untyped_declaration=2
+
+[display]
+
+window/size/viewport_width=1280
+window/size/viewport_height=720
+
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/gdUnit4/plugin.cfg")
+
+[gui]
+
+theme/custom="res://core/theme/main_theme.tres"
+
+[rendering]
+
+textures/vram_compression/import_etc2_astc=true

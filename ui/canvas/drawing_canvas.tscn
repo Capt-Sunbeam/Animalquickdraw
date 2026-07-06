@@ -1,0 +1,65 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://ui/canvas/drawing_canvas.gd" id="1_canvas"]
+[ext_resource type="PackedScene" path="res://ui/canvas/canvas_toolbar.tscn" id="2_toolbar"]
+[ext_resource type="PackedScene" path="res://ui/canvas/palette_picker.tscn" id="3_palette"]
+[ext_resource type="PackedScene" path="res://ui/shared/confirm_dialog.tscn" id="4_confirm"]
+
+[node name="DrawingCanvas" type="VBoxContainer"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 8
+script = ExtResource("1_canvas")
+
+[node name="Toolbar" parent="." instance=ExtResource("2_toolbar")]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="CanvasFrame" type="AspectRatioContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+ratio = 1.33333
+
+[node name="ViewportBox" type="SubViewportContainer" parent="CanvasFrame"]
+unique_name_in_owner = true
+layout_mode = 2
+stretch = true
+
+[node name="CanvasViewport" type="SubViewport" parent="CanvasFrame/ViewportBox"]
+unique_name_in_owner = true
+disable_3d = true
+handle_input_locally = false
+size = Vector2i(800, 600)
+render_target_update_mode = 4
+
+[node name="RasterView" type="TextureRect" parent="CanvasFrame/ViewportBox/CanvasViewport"]
+unique_name_in_owner = true
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+expand_mode = 1
+stretch_mode = 0
+
+[node name="BottomBar" type="HBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="PalettePickerBox" parent="BottomBar" instance=ExtResource("3_palette")]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="SaveToggle" type="CheckButton" parent="BottomBar"]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Save the final submitted drawing to your collection"
+text = "Save to my collection"
+
+[node name="RotateConfirm" parent="." instance=ExtResource("4_confirm")]
+unique_name_in_owner = true

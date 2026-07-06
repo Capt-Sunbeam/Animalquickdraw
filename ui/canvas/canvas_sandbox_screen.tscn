@@ -1,0 +1,82 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://ui/canvas/canvas_sandbox_screen.gd" id="1_sandbox"]
+[ext_resource type="PackedScene" path="res://ui/canvas/drawing_canvas.tscn" id="2_canvas"]
+[ext_resource type="PackedScene" path="res://ui/shared/toast.tscn" id="3_toast"]
+
+[node name="CanvasSandboxScreen" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_sandbox")
+
+[node name="Layout" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 12.0
+offset_top = 8.0
+offset_right = -12.0
+offset_bottom = -8.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 8
+
+[node name="TopBar" type="HBoxContainer" parent="Layout"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="BackButton" type="Button" parent="Layout/TopBar"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "< Back"
+
+[node name="Title" type="Label" parent="Layout/TopBar"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Canvas Sandbox (dev)"
+horizontal_alignment = 1
+
+[node name="ReplayButton" type="Button" parent="Layout/TopBar"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Replay"
+
+[node name="SpeedSlider" type="HSlider" parent="Layout/TopBar"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(120, 0)
+layout_mode = 2
+size_flags_vertical = 4
+min_value = 1.0
+max_value = 8.0
+step = 0.5
+value = 2.0
+
+[node name="SpeedLabel" type="Label" parent="Layout/TopBar"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "2.0x"
+
+[node name="DumpButton" type="Button" parent="Layout/TopBar"]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Copy the drawing's JSON to the clipboard"
+text = "Dump JSON"
+
+[node name="LoadButton" type="Button" parent="Layout/TopBar"]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Load a drawing from JSON on the clipboard"
+text = "Load JSON"
+
+[node name="Canvas" parent="Layout" instance=ExtResource("2_canvas")]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="Toast" parent="." instance=ExtResource("3_toast")]
+unique_name_in_owner = true

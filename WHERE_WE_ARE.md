@@ -2,16 +2,19 @@
 
 **Purpose:** Single source of truth for project status and session continuity. Any developer or AI can read this to understand the current state and resume work seamlessly.
 
-**Last Updated:** 2026-07-04 (initialization session)
-**Total Sessions:** 1
+**Last Updated:** 2026-07-06 (session 2, in progress — continuous multi-chunk session per decision log)
+**Total Sessions:** 2 (session 2 in progress)
 
 ---
 
 ## Current Status
 
-**Active Slice:** Slice 0: Skeleton (not started — next session is Chunk 1)
-**Current Objective:** Implement the Skeleton per `TDD/00-skeleton-build-guide.md`
+**Active Slice:** Slice 2: Lobby & Session Roster
+**Current Objective:** Implement Slice 2 per `TDD/02-lobby-session-roster.md`
 **Blockers:** None
+**Pending owner confirmations (batched for session end):**
+- Slice 0: windowed two-instance playtest via `tools/dev_run.sh`
+- Slice 1: drawing feel; fill + replay correctness in the Canvas Sandbox (debug menu); batchable UI list in its implementation notes
 
 ---
 
@@ -19,8 +22,9 @@
 
 | Document | Path | Notes |
 |----------|------|-------|
-| Skeleton TDD | `TDD/00-skeleton-build-guide.md` | Foundation architecture — Chunk 1 |
-| Current Slice TDD | `TDD/00-skeleton-build-guide.md` | Active implementation guide |
+| Skeleton TDD | `TDD/00-skeleton-build-guide.md` | Implemented — see implementation notes |
+| Skeleton Implementation Notes | `TDD/00-skeleton-implementation-notes.md` | What was actually built + deviations |
+| Current Slice TDD | `TDD/02-lobby-session-roster.md` | Active implementation guide |
 | Consistency Guide | `TDD/consistency-guide.md` | Patterns and standards — read before coding |
 | Recipe | `TDD/recipe.md` | Approved project contract |
 | Overview + Chunk Plan | `TDD/overview-of-slices.md` | Slice deps + 18-chunk session plan |
@@ -36,22 +40,20 @@
 
 | Slice | Name | Completed | Notes |
 |-------|------|-----------|-------|
-| — | (none yet — documentation phase complete) | | |
+| 0 | Skeleton | 2026-07-06 | Implementation complete, 32/32 tests green, 3-platform exports build, automated connect gate PASS. **Pending owner playtest** (batched) |
+| 1 | Drawing Canvas & Stroke Engine | 2026-07-06 | Implementation complete (both parts), 89 total tests green incl. 6 baked goldens. **Pending owner playtest** (batched) |
 
 ### In Progress
 
 | Slice | Name | Started | Status | % Complete |
 |-------|------|---------|--------|------------|
-| — | — | — | — | — |
+| 2 | Lobby & Session Roster | 2026-07-06 | Starting | 0% |
 
 ### Upcoming (see chunk plan in overview-of-slices.md)
 
 | Slice | Name | Dependencies | Priority |
 |-------|------|--------------|----------|
-| 0 | Skeleton | None | **Next (Chunk 1)** |
-| 1 | Drawing Canvas & Stroke Engine | 0 | Chunks 2–3 |
-| 2 | Lobby & Session Roster | 0 | Chunk 4 |
-| 3 | Core Round Loop → playable MVP | 1, 2 | Chunks 5–6 |
+| 3 | Core Round Loop → playable MVP | 1, 2 | This session |
 
 ---
 
@@ -65,15 +67,14 @@
 
 ## Next Steps
 
-**Immediate (Next Session — Chunk 1: Skeleton):**
-1. Session Start workflow: read this file fully, then `TDD/00-skeleton-build-guide.md` fully, then consistency guide Quick Reference
-2. Create the Godot 4.6 project + folder structure + GdUnit4
-3. Implement core autoloads (EventBus, Platform+EnetBackend, Net, Save, Nav), constants, TextFilter, theme, dev launch script
-4. Tests + owner confirmation: two local instances connect
+**Immediate (this session, in order):**
+1. Slice 1 Part 1: stroke model, palette, DocRasterizer + goldens, DrawingCanvas, toolbar/palette UI, sandbox screen, serialization tests
+2. Slice 1 Part 2: bucket fill, rotate, ReplayPlayer, save-toggle stub, determinism goldens
+3. Slice 2: lobby & roster (Session autoload, registration/chat/settings RPCs, lobby screen)
+4. Slice 3: core round loop (headless state machine + content, then phase screens) → playable MVP
+5. Session end: batched playtest checklist, session log, owner check-in
 
-**After Current Objective:**
-- Chunk 2: Canvas part 1 (stroke model, brush, palette, undo/clear, serialization)
-- Chunk 3: Canvas part 2 (fill, rotate, replay) → Slice 1 complete
+**After this session:** owner playtests the batched checklist; then Slice 4 (reactions/kudos) per chunk plan.
 
 ---
 

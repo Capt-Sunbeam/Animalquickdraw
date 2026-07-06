@@ -12,6 +12,42 @@
 
 ---
 
+### Slice 1: palette hex values + raster implementation choices
+**Date:** 2026-07-06 | **Slice:** 1 | **Type:** Quick
+
+**Decision:**
+- **Palette values chosen** (append-only from here on): family 0 greyscale white→black; families 1–11 red/orange/yellow/green/teal/blue/navy/purple/pink/brown/tan, 5 shades each, base = middle shade. Exact hex in `core/constants/palette.gd`. Default brush color = index 4 (black).
+- **Fill implementation:** scanline fill over a `PackedInt32Array` pixel view (per-pixel GDScript Image access blows the 50 ms budget ~10×). Pixel-identical to the spec'd rule; LE byte order on all targets.
+- **Circle stamps:** row-span `fill_rect` form of the same `dx²+dy²≤r²` rule (pixel-identical, ~30× fewer native calls).
+- **Golden baking:** done by temporarily printing hashes inside the GdUnit suite (standalone `-s` scripts can't resolve project class names). Six goldens baked on macOS arm64 / Godot 4.6.stable; cross-platform verification note: re-run the golden suite on Windows/Linux when those become available (expected identical — CPU integer/IEEE math only).
+- Parts 1+2 built in one pass (continuous session); the interim "fill/rotate disabled" toolbar state was never shipped.
+
+**Context:** Slice 1 implementation. All contracts (DrawingDoc format, DocRasterizer/ReplayPlayer APIs, canvas signals) match the TDD verbatim.
+
+---
+
+### Skeleton toolchain pins & export settings
+**Date:** 2026-07-06 | **Slice:** 0 | **Type:** Quick
+
+**Decision:**
+- **Godot:** 4.6.stable.official.89cea1439 (Homebrew). **GdUnit4:** v6.1.3, vendored from `godot-gdunit-labs/gdUnit4` into `addons/gdUnit4`.
+- **Test command:** `godot --headless --path . -s addons/gdUnit4/bin/GdUnitCmdTool.gd --ignoreHeadlessMode -a tests/` (flag mandatory; consistency guide §9 updated).
+- `rendering/textures/vram_compression/import_etc2_astc=true` (required for macOS arm64/universal export).
+- `config/version` must be plain dotted-numeric (`0.1.0`) — Windows export rejects suffixes like `-dev`. Slice 15's `APP_VERSION` scheme stays plain semver.
+
+**Context:** Skeleton chunk installation and export verification. Debug exports for all three OSes build clean from CLI; export templates 4.6.stable were already installed.
+
+---
+
+### Session 2 pacing: continuous multi-chunk session, playtest gates batched
+**Date:** 2026-07-06 | **Slice:** 0–3 | **Type:** Quick
+
+**Decision:** This session implements Skeleton + Slices 1–3 end-to-end without per-chunk stops (owner directive, overriding the one-chunk-per-session default for this session only). Blocking playtest gates are handled as: (a) automated equivalents where machine-verifiable (e.g. `tools/verify_connect.sh` for the two-instance ENet gate; scripted loopback round tests for the MVP gate), and (b) a single batched owner-playtest checklist at session end. Slices are documented as "implementation complete — pending owner confirmation," never COMPLETE, until the owner confirms (per testing-protocol deferred-testing rules). Owner checks in after Slice 3 to decide whether to continue or reset context.
+
+**Context:** Owner explicitly requested compressing multiple chunks into one session ("complete the skeleton and multiple slices... continue onto the next slice instead of stopping"). Documentation cadence (implementation notes + WHERE_WE_ARE per slice) is unchanged. Git is owner-managed; the AI never commits.
+
+---
+
 ### TDD drafting reconciliation — contract refinements & judgment calls
 **Date:** 2026-07-04 | **Slice:** Multiple | **Type:** Quick
 

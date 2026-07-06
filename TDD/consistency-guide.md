@@ -276,9 +276,11 @@ func test_judge_no_pick_applies_minus_one() -> void:
     assert_int(scoring.get_score("judge_id")).is_equal(-1)
 ```
 
-**Commands** (from project root):
-- All tests: `godot --headless -s addons/gdUnit4/bin/GdUnitCmdTool.gd -a tests/`  *(exact invocation confirmed in Skeleton chunk; record deviations in implementation notes)*
-- Single suite: append `-a tests/game/session/test_scoring.gd`
+**Commands** (from project root — confirmed in Skeleton chunk, 2026-07-06):
+- All tests: `godot --headless --path . -s addons/gdUnit4/bin/GdUnitCmdTool.gd --ignoreHeadlessMode -a tests/`
+- Single suite: same command with `-a tests/game/session/test_scoring.gd`
+- `--ignoreHeadlessMode` is required (GdUnit4 6.1.3 refuses headless otherwise); fine for logic tests — UI input simulation is unreliable headless, which is why UI coverage is scene *smoke* tests + owner playtests.
+- GdUnit4 writes `reports/` at the project root (gitignored).
 
 **What must be tested** (per Testing Protocol coverage table):
 - All `game/` logic: scoring, kudos math, pool draws/no-repeat, rotation, state transitions, serialization round-trips — target 80%+.
