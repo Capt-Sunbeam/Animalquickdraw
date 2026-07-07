@@ -120,3 +120,98 @@ func test_builtin_content_has_no_empty_or_duplicate_words() -> void:
 					.override_failure_message("duplicate word '%s' in %s" % [word, pool_file])\
 					.is_false()
 			seen[word] = true
+
+
+# --- Slice 7: custom sources, without-replacement draws, silent backfill ---
+
+
+func _custom_animal_words(n: int) -> PackedStringArray:
+	var words := PackedStringArray()
+	for i: int in range(n):
+		words.append("beast%02d" % i)
+	return words
+
+
+func test_custom_draw_without_replacement_consumes_words() -> void:
+	var pools: PromptPools = _fixture_pools()
+	var type: PoolType = pools.get_type("animal_adjective")
+	pools.set_custom_source("animals", PackedStringArray(["heron", "newt"]))
+	pools.set_custom_source("adjectives", PackedStringArray(["shiny", "bored"]))
+	var seen_animals: Dictionary = {}
+	for i: int in range(2):
+		var prompt: Prompt = pools.draw_prompt(type)
+		seen_animals[prompt.parts[1]] = true
+	# Both custom animals drawn exactly once; both lists fully consumed.
+	assert_array(seen_animals.keys()).contains_exactly_in_any_order(["heron", "newt"])
+	assert_int((pools._custom_sources["animals"] as Array).size()).is_equal(0)
+	assert_int((pools._custom_sources["adjectives"] as Array).size()).is_equal(0)
+
+
+func test_surplus_words_never_drawn() -> void:
+	# 16 custom words, 14 draws -> exactly 2 custom words remain undrawn (§8).
+	var pools: PromptPools = _fixture_pools()
+	var type: PoolType = pools.get_type("animal_adjective")
+	pools.set_custom_source("animals", _custom_animal_words(16))
+	var adjectives := PackedStringArray()
+	for i: int in range(16):
+		adjectives.append("adj%02d" % i)
+	pools.set_custom_source("adjectives", adjectives)
+	for i: int in range(14):
+		pools.draw_prompt(type)
+	assert_int((pools._custom_sources["animals"] as Array).size()).is_equal(2)
+	assert_int((pools._custom_sources["adjectives"] as Array).size()).is_equal(2)
+
+
+func test_backfill_from_builtin_when_custom_exhausted() -> void:
+	var pools: PromptPools = _fixture_pools()
+	var type: PoolType = pools.get_type("animal_adjective")
+	pools.set_custom_source("animals", PackedStringArray(["heron"]))
+	pools.set_custom_source("adjectives", PackedStringArray(["shiny"]))
+	var first: Prompt = pools.draw_prompt(type)
+	assert_str(first.parts[0]).is_equal("shiny")
+	assert_str(first.parts[1]).is_equal("heron")
+	# Custom exhausted: the next draw silently comes from the built-in
+	# fixture pools - a valid prompt, indistinguishable in shape.
+	var second: Prompt = pools.draw_prompt(type)
+	assert_array(["sleepy", "grumpy"]).contains([second.parts[0]])
+	assert_array(["cat", "dog"]).contains([second.parts[1]])
+
+
+func test_backfill_is_silent_no_marker_in_prompt() -> void:
+	var pools: PromptPools = _fixture_pools()
+	var type: PoolType = pools.get_type("animal_adjective")
+	pools.set_custom_source("animals", PackedStringArray([]))   # instantly short
+	var prompt: Prompt = pools.draw_prompt(type)
+	# Prompt carries no source field by construction - assert the whole
+	# public surface so a future "backfilled" flag would fail here.
+	assert_str(prompt.pool_type_id).is_equal("animal_adjective")
+	assert_int(prompt.parts.size()).is_equal(2)
+	assert_str(prompt.display_text).is_not_empty()
+	assert_str(prompt.combo_key).is_not_empty()
+	var props: Array[String] = []
+	for p: Dictionary in prompt.get_property_list():
+		if int(p["usage"]) & PROPERTY_USAGE_SCRIPT_VARIABLE:
+			props.append(str(p["name"]))
+	assert_array(props).contains_exactly_in_any_order(
+			["pool_type_id", "parts", "display_text", "combo_key"])
+
+
+func test_combo_no_repeat_across_custom_and_backfill_mix() -> void:
+	var pools: PromptPools = _fixture_pools()
+	var type: PoolType = pools.get_type("animal_adjective")
+	# One custom word per pool: draw 1 is fully custom, draw 2 is fully
+	# backfilled - the no-repeat guard must span both regimes.
+	pools.set_custom_source("animals", PackedStringArray(["cat"]))
+	pools.set_custom_source("adjectives", PackedStringArray(["sleepy"]))
+	var keys: Dictionary = {}
+	for i: int in range(3):   # 1 custom + 2 backfilled (4-combo space)
+		var prompt: Prompt = pools.draw_prompt(type)
+		assert_bool(keys.has(prompt.combo_key)).is_false()
+		keys[prompt.combo_key] = true
+
+
+func test_load_from_clears_custom_sources() -> void:
+	var pools: PromptPools = _fixture_pools()
+	pools.set_custom_source("animals", PackedStringArray(["heron"]))
+	pools.load_from(FIXTURE_DIR)
+	assert_bool(pools._custom_sources.is_empty()).is_true()

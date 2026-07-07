@@ -30,6 +30,7 @@ func load_builtin() -> void:
 func load_from(dir: String) -> void:
 	_pools.clear()
 	_types.clear()
+	_custom_sources.clear()
 	_drawn_combo_keys.clear()
 	var types_raw: Dictionary = _read_json(dir.path_join(POOL_TYPES_FILE))
 	for raw: Variant in types_raw.get("types", []):
@@ -71,11 +72,12 @@ func pool_size(pool_id: String) -> int:
 	return words.size()
 
 
-## Slice 7 extension point: injects a session-scoped custom word list
-## consumed before the built-in list (draw-without-replacement + silent
-## backfill semantics are defined in Slice 7 - stored but unused here).
+## Slice 7: injects a session-scoped custom word list consumed BEFORE the
+## built-in list. Custom words draw without replacement (each at most once;
+## surplus goes undrawn, §8); an exhausted/short custom pool silently
+## backfills from the built-in pool at draw time.
 func set_custom_source(pool_id: String, words: PackedStringArray) -> void:
-	_custom_sources[pool_id] = words
+	_custom_sources[pool_id] = Array(words)   # mutable - draws consume it
 
 
 ## Draws through the type, retrying on exact-combo repeats. On exhaustion,
@@ -96,10 +98,49 @@ func draw_prompt(type: PoolType) -> Prompt:
 func _compose(type: PoolType) -> Prompt:
 	var parts := PackedStringArray()
 	for d: Dictionary in type.draws:
-		var words: PackedStringArray = _pools.get(str(d["pool"]), PackedStringArray())
+		var pool_id: String = str(d["pool"])
 		var count: int = int(d["count"])
-		parts.append_array(_sample_without_replacement(words, count))
+		if (_custom_sources.get(pool_id, []) as Array).is_empty():
+			# Built-in path, byte-identical to Slice 3 (seeded-RNG contract).
+			var words: PackedStringArray = _pools.get(pool_id, PackedStringArray())
+			parts.append_array(_sample_without_replacement(words, count))
+		else:
+			parts.append_array(_draw_custom(pool_id, count))
 	return Prompt.make(type, parts)
+
+
+## Slice 7: consume custom words without replacement; any shortfall within
+## this draw spec silently backfills from the built-in pool (§8). NO
+## player-visible signal, log line, or payload marker - dev print only.
+func _draw_custom(pool_id: String, count: int) -> PackedStringArray:
+	var picked := PackedStringArray()
+	var custom: Array = _custom_sources.get(pool_id, [])
+	for n: int in range(count):
+		if not custom.is_empty():
+			picked.append(str(custom.pop_at(rng.randi_range(0, custom.size() - 1))))
+		else:
+			print_verbose("PromptPools: custom pool '%s' short; built-in backfill" % pool_id)
+			picked.append_array(_sample_builtin_excluding(pool_id, 1, picked))
+	return picked
+
+
+## One built-in word avoiding within-prompt duplicates (bounded retries -
+## never stall the round, cg §7).
+func _sample_builtin_excluding(pool_id: String, count: int,
+		exclude: PackedStringArray) -> PackedStringArray:
+	var words: PackedStringArray = _pools.get(pool_id, PackedStringArray())
+	var picked := PackedStringArray()
+	if words.is_empty():
+		push_error("PromptPools: backfill from empty built-in pool '%s'" % pool_id)
+		return picked
+	for n: int in range(count):
+		var choice: String = words[rng.randi_range(0, words.size() - 1)]
+		for attempt: int in range(GameConstants.COMBO_REPEAT_MAX_ATTEMPTS):
+			if not exclude.has(choice) and not picked.has(choice):
+				break
+			choice = words[rng.randi_range(0, words.size() - 1)]
+		picked.append(choice)
+	return picked
 
 
 ## Distinct words within one draw spec ("cat-cat hybrid" is not a prompt).

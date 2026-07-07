@@ -21,6 +21,14 @@ signal reveal_beat_started(index: int, drawing_id: String, beat_secs: float)
 ## Slice 5: all beats done - clients gather cards into the grid; JUDGING
 ## opens when the gather budget elapses.
 signal reveal_gather_started(gather_secs: float)
+## Slice 7: pool-setup submission progress changed; SessionClient broadcasts
+## it via rpc_sync_pool_setup_progress. Entries carry display_name resolved
+## from the roster (§3 payload + names for the waiting panel).
+signal pool_setup_progress_changed(progress: Array)
+## Slice 7: an eligible sender's pool submission failed honest validation;
+## SessionClient relays the reason to that peer alone. Drop-tier failures
+## (unknown sender/pool, post-lock) never emit.
+signal pool_words_rejected(player_id: String, pool_id: String, reason: int)
 
 ## Public so tests can seed deterministic shuffles/draws.
 var rng: RandomNumberGenerator = RandomNumberGenerator.new()
@@ -55,6 +63,10 @@ var _session_stats: SessionStats
 
 # Slice 5: reveal choreography plan for the current round (host-only).
 var _reveal_director: RevealDirector = null
+
+# Slice 7: player-created pool collection (host-only, session-scoped).
+var _collector: CustomPoolCollector = null
+var _pool_setup_force_at_ms: int = 0   # host force-continue unlock time
 
 
 func _init(settings: GameSettings, roster: Roster, now_ms: Callable = Callable()) -> void:
@@ -184,6 +196,53 @@ func pick_winner(player_id: String, drawing_id: String) -> bool:
 	return true
 
 
+## Slice 7: shared validated entry point for pool-word submissions - the RPC
+## handler and the host's own UI both call this (5-step steps 3-4). Returns
+## NetIds.WordRejectReason (NONE = accepted). Emits pool_words_rejected only
+## for honest validation failures from eligible senders; drop-tier input
+## (wrong phase, unknown sender/pool, post-lock) is silently ignored (§5).
+func submit_pool_words(player_id: String, pool_id: String,
+		words: PackedStringArray) -> int:
+	if _phase != NetIds.Phase.POOL_SETUP or _collector == null:
+		return NetIds.WordRejectReason.LOCKED   # game moved on - drop
+	var result: int = _collector.submit(player_id, pool_id, words)
+	if result != NetIds.WordRejectReason.NONE:
+		if result != NetIds.WordRejectReason.LOCKED \
+				and _collector.eligible_player_ids.has(player_id) \
+				and _collector.pool_ids.has(pool_id):
+			pool_words_rejected.emit(player_id, pool_id, result)
+		return result
+	pool_setup_progress_changed.emit(pool_setup_progress())
+	if _collector.is_complete():
+		_lock_pools_and_start()
+	return result
+
+
+## Slice 7: host force-continue - time-gated escape hatch (§10: a stuck
+## waiting screen with a visible host escape beats any automatic guess).
+## The is_server() guard lives in SessionClient; missing shares are NOT
+## synthesized - shortfall is covered lazily by silent backfill at draw time.
+func force_lock_pools() -> bool:
+	if _phase != NetIds.Phase.POOL_SETUP or _collector == null:
+		return false
+	if int(_now_ms.call()) < _pool_setup_force_at_ms:
+		return false
+	_lock_pools_and_start()
+	return true
+
+
+## Slice 7: §3 progress payload with display names resolved from the roster.
+func pool_setup_progress() -> Array:
+	if _collector == null:
+		return []
+	var out: Array = _collector.progress()
+	for entry: Dictionary in out:
+		var player: Roster.PlayerState = _roster.get_by_platform_id(
+				str(entry["player_id"]))
+		entry["display_name"] = player.display_name if player != null else "?"
+	return out
+
+
 ## Slice 4: reaction toggle. Shared validated entry point - the RPC handler
 ## and the host's own UI both call this (5-step steps 3-4; steps 1-2 live in
 ## SessionClient). Returns false on any invalid/no-op request (drop, never
@@ -261,10 +320,43 @@ func resume() -> void:
 # --- Internal transitions (host timer / early triggers) ---
 
 
+## Slice 7: enters the word-submission phase. NO deadline timer is armed -
+## the phase ends by completion or host force-continue, never by clock.
 func _enter_pool_setup() -> void:
-	# Slice 7 replaces this body with the word-submission phase; the hook
-	# exists now so the branch point is stable.
 	pool_setup_entered = true
+	_collector = CustomPoolCollector.new()
+	_collector.share_per_player = CustomPoolCollector.compute_share(
+			_settings.round_count, _judge_order.size())
+	var ids := PackedStringArray()
+	for d: Dictionary in _pool_type.draws:
+		var pool_id: String = str(d["pool"])
+		if not ids.has(pool_id):
+			ids.append(pool_id)   # derived from PoolType.draws - future types free
+	_collector.pool_ids = ids
+	# Roster snapshot at Start: late joiners are never added (§8 pool lock).
+	_collector.eligible_player_ids = PackedStringArray(_judge_order)
+	_pool_setup_force_at_ms = int(_now_ms.call()) \
+			+ int(GameConstants.POOL_SETUP_FORCE_AVAILABLE_SEC * 1000.0)
+	var display_names: Dictionary = {}
+	for pool_id: String in ids:
+		display_names[pool_id] = pool_id.capitalize()
+	_enter_phase(NetIds.Phase.POOL_SETUP, 0.0, {
+		"share_per_player": _collector.share_per_player,
+		"pool_ids": ids,
+		"pool_display_names": display_names,
+		"force_available_at_ms": _pool_setup_force_at_ms,
+	})
+
+
+## Slice 7: hands the collected words to PromptPools and starts round 0.
+## Idempotent under the final-submission/force-continue race (§10): locking
+## is checked-and-set once; the loser of the race finds locked == true.
+func _lock_pools_and_start() -> void:
+	if _collector == null or _collector.locked:
+		return
+	_collector.locked = true
+	for pool_id: String in _collector.pool_ids:
+		_pools.set_custom_source(pool_id, _collector.collected_words(pool_id))
 	_begin_round(0)
 
 

@@ -2,17 +2,17 @@
 
 **Purpose:** Single source of truth for project status and session continuity. Any developer or AI can read this to understand the current state and resume work seamlessly.
 
-**Last Updated:** 2026-07-07 (mid-session 5 — fixes confirmed, Slice 7 cleared to start)
-**Total Sessions:** 5 (session 5 in progress)
+**Last Updated:** 2026-07-07 (end of session 5)
+**Total Sessions:** 5
 
 ---
 
 ## Current Status
 
-**Active Slice:** Slice 7: Player-Created Prompt Pools (cleared to start — awaiting owner go-ahead, Chunk 10)
-**Current Objective:** Implement Slice 7 per `TDD/07-player-created-pools.md` (full TDD already read this session). All session-4 deferred checks and both session-5 fix batches are owner-confirmed (2026-07-07); no blocking checks remain
+**Active Slice:** None — next up: **in-image text tool** (owner-scheduled captions replacement, needs a design/mini-TDD first), then Slice 9: Connectivity & Resilience (Chunk 12)
+**Current Objective:** Session 6 opens with the text-tool design + implementation (decision log 2026-07-07 has the design direction), then Slice 9 per `TDD/09-connectivity-resilience.md`
 **Blockers:** None
-**Pending owner confirmations:** None blocking. One deferral: caption entry box still appears for hosts whose saved profile predates the captions-off default (root cause + workaround in qa-backlog) — resolves with the in-image text tool
+**Pending owner confirmations (all owner-deferred to the end-of-content QA pass):** Slice 7 force-continue blocking check (qa-backlog top section); Slice 7 + 8 batchable lists; caption entry box leftover for pre-2026-07-07 host profiles (root cause + workaround in qa-backlog)
 
 ---
 
@@ -22,7 +22,9 @@
 |----------|------|-------|
 | Skeleton TDD | `TDD/00-skeleton-build-guide.md` | Implemented — see implementation notes |
 | Skeleton Implementation Notes | `TDD/00-skeleton-implementation-notes.md` | What was actually built + deviations |
-| Current Slice TDD | `TDD/07-player-created-pools.md` | Next implementation guide (Chunk 10) |
+| Next Slice TDD | `TDD/09-connectivity-resilience.md` | After the text tool (Chunk 12) |
+| Slice 7 Implementation Notes | `TDD/07-player-created-pools-implementation-notes.md` | What was actually built + deviations (enum NONE, signal-routed rejections, branch draws) |
+| Slice 8 Implementation Notes | `TDD/08-collection-browser-export-implementation-notes.md` | What was actually built + deviations (Slice 4 reality adaptations, atomic write_png) |
 | Slice 4 Implementation Notes | `TDD/04-reactions-kudos-saving-implementation-notes.md` | What was actually built + deviations (incl. RAM-incident lesson) |
 | Slice 5 Implementation Notes | `TDD/05-reveal-styles-replay-implementation-notes.md` | Stage-in-screen reveal, duration-based replay settings, caption pipeline |
 | Slice 6 Implementation Notes | `TDD/06-game-modes-settings-implementation-notes.md` | Settings surface, snapshot object, presets, Esc menu + pause |
@@ -32,7 +34,7 @@
 | Consistency Guide | `TDD/consistency-guide.md` | Patterns and standards — read before coding |
 | Recipe | `TDD/recipe.md` | Approved project contract |
 | Overview + Chunk Plan | `TDD/overview-of-slices.md` | Slice deps + 18-chunk session plan |
-| Latest Session Log | `TDD/logs/2026-07-06-session-4.md` | Slices 4+5+6 built + gated; RAM incident post-mortem; owner feedback loop on reveals |
+| Latest Session Log | `TDD/logs/2026-07-07-session-5.md` | Deferred checks cleared; 2 fix batches (latched judging, chat rework, kudos rematch bug, pause timers); Slices 7+8 built + confirmed |
 | Decision Log | `TDD/decision-log.md` | Tech stack + pacing decisions |
 | Design Brief | `game-design-brief.md` | Authoritative game spec (§1–§15) |
 
@@ -51,6 +53,8 @@
 | 4 | Reactions, Kudos & Saving | 2026-07-06 | **COMPLETE (owner-confirmed 2026-07-07)** — kudos + reactions human-checked in session 5; rematch kudos-staleness bug found + fixed same session (decision log 2026-07-07); extended `verify_round.sh` PASS |
 | 5 | Reveal Styles & Replay | 2026-07-06 | **COMPLETE (owner-confirmed 2026-07-07)** — victory-lap replay + emoji legibility confirmed; grid social-row alignment refixed in session 5; captions retired (off everywhere; in-image text tool scheduled after Slices 7+8) |
 | 6 | Game Modes & Settings + Esc menu/pause | 2026-07-06 | **COMPLETE (owner-confirmed 2026-07-07)** — preset lock, client mirror, Esc/pause all human-checked; pause now also freezes visible countdowns (session-5 fix) |
+| 7 | Player-Created Prompt Pools | 2026-07-07 | **COMPLETE (core-confirmed)** — owner confirmed the full flow on 3 instances (submission screen → submits → player words used in game); force-continue human check + detail items → qa-backlog; 329 tests green (+33); both gates PASS |
+| 8 | Collection Browser & Export | 2026-07-07 | **COMPLETE (export-confirmed)** — owner verified the exported PNG externally ("works great") + Share reveal; batchable items → qa-backlog; 350 tests green (+21) |
 
 ### In Progress
 
@@ -62,8 +66,8 @@
 
 | Slice | Name | Dependencies | Priority |
 |-------|------|--------------|----------|
-| 7 | Player-Created Prompt Pools | 3 | **Next (Chunk 10)** |
-| 8 | Collection Browser & Export | 1, 4 | Chunk 11 |
+| — | In-image text tool (captions replacement — owner 2026-07-07) | 1, 3, 5 | **Next (first item, session 6)** — design/mini-TDD first |
+| 9 | Connectivity & Resilience | 2, 3 | Chunk 12, after the text tool |
 
 ---
 
@@ -71,7 +75,7 @@
 
 | Date | Session | Summary | Status |
 |------|---------|---------|--------|
-| 2026-07-06/07 | #5 | Session-4 deferred checks cleared (all pass) + two owner-directed fix batches: latched click-to-pick judging (no crown button, timer crowns), chat side-placement + explicit 💬 toggle (hover-expand removed) + adaptive prominent height, fixed-shape grid social rows, kudos rematch-staleness bug fix (roster rebroadcast at sim start), pause now freezes local timers, captions off everywhere (text tool scheduled). 296 tests green; `verify_round.sh` PASS. All fixes owner-confirmed 2026-07-07. Slice 7 next | In progress |
+| 2026-07-06/07 | #5 | Session-4 deferred checks cleared + two owner-directed fix batches (latched click-to-pick judging, chat toggle/side-placement/adaptive sizing, fixed-shape social rows, kudos rematch-staleness bug fix, pause freezes timers, captions retired). **Slices 7 + 8 implemented, documented, owner-confirmed** (pool submission flow; export verified externally). 287 → 350 tests green; gates PASS. Text tool scheduled as session 6's first item | Completed |
 | 2026-07-06 | #4 | Slices 4+5+6 implemented and documented: reactions/kudos/collection saves, reveal styles + replays + captions + victory lap, presets/Custom settings + frozen snapshot, Esc menu with host pause. 287 tests green; extended gates PASS. Owner playtested the reveal live (4 fixes applied, incl. duration-based replay settings); all other human checks deferred to the qa-backlog. Incident: CI driver used an ENet peer id as a loop bound → ~80 GB RAM crash; root-caused, fixed, guarded wrapper adopted for gate runs | Completed |
 | 2026-07-06 | #3 | Slices 2+3 implemented, documented, and core-confirmed → **playable MVP on LAN**. 178 tests green; automated 3-instance gates (`verify_lobby.sh`, `verify_round.sh`) PASS. New QA process: core-flow sign-offs + `TDD/qa-backlog.md` for deferred detail QA. Design gap logged: no in-game pause/leave menu | Completed |
 | 2026-07-06 | #2 | Slices 0+1 implemented and playtested: skeleton (5 autoloads, tests, exports, connect gate owner-confirmed → COMPLETE), full canvas/stroke engine (goldens, replay, sandbox), palette picker redesigned from owner playtest feedback. 102 tests green | Completed |
@@ -81,11 +85,11 @@
 
 ## Next Steps
 
-**Immediate (Session 5 continues — Chunk 10: Slice 7 Player-Created Prompt Pools, then Slice 8):**
-1. Slice 7 on owner go-ahead (TDD read in full this session): headless core first (`CustomPoolCollector` share math → `PromptPools` custom draw/backfill → `GameSession` phase wiring → RPCs → `pool_setup_screen`), test-alongside
-2. Slice 7 touchpoints already in place: `pool_source` setting (lobby option currently "(coming soon)" — enable it), `GameSettings.validate_for_start` hook (stub ready), inert `POOL_SETUP` phase branch in `GameSession` (`pool_setup_entered` observable), share math off `round_count`
-3. Then Slice 8 (Collection Browser & Export — Chunk 11); then the **in-image text tool** (owner, 2026-07-07: replaces captions; after Slices 7+8 if budget allows, else first next session)
-4. Slice 5/6 reality notes: replay settings are TARGET DURATIONS (`reveal_replay_secs`/`winner_replay_secs`); in-game reads use `Session.game_settings` (frozen snapshot), never lobby settings; `judging_window_sec` is a setting (default 25 s). **New (session 5):** judging never ends early — picks are latched, the deadline crowns; chat placement/prominence are per-phase-screen properties (`chat_placement()`/`chat_prominence()`); captions default OFF (owner profiles saved before 2026-07-07 may restore them ON — see qa-backlog deferral)
+**Immediate (Next Session — Session 6):**
+1. Session Start workflow: read this file fully, then consistency guide Quick Reference
+2. **First: the in-image text tool** (owner, 2026-07-07 — replaces captions). No TDD exists: draft a design/mini-TDD, get owner approval, then implement. Design direction (decision log 2026-07-07): TEXT op in the DrawingDoc v1 format; **bitmap-font glyph-atlas rendering** so CPU raster stays deterministic cross-platform (no OS font rasterization); host-side `TextFilter` on text content at submission; canvas placement UI (paint-editor-style text box). Scope includes REMOVING the caption pipeline (caption_input, `comments_enabled` setting + presets row, cell/stage caption rendering, the profile-restore leftover in qa-backlog)
+3. Then Slice 9: Connectivity & Resilience (Chunk 12) — read its FULL TDD; `CustomPoolCollector.mark_departed()` extension point is ready for it
+4. Reality notes: replay settings are TARGET DURATIONS; in-game reads use `Session.game_settings` (frozen snapshot); `judging_window_sec` setting (default 25 s); judging never ends early (latched picks, deadline crowns); chat placement/prominence are per-phase-screen properties (`chat_placement()`/`chat_prominence()`); captions default OFF (pre-2026-07-07 host profiles may restore ON — qa-backlog); POOL_SETUP has no phase clock (pause is a no-op there); `CollectionStore` read surface + `Save` PNG/`globalize` helpers exist (Slice 8) for future image work
 
 **Workflow gotchas:** run `godot --headless --path . --import` after creating new class_name scripts, before tests; test command needs `--ignoreHeadlessMode`; `Session` autoload = `game/session/session_manager.gd` (NOT game_session.gd — that's the host-only sim); settings field is `round_count`, not `rounds`; `SessionClient.rpc_sync_phase` emits specific EventBus signals BEFORE `phase_changed` (ordering contract); automated gates: `tools/verify_lobby.sh` (~15 s) and `tools/verify_round.sh` (~90 s — waits out a real judging window + reveal beats). **Run gates through a guarded wrapper: redirect all output to a file, poll godot RSS and kill above ~3 GB, hard wall-clock cap (the session-4 scratchpad `safe_verify_round.sh` did exactly this — recreate it; scratchpads don't persist). NEVER use ENet peer ids as loop bounds/sizes (random 32-bit ints; caused the 2026-07-06 ~80 GB RAM crash).** Manual playtests: `tools/dev_run.sh 3` launches 3 windowed instances.
 

@@ -49,6 +49,11 @@ unique_name_in_owner = true
 layout_mode = 2
 text = "Join (dev)"
 
+[node name="CollectionButton" type="Button" parent="CenterContainer/MenuBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Collection"
+
 [node name="SandboxButton" type="Button" parent="CenterContainer/MenuBox"]
 unique_name_in_owner = true
 layout_mode = 2

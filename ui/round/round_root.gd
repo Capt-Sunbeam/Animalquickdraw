@@ -8,6 +8,7 @@ extends Control
 const DRAW_SCREEN: String = "res://ui/round/draw_screen.tscn"
 const JUDGE_WAIT_SCREEN: String = "res://ui/round/judge_wait_screen.tscn"
 const PHASE_SCREENS: Dictionary = {
+	NetIds.Phase.POOL_SETUP: "res://ui/round/pool_setup_screen.tscn",
 	NetIds.Phase.ROUND_INTRO: "res://ui/round/round_intro_screen.tscn",
 	NetIds.Phase.REVEAL: "res://ui/round/reveal_judging_screen.tscn",
 	NetIds.Phase.JUDGING: "res://ui/round/reveal_judging_screen.tscn",

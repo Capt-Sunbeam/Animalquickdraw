@@ -134,12 +134,139 @@ func test_full_phase_sequence_intro_to_wrapup() -> void:
 	assert_bool(rig.results.is_empty()).is_false()
 
 
-func test_pool_setup_branch_taken_when_source_is_player_created() -> void:
-	var rig: Rig = _make_rig(3, 2, GameSettings.PoolSource.PLAYER_CREATED)
+# --- Slice 7: POOL_SETUP ---
+
+
+## Submits one full share to every pool for one player (all-valid words).
+func _submit_pool_share(rig: Rig, player_id: String) -> void:
+	var data: Dictionary = rig.last_data(NetIds.Phase.POOL_SETUP)
+	var share: int = int(data["share_per_player"])
+	for pool_id: String in data["pool_ids"]:
+		var words := PackedStringArray()
+		for i: int in range(share):
+			words.append("%s %s %d" % [player_id, pool_id, i])
+		assert_int(rig.session.submit_pool_words(player_id, pool_id, words))\
+				.is_equal(NetIds.WordRejectReason.NONE)
+
+
+func test_pool_setup_entered_with_player_created_source_and_no_deadline_timer() -> void:
+	var rig: Rig = _make_rig(4, 2, GameSettings.PoolSource.PLAYER_CREATED)
 	rig.session.start_game()
-	# Hook fires, then falls through to round 0 in this slice (Slice 7 fills it).
 	assert_bool(rig.session.pool_setup_entered).is_true()
+	assert_int(rig.session.get_phase()).is_equal(NetIds.Phase.POOL_SETUP)
+	# The phase has NO deadline - it ends by completion or host action only.
+	assert_int(rig.session.get_deadline_ms()).is_equal(0)
+	var data: Dictionary = rig.last_data(NetIds.Phase.POOL_SETUP)
+	assert_bool(data.has("deadline_ms")).is_false()
+	assert_int(int(data["share_per_player"])).is_equal(1)   # ceil(2/4)
+	assert_array(Array(data["pool_ids"]))\
+			.contains_exactly(["adjectives", "animals"])    # PoolType draw order
+	assert_that((data["pool_display_names"] as Dictionary)["animals"]).is_equal("Animals")
+	assert_int(int(data["force_available_at_ms"])).is_equal(
+			rig.clock.ms + int(GameConstants.POOL_SETUP_FORCE_AVAILABLE_SEC * 1000.0))
+
+
+func test_all_submitted_locks_and_begins_round_zero() -> void:
+	var rig: Rig = _make_rig(4, 2, GameSettings.PoolSource.PLAYER_CREATED)
+	rig.session.start_game()
+	var progress_events: Array = []
+	rig.session.pool_setup_progress_changed.connect(
+			func(p: Array) -> void: progress_events.append(p))
+	for pid: String in ["p0", "p1", "p2"]:
+		_submit_pool_share(rig, pid)
+	assert_int(rig.session.get_phase()).is_equal(NetIds.Phase.POOL_SETUP)
+	_submit_pool_share(rig, "p3")   # last share completes the phase
 	assert_int(rig.session.get_phase()).is_equal(NetIds.Phase.ROUND_INTRO)
+	assert_int(int(rig.last_data(NetIds.Phase.ROUND_INTRO)["round_index"])).is_equal(0)
+	# Progress broadcast fired per accepted submission (2 pools x 4 players),
+	# with display names resolved for the waiting panel.
+	assert_int(progress_events.size()).is_equal(8)
+	assert_str(str(((progress_events[0] as Array)[0] as Dictionary)["display_name"]))\
+			.is_equal("Player 0")
+	# Post-lock submissions are dropped (LOCKED tier - no rejection signal).
+	assert_int(rig.session.submit_pool_words("p0", "animals",
+			PackedStringArray(["late"]))).is_equal(NetIds.WordRejectReason.LOCKED)
+
+
+func test_rejection_signal_only_for_eligible_honest_failures() -> void:
+	var rig: Rig = _make_rig(4, 2, GameSettings.PoolSource.PLAYER_CREATED)
+	rig.session.start_game()
+	var rejections: Array = []
+	rig.session.pool_words_rejected.connect(
+			func(pid: String, pool: String, reason: int) -> void:
+				rejections.append({"pid": pid, "pool": pool, "reason": reason}))
+	# Honest failure from an eligible player: wrong word count -> signal.
+	rig.session.submit_pool_words("p0", "animals", PackedStringArray(["a", "b"]))
+	assert_int(rejections.size()).is_equal(1)
+	assert_that(rejections[0]).is_equal({"pid": "p0", "pool": "animals",
+			"reason": NetIds.WordRejectReason.WRONG_COUNT})
+	# Drop-tier: unknown sender and unknown pool emit nothing.
+	rig.session.submit_pool_words("stranger", "animals", PackedStringArray(["a"]))
+	rig.session.submit_pool_words("p0", "verbs", PackedStringArray(["a"]))
+	assert_int(rejections.size()).is_equal(1)
+
+
+func test_force_lock_rejected_before_unlock_time() -> void:
+	var rig: Rig = _make_rig(4, 2, GameSettings.PoolSource.PLAYER_CREATED)
+	rig.session.start_game()
+	rig.clock.advance(int(GameConstants.POOL_SETUP_FORCE_AVAILABLE_SEC * 1000.0) - 1)
+	assert_bool(rig.session.force_lock_pools()).is_false()
+	assert_int(rig.session.get_phase()).is_equal(NetIds.Phase.POOL_SETUP)
+
+
+func test_force_lock_after_unlock_starts_with_shortfall() -> void:
+	var rig: Rig = _make_rig(4, 2, GameSettings.PoolSource.PLAYER_CREATED)
+	rig.session.start_game()
+	_submit_pool_share(rig, "p0")   # only one player ever submits
+	rig.clock.advance(int(GameConstants.POOL_SETUP_FORCE_AVAILABLE_SEC * 1000.0) + 1)
+	assert_bool(rig.session.force_lock_pools()).is_true()
+	assert_int(rig.session.get_phase()).is_equal(NetIds.Phase.ROUND_INTRO)
+
+
+func test_lock_idempotent_under_submission_force_race() -> void:
+	var rig: Rig = _make_rig(4, 2, GameSettings.PoolSource.PLAYER_CREATED)
+	rig.session.start_game()
+	for pid: String in ["p0", "p1", "p2", "p3"]:
+		_submit_pool_share(rig, pid)   # completion locks + begins round 0
+	rig.clock.advance(int(GameConstants.POOL_SETUP_FORCE_AVAILABLE_SEC * 1000.0) + 1)
+	assert_bool(rig.session.force_lock_pools()).is_false()   # race loser drops
+	var intro_count: int = 0
+	for entry: Dictionary in rig.phases:
+		if int(entry["phase"]) == NetIds.Phase.ROUND_INTRO:
+			intro_count += 1
+	assert_int(intro_count).is_equal(1)   # _begin_round(0) ran exactly once
+
+
+func test_round_count_and_share_unchanged_by_roster_changes_during_setup() -> void:
+	# §8 pool lock: the declared round count and shares are snapshotted at
+	# Start; roster churn during POOL_SETUP (Slice 9 departures) never
+	# changes them.
+	var roster := Roster.new()
+	for i: int in range(4):
+		roster.register(i + 1, "p%d" % i, "Player %d" % i)
+	var settings := GameSettings.new()
+	settings.round_count = 14
+	settings.pool_source = GameSettings.PoolSource.PLAYER_CREATED
+	settings.reveal_style = GameSettings.RevealStyle.GRID
+	var rig := Rig.new()
+	rig.session = GameSession.new(settings, roster, Callable(rig.clock, "now"))
+	rig.session.rng.seed = 42
+	var pools := PromptPools.new()
+	pools.rng.seed = 7
+	pools.load_from(FIXTURE_DIR)
+	rig.session.use_pools(pools)
+	rig.session.phase_entered.connect(func(p: NetIds.Phase, d: Dictionary) -> void:
+		rig.phases.append({"phase": p, "data": d}))
+	rig.session.start_game()
+	assert_int(int(rig.last_data(NetIds.Phase.POOL_SETUP)["share_per_player"]))\
+			.is_equal(4)   # ceil(14/4)
+	roster.remove_by_peer(4)   # a player leaves mid-setup
+	for pid: String in ["p0", "p1", "p2"]:
+		_submit_pool_share(rig, pid)
+	rig.clock.advance(int(GameConstants.POOL_SETUP_FORCE_AVAILABLE_SEC * 1000.0) + 1)
+	assert_bool(rig.session.force_lock_pools()).is_true()
+	# Round count locked at Start - 14 despite the departure.
+	assert_int(int(rig.last_data(NetIds.Phase.ROUND_INTRO)["round_count"])).is_equal(14)
 
 
 # --- submissions ---
@@ -450,3 +577,105 @@ func test_sim_harness_full_8_round_game_with_scripted_picks() -> void:
 		total += int((rig.results["final_scores"] as Dictionary)[pid])
 	assert_int(total).is_equal(8 * GameConstants.WINNER_POINTS)
 	assert_int(picks).is_equal(8)
+
+
+# --- integration: Slice 7 player-created pools, end-to-end ---
+
+
+## Rig with a handle on the PromptPools instance (leftover-word assertions).
+func _make_pools_rig(round_count: int) -> Array:
+	var roster := Roster.new()
+	for i: int in range(4):
+		roster.register(i + 1, "p%d" % i, "Player %d" % i)
+	var settings := GameSettings.new()
+	settings.round_count = round_count
+	settings.pool_source = GameSettings.PoolSource.PLAYER_CREATED
+	settings.reveal_style = GameSettings.RevealStyle.GRID
+	var rig := Rig.new()
+	rig.session = GameSession.new(settings, roster, Callable(rig.clock, "now"))
+	rig.session.rng.seed = 42
+	var pools := PromptPools.new()
+	pools.rng.seed = 7
+	pools.load_from(FIXTURE_DIR)
+	rig.session.use_pools(pools)
+	rig.session.phase_entered.connect(func(p: NetIds.Phase, d: Dictionary) -> void:
+		rig.phases.append({"phase": p, "data": d}))
+	rig.session.session_finished.connect(func(r: Dictionary) -> void:
+		rig.results = r)
+	return [rig, pools]
+
+
+## Submits a full share for player_id, recording the words into `submitted`
+## (pool_id -> Dictionary of words) for later prompt-membership checks.
+func _submit_recorded_share(rig: Rig, player_id: String, submitted: Dictionary) -> void:
+	var data: Dictionary = rig.last_data(NetIds.Phase.POOL_SETUP)
+	for pool_id: String in data["pool_ids"]:
+		var words := PackedStringArray()
+		for i: int in range(int(data["share_per_player"])):
+			var word: String = "%s %s %d" % [player_id, pool_id, i]
+			words.append(word)
+			(submitted.get_or_add(pool_id, {}) as Dictionary)[word] = true
+		assert_int(rig.session.submit_pool_words(player_id, pool_id, words))\
+				.is_equal(NetIds.WordRejectReason.NONE)
+
+
+## Drives a whole game on deadlines (blanks + no-picks) and returns every
+## DRAWING phase-data dict in round order.
+func _drive_to_wrap_up(rig: Rig) -> Array[Dictionary]:
+	var drawings: Array[Dictionary] = []
+	var guard: int = 0
+	while rig.session.get_phase() != NetIds.Phase.WRAP_UP:
+		if rig.session.get_phase() == NetIds.Phase.DRAWING:
+			drawings.append(rig.last_data(NetIds.Phase.DRAWING))
+		rig.session.on_phase_deadline()
+		guard += 1
+		assert_bool(guard < 200).is_true()   # never loop forever on a bug
+	return drawings
+
+
+func test_pools_e2e_14_rounds_use_only_submitted_words_surplus_undrawn() -> void:
+	var parts: Array = _make_pools_rig(14)
+	var rig: Rig = parts[0]
+	var pools: PromptPools = parts[1]
+	rig.session.start_game()
+	var submitted: Dictionary = {}
+	for pid: String in ["p0", "p1", "p2", "p3"]:
+		_submit_recorded_share(rig, pid, submitted)   # 4 each -> 16 per pool
+	assert_int(rig.session.get_phase()).is_equal(NetIds.Phase.ROUND_INTRO)
+	var drawings: Array[Dictionary] = _drive_to_wrap_up(rig)
+	assert_int(drawings.size()).is_equal(14)
+	for data: Dictionary in drawings:
+		var prompt_parts: PackedStringArray = data["prompt_parts"]
+		# Fixture draw order: adjectives then animals. Every part must be a
+		# submitted word - zero backfill with full participation (§8 ceil math).
+		assert_bool((submitted["adjectives"] as Dictionary).has(prompt_parts[0])).is_true()
+		assert_bool((submitted["animals"] as Dictionary).has(prompt_parts[1])).is_true()
+	# 16 words per pool, 14 drawn -> exactly 2 remain, never drawn (§8).
+	assert_int((pools._custom_sources["animals"] as Array).size()).is_equal(2)
+	assert_int((pools._custom_sources["adjectives"] as Array).size()).is_equal(2)
+
+
+func test_pools_e2e_force_continue_backfills_invisibly_and_completes() -> void:
+	var parts: Array = _make_pools_rig(14)
+	var rig: Rig = parts[0]
+	rig.session.start_game()
+	var submitted: Dictionary = {}
+	for pid: String in ["p0", "p1", "p2"]:
+		_submit_recorded_share(rig, pid, submitted)   # p3 never submits: 12/pool
+	rig.clock.advance(int(GameConstants.POOL_SETUP_FORCE_AVAILABLE_SEC * 1000.0) + 1)
+	assert_bool(rig.session.force_lock_pools()).is_true()
+	var drawings: Array[Dictionary] = _drive_to_wrap_up(rig)
+	assert_int(drawings.size()).is_equal(14)   # round count unchanged by shortfall
+	var backfilled: int = 0
+	for data: Dictionary in drawings:
+		# Backfill is indistinguishable in the broadcast payload: exactly the
+		# Slice 3 DRAWING keys, no source marker anywhere.
+		assert_array(data.keys()).contains_exactly_in_any_order(
+				["prompt_text", "prompt_parts", "deadline_ms"])
+		var prompt_parts: PackedStringArray = data["prompt_parts"]
+		if not (submitted["adjectives"] as Dictionary).has(prompt_parts[0]) \
+				or not (submitted["animals"] as Dictionary).has(prompt_parts[1]):
+			backfilled += 1
+	# 12 custom pairs cover 12 rounds; the last 2 must have backfilled.
+	assert_int(backfilled).is_equal(2)
+	assert_int((rig.results["rounds"] as Array).size()).is_equal(14)

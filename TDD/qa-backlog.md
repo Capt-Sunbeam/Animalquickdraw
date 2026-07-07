@@ -7,9 +7,13 @@
 - Owner: check items off whenever tested (any session); report failures as bugs.
 - ✅ AUTO = an automated test/gate covers the mechanics; the human check is for look/feel only.
 
-**Last Updated:** 2026-07-07 (session 5 — two fix batches; second re-check list queued)
+**Last Updated:** 2026-07-07 (session 5 close — Slice 7 + 8 items added; fix re-checks cleared)
 
 ---
+
+## ⚠️ Deferred blocking check — Slice 7 force-continue (owner deferred 2026-07-07, "test at the end with the batchable stuff")
+
+- [ ] **Slice 7 force-continue path:** player-created game where one player never submits → host's Force continue button unlocks after the 2:00 countdown → confirm dialog → game starts and all rounds proceed with **no visible indication** of which prompts were backfilled ✅ AUTO (end-to-end test pins exact broadcast keys + 14-round completion; the human check is the flow feel + invisibility on real screens)
 
 ## Session-5 fix re-checks — CLEARED (owner, 2026-07-07)
 
@@ -115,6 +119,31 @@ Two owner-directed fix batches this session (decision log 2026-07-06 "Judging = 
 - [ ] Pause during REVEAL beats: overlay on, beats resume where they left off (cosmetic tween may settle under the overlay — known v1 limitation)
 - [ ] ~~PhaseTimer shows a stale countdown while paused (corrects on resume) — acceptable? (known v1 limitation)~~ RESOLVED 2026-07-07: owner ruled not acceptable; timers now freeze on pause (decision log) — re-check in the blocking list above
 - [ ] Client sees "Host paused the game" and cannot dismiss it; host sees Resume game ✅ AUTO (menu state logic)
+
+## Slice 7 — Player-Created Prompt Pools
+
+- [ ] Blocked-word inline error reads clearly and doesn't lose the other typed words in the column
+- [ ] Progress panel updates live as other players submit; finished players get a ✓ ✅ AUTO (progress payload + panel render logic)
+- [ ] Non-divisible share case: 4 players / 14 rounds asks for 4 words per pool and the game still ends after exactly 14 rounds ✅ AUTO (e2e integration)
+- [ ] Host force-continue countdown next to the button reads clearly; button enables exactly at unlock ✅ AUTO (time gate)
+- [ ] Pool-setup screen layout holds at 1280×720 and under window resize (2 columns of 4+ word rows)
+- [ ] Duplicate words across players accepted silently (two "sleepy"s is normal party behavior) ✅ AUTO
+- [ ] `POOL_SETUP_FORCE_AVAILABLE_SEC` = 120 s untuned — shorten if the wait drags in real groups (log a decision if changed)
+- [ ] Known v1: host pause is a no-op during POOL_SETUP (phase has no clock to freeze; Esc menu still opens for Leave) — acceptable? Revisit with Slice 9's below-minimum pause
+
+## Slice 8 — Collection Browser & Export
+
+*Owner-confirmed 2026-07-07: the blocking export check (PNG opens externally, correct dimensions, in-game look — "works great") and Share's reveal-in-Finder. Everything below is untested:*
+
+- [ ] Viewer replay: pacing feels right at 1× and 2×; Skip works mid-replay; still returns cleanly after the replay ends ✅ AUTO (play/skip/finish state logic)
+- [ ] Delete flow: confirm wording reads well; card removal isn't jarring; count label updates ✅ AUTO (index-first delete + grid update logic)
+- [ ] Portrait drawings: correct aspect on cards AND in the viewer (letterboxed, never stretched)
+- [ ] Empty state: wording reads well and points at the right in-game actions (needs a fresh/emptied collection to see)
+- [ ] Grid scroll with many items (~100+): smooth, thumbs stream in without hitching ✅ AUTO for the pump budget (2/frame); the feel is the human check
+- [ ] Thumbs self-heal: delete `user://collection/thumbs/` while the game is closed → browsing regenerates them over a few seconds ✅ AUTO (regeneration logic)
+- [ ] Missing-doc husk: delete a `<uuid>.json` by hand → card shows "(missing drawing)", viewer offers Delete only, deleting purges the entry cleanly ✅ AUTO (degrade logic)
+- [ ] Exported PNG survives a platform re-compress (drag into Discord — crisp edges hold)
+- [ ] Polish note (owner, 2026-07-07): Share = Export + reveal feels duplicative — "fine for now"; differentiate post-v1 (clipboard copy / native share sheet candidates)
 
 ## Design gaps / open items (not bugs — need decisions)
 

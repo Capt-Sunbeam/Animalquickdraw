@@ -56,13 +56,14 @@ func _setup_settings_controls() -> void:
 		_draw_time_spin.max_value = GameConstants.DRAW_TIME_MAX_SEC
 		_draw_time_spin.step = 5.0
 		_draw_time_spin.value_changed.connect(_on_draw_time_edited)
-	# Pool stays gated until Slice 7; modes are live from Slice 6.
+	# Both pool sources live from Slice 7; modes are live from Slice 6.
 	_pool_option.clear()
 	_pool_option.add_item("Built-in", GameSettings.PoolSource.BUILT_IN)
-	_pool_option.add_item("Player-created (coming soon)", GameSettings.PoolSource.PLAYER_CREATED)
-	_pool_option.set_item_disabled(1, true)
+	_pool_option.add_item("Player-created", GameSettings.PoolSource.PLAYER_CREATED)
 	_pool_option.disabled = not host
-	_pool_option.tooltip_text = "More prompt pools coming soon"
+	_pool_option.tooltip_text = "Player-created: everyone submits words before round 1"
+	if host:
+		_pool_option.item_selected.connect(_on_pool_selected)
 	_mode_option.clear()
 	_mode_option.add_item("Default", SettingsDefaults.Mode.DEFAULT)
 	_mode_option.add_item("Streamlined", SettingsDefaults.Mode.STREAMLINED)
@@ -88,6 +89,15 @@ func _on_draw_time_edited(value: float) -> void:
 		return
 	var s: GameSettings = Session.settings.duplicate_settings()
 	s.draw_time_sec = value
+	Session.set_settings(s)
+
+
+## Slice 7: pool source is one of the always-three tunables (§10).
+func _on_pool_selected(index: int) -> void:
+	if _updating_ui:
+		return
+	var s: GameSettings = Session.settings.duplicate_settings()
+	s.pool_source = _pool_option.get_item_id(index) as GameSettings.PoolSource
 	Session.set_settings(s)
 
 

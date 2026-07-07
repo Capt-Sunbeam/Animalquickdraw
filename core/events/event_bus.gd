@@ -82,3 +82,13 @@ signal winner_lap_finished(drawing_id: String)
 ## Emitted on every peer when the round-count suggestion is recomputed.
 ## overridden = the host explicitly set rounds; the suggestion is hint-only.
 signal round_suggestion_changed(suggested: int, overridden: bool)
+
+# --- Slice 7: Player-Created Prompt Pools ---
+
+## Emitted on all peers when pool-setup submission progress updates.
+## progress: [{"player_id": String, "display_name": String, "pools_done": int,
+## "pools_total": int}] in joined order.
+signal pool_setup_progress_changed(progress: Array)
+## Emitted locally on a submitter when the host rejects a pool submission.
+## reason: NetIds.WordRejectReason (never NONE or LOCKED).
+signal pool_words_rejected(pool_id: String, reason: int)

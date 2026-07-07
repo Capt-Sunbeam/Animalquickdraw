@@ -205,7 +205,7 @@ Notes:
 | `JUDGING` | `deadline_ms: int` (entries already held from REVEAL) |
 | `RESOLUTION` | `picked: bool`, `winner_drawing_id: String`, `winner_player_id: String`, `winner_display_name: String`, `scores: Dictionary` (player_id → int), `deadline_ms: int` |
 | `WRAP_UP` | `results: Dictionary` (SessionResults bundle) |
-| `POOL_SETUP` | Defined by Slice 7 (hook exists now; never broadcast in this slice) |
+| `POOL_SETUP` | `share_per_player: int`, `pool_ids: PackedStringArray`, `pool_display_names: Dictionary`, `force_available_at_ms: int` — **no `deadline_ms`**: the phase ends by completion or host force-continue, never by clock (Slice 7, implemented 2026-07-07) |
 | `PAUSED` | Defined by Slice 9 (hook exists now; never broadcast in this slice) |
 
 ### EventBus signals (appended to `core/events/event_bus.gd`)

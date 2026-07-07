@@ -80,3 +80,44 @@ func test_list_dir_lists_written_files() -> void:
 
 func test_list_dir_missing_directory_returns_empty() -> void:
 	assert_int(Save.list_dir("no_such_dir_ever").size()).is_equal(0)
+
+
+# --- Slice 8: PNG helpers ---
+
+
+func test_png_write_read_round_trip() -> void:
+	var img := Image.create(8, 6, false, Image.FORMAT_RGBA8)
+	img.fill(Color(0.2, 0.4, 0.6))
+	assert_int(Save.write_png(TMP_DIR + "/pic.png", img)).is_equal(OK)
+	var loaded: Image = Save.read_png(TMP_DIR + "/pic.png")
+	assert_object(loaded).is_not_null()
+	assert_int(loaded.get_width()).is_equal(8)
+	assert_int(loaded.get_height()).is_equal(6)
+
+
+func test_png_write_is_atomic_no_tmp_left_behind() -> void:
+	var img := Image.create(4, 4, false, Image.FORMAT_RGBA8)
+	Save.write_png(TMP_DIR + "/atomic.png", img)
+	assert_bool(Save.list_dir(TMP_DIR).has("atomic.png.tmp")).is_false()
+	assert_bool(Save.file_exists(TMP_DIR + "/atomic.png")).is_true()
+
+
+func test_read_png_missing_returns_null() -> void:
+	assert_object(Save.read_png(TMP_DIR + "/nope.png")).is_null()
+
+
+func test_read_png_corrupt_returns_null_with_warning() -> void:
+	var file: FileAccess = FileAccess.open("user://" + TMP_DIR + "/garbage.png", FileAccess.WRITE)
+	file.store_string("this is not a png")
+	file.close()
+	assert_object(Save.read_png(TMP_DIR + "/garbage.png")).is_null()
+
+
+func test_file_exists_and_globalize() -> void:
+	assert_bool(Save.file_exists(TMP_DIR + "/absent.json")).is_false()
+	Save.write_json(TMP_DIR + "/present.json", {"v": 1})
+	assert_bool(Save.file_exists(TMP_DIR + "/present.json")).is_true()
+	var abs_path: String = Save.globalize(TMP_DIR + "/present.json")
+	assert_bool(abs_path.begins_with("user://")).is_false()   # OS path, not virtual
+	assert_bool(FileAccess.file_exists(abs_path)).is_true()
+	assert_str(Save.globalize("../escape")).is_equal("")      # traversal rejected

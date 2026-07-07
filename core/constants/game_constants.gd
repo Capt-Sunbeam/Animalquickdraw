@@ -87,3 +87,11 @@ const STROKE_MAX_POINTS: int = 4096                  # per-stroke sanity cap (pa
 const REPLAY_MAX_OP_GAP_SEC: float = 1.0             # inter-op idle time compressed to this
 const REPLAY_NON_STROKE_OP_SEC: float = 0.25         # nominal fill/clear replay duration
 const FILL_BUDGET_MS: int = 50                       # flood fill budget, main thread
+
+# --- Slice 7: Player-Created Prompt Pools ---
+const WORD_MAX_CHARS: int = 24                       # per submitted pool word
+const POOL_SETUP_FORCE_AVAILABLE_SEC: float = 120.0  # host force-continue unlock
+
+# --- Slice 8: Collection Browser & Export ---
+const EXPORT_SCALE: int = 2                          # nearest-neighbor upscale for exported PNGs
+const THUMB_LOADS_PER_FRAME: int = 2                 # lazy thumb pump budget (collection grid)

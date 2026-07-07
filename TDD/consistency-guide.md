@@ -210,8 +210,9 @@ user://
 ├── profile.json          # settings, avatar meta, granted/spent kudos memory is per-game (not here)
 ├── avatar.json           # DrawingDoc for the avatar (circular canvas)
 ├── stats.json            # lifetime counters (Slice 14)
+├── exports/              # Slice 8: exported/share PNGs (<slug>_<id8>.png) - player deliverables
 └── collection/
-    ├── index.json        # {"v":1, "items":[{id, prompt, saved_at, orientation}]}
+    ├── index.json        # {"v":1, "items":[{id, prompt, saved_at, orientation, source, session_drawing_id}]} (saved_at = ISO 8601 string)
     ├── thumbs/           # regenerable PNG thumbnail cache (not authoritative)
     └── <uuid>.json       # one DrawingDoc per saved drawing
 ```

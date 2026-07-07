@@ -26,6 +26,7 @@ const CLOSE_MESSAGES: Dictionary = {
 @onready var _peer_list: ItemList = %PeerList
 @onready var _host_button: Button = %HostButton
 @onready var _join_button: Button = %JoinButton
+@onready var _collection_button: Button = %CollectionButton
 @onready var _sandbox_button: Button = %SandboxButton
 @onready var _join_dialog: JoinDialog = %JoinDialog
 @onready var _toast: Toast = %Toast
@@ -36,6 +37,7 @@ func _ready() -> void:
 	_host_button.pressed.connect(_on_host_pressed)
 	_join_button.pressed.connect(_on_join_pressed)
 	_join_dialog.join_requested.connect(_on_join_code_entered)
+	_collection_button.pressed.connect(func() -> void: Nav.goto(Routes.COLLECTION))
 	_sandbox_button.visible = OS.is_debug_build()
 	_sandbox_button.pressed.connect(func() -> void: Nav.goto(Routes.CANVAS_SANDBOX))
 	EventBus.peer_connected.connect(_on_peer_connected)

@@ -549,3 +549,17 @@ Per `workflows/testing-protocol.md` — tests alongside implementation; blocking
 - [ ] Update WHERE_WE_ARE; Implementation Notes for Slice 8
 - [ ] Decision Log: export-resolution decision (1× raster, 2× nearest upscale) recorded; any `shell_show_in_file_manager` platform quirks noted
 - [ ] Consistency guide §6 tree updated with `user://exports/`
+
+---
+
+## Implementation Status
+
+**Status:** COMPLETE (blocking export check owner-confirmed)
+**Completed:** 2026-07-07
+**Implementation Notes:** [08-collection-browser-export-implementation-notes.md](08-collection-browser-export-implementation-notes.md)
+
+### Summary of Deviations
+- Adapted to Slice 4's shipped store: static `CollectionStore` in `core/save/`, ISO-string `saved_at`, `source`/`session_drawing_id` row fields, 200 px long-edge thumbs (not 256×192)
+- `Save.write_png` upgraded to atomic (exports are deliverables)
+- Export toast is plain text (Toast has no action buttons); Share is the reveal path
+- Screen state machine is visibility-driven, not an explicit enum

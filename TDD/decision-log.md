@@ -12,6 +12,15 @@
 
 ---
 
+### Slice 8: exports rasterize at 1× and upscale 2× nearest-neighbor
+**Date:** 2026-07-07 | **Slice:** 8 | **Type:** Quick
+
+**Decision:** exported PNGs are `DocRasterizer` output at the internal resolution (800×600/600×800) upscaled `EXPORT_SCALE = 2`× with nearest-neighbor → 1600×1200/1200×1600. Re-rasterizing ops at a true 2× resolution was rejected: brush stamps and flood-fill topology are not scale-invariant (a pixel pinch that stops a fill at 1× can leak at 2×), so a "hi-res" export could differ from what the judge actually saw — violating determinism principle 4. Nearest-neighbor keeps the crisp no-AA marker look and is pixel-exact (test-pinned: every 2×2 block equals its source pixel). `OS.shell_show_in_file_manager` works as-is on macOS; Linux fallback opens the exports folder via `shell_open`. Also: `Save.write_png` became atomic — exports are deliverables, not caches.
+
+**Status:** [x] Code implemented [x] Tests green [x] Owner verified the export externally (2026-07-07)
+
+---
+
 ### Kudos rematch-staleness fix; pause freezes local timers; side chat defaults expanded; captions retired in favor of a planned in-image text tool
 **Date:** 2026-07-07 | **Slice:** 3/4/5/6 surfaces (session-5 second playtest round) | **Decided by:** Owner
 

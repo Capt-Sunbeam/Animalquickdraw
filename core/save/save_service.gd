@@ -49,8 +49,9 @@ func write_json(path: String, data: Dictionary) -> Error:
 	return rename_err
 
 
-## Writes an Image as PNG (Slice 4 thumbnail cache). Same path rules as JSON
-## writes; not atomic - PNG caches are regenerable, never authoritative.
+## Writes an Image as PNG. Atomic (temp + rename) since Slice 8: thumbs are
+## regenerable caches, but exported PNGs are player deliverables - a failed
+## export must never leave a partial file behind.
 func write_png(path: String, image: Image) -> Error:
 	if not _path_ok(path):
 		return ERR_INVALID_PARAMETER
@@ -58,10 +59,46 @@ func write_png(path: String, image: Image) -> Error:
 	var dir_err: Error = _ensure_parent_dir(full)
 	if dir_err != OK:
 		return dir_err
-	var err: Error = image.save_png(full)
+	var tmp: String = full + ".tmp"
+	var err: Error = image.save_png(tmp)
 	if err != OK:
 		push_warning("Save: PNG write failed for %s (%s)" % [path, error_string(err)])
-	return err
+		DirAccess.remove_absolute(tmp)
+		return err
+	var rename_err: Error = DirAccess.rename_absolute(tmp, full)
+	if rename_err != OK:
+		push_warning("Save: atomic rename failed for %s (%s)" % [path, error_string(rename_err)])
+		DirAccess.remove_absolute(tmp)
+	return rename_err
+
+
+## Reads a PNG back as an Image (Slice 8). Missing file returns null
+## silently (regenerable caches miss all the time); corrupt content returns
+## null with a warning.
+func read_png(path: String) -> Image:
+	if not _path_ok(path):
+		return null
+	var full: String = _full(path)
+	if not FileAccess.file_exists(full):
+		return null
+	var img := Image.new()
+	if img.load(full) != OK:
+		push_warning("Save: corrupt PNG at %s" % path)
+		return null
+	return img
+
+
+func file_exists(path: String) -> bool:
+	if not _path_ok(path):
+		return false
+	return FileAccess.file_exists(_full(path))
+
+
+## Absolute OS path for a user:// entry (Slice 8: shell reveal of exports).
+func globalize(path: String) -> String:
+	if not _path_ok(path):
+		return ""
+	return ProjectSettings.globalize_path(_full(path))
 
 
 func delete(path: String) -> Error:

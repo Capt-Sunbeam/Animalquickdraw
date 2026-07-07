@@ -492,3 +492,18 @@ All collector/share/backfill logic is host-side, RefCounted, and network-free �
 ---
 
 **End of Slice 7: Player-Created Prompt Pools**
+
+---
+
+## Implementation Status
+
+**Status:** COMPLETE (core-confirmed)
+**Completed:** 2026-07-07
+**Implementation Notes:** [07-player-created-pools-implementation-notes.md](07-player-created-pools-implementation-notes.md)
+
+### Summary of Deviations
+- `WordRejectReason` gained an explicit `NONE = 0` (draft enum collided with `OK`)
+- Rejection routing is a GameSession signal → targeted RPC (kudos-confirm pattern); progress payload carries `display_name`
+- PromptPools branches custom vs built-in draws (built-in path byte-identical to Slice 3 for the seeded-RNG tests)
+- Pool display names derived via `capitalize()` (no per-pool display data exists)
+- Owner deferred the force-continue human checkpoint + batchable list → qa-backlog (2026-07-07)

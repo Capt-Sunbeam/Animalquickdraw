@@ -24,6 +24,9 @@ var _sim_started: bool = false
 var _prompt_text: String = ""
 var _my_submitted_doc: Dictionary = {}
 
+# Slice 7 replica: POOL_SETUP phase data + the latest progress broadcast.
+var _pool_setup: Dictionary = {}
+
 var _phase_timer: Timer = null             # host-only authoritative deadline
 var _beat_timer: Timer = null              # host-only Slice 5 reveal metronome
 
@@ -47,6 +50,8 @@ func _ready() -> void:
 		_session.kudos_confirmed.connect(_on_kudos_confirmed)
 		_session.reveal_beat_started.connect(_on_reveal_beat_started)
 		_session.reveal_gather_started.connect(_on_reveal_gather_started)
+		_session.pool_setup_progress_changed.connect(_on_pool_setup_progress_changed)
+		_session.pool_words_rejected.connect(_on_pool_words_rejected)
 		_ready_peers[1] = true
 		# Clients navigate into RoundRoot a beat after the host; start when
 		# every connected peer reports ready, or on the failsafe - a broken
@@ -180,6 +185,28 @@ func request_pick_winner(drawing_id: String) -> void:
 		rpc_request_pick_winner.rpc_id(1, drawing_id)
 
 
+## Slice 7: submit one pool's complete share of words.
+func request_submit_pool_words(pool_id: String, words: PackedStringArray) -> void:
+	if multiplayer.is_server():
+		var me: Roster.PlayerState = Session.local_player()
+		if _session != null and me != null:
+			_session.submit_pool_words(me.platform_id, pool_id, words)
+	else:
+		rpc_request_submit_words.rpc_id(1, pool_id, words)
+
+
+## Slice 7: host force-continue. NOT an RPC - only the host can do it and
+## the host IS the server (TDD §3); the time gate lives in GameSession.
+func force_continue_pool_setup() -> void:
+	if multiplayer.is_server() and _session != null:
+		_session.force_lock_pools()
+
+
+## Slice 7: POOL_SETUP replica for the setup screen (phase data + progress).
+func pool_setup_state() -> Dictionary:
+	return _pool_setup
+
+
 # --- Host side: simulation start + authoritative timer ---
 
 
@@ -265,6 +292,23 @@ func _on_kudos_total_changed(drawing_id: String, total: int) -> void:
 	rpc_sync_kudos_total.rpc(drawing_id, total)
 
 
+## Slice 7 host translator: progress signal -> broadcast.
+func _on_pool_setup_progress_changed(progress: Array) -> void:
+	rpc_sync_pool_setup_progress.rpc(progress)
+
+
+## Slice 7 host translator: relays an honest rejection to the submitting
+## peer alone. The host player's own rejection skips RPC (same-machine path).
+func _on_pool_words_rejected(player_id: String, pool_id: String, reason: int) -> void:
+	var player: Roster.PlayerState = Session.roster.get_by_platform_id(player_id)
+	if player == null:
+		return
+	if player.peer_id == 1:
+		EventBus.pool_words_rejected.emit(pool_id, reason)
+	else:
+		rpc_do_words_rejected.rpc_id(player.peer_id, pool_id, reason)
+
+
 ## Confirms privately to the giver and re-syncs the roster (spent changed).
 ## The host player's own confirm skips RPC (same-machine path).
 func _on_kudos_confirmed(player_id: String, drawing_id: String, kudos_remaining: int) -> void:
@@ -322,6 +366,9 @@ func rpc_sync_phase(phase_value: int, data: Dictionary) -> void:
 	_phase = phase_value as NetIds.Phase
 	_phase_data = data
 	match _phase:
+		NetIds.Phase.POOL_SETUP:
+			_pool_setup = data.duplicate()
+			_pool_setup["progress"] = []
 		NetIds.Phase.ROUND_INTRO:
 			_reveal_entries = []
 			_prompt_text = ""
@@ -429,3 +476,30 @@ func rpc_sync_kudos_total(drawing_id: String, total: int) -> void:
 @rpc("authority", "call_remote", "reliable")
 func rpc_do_kudos_confirmed(drawing_id: String, kudos_remaining: int) -> void:
 	_handle_kudos_confirmed(drawing_id, kudos_remaining)
+
+
+## submitting client -> host (Slice 7). Steps 3-5 live in
+## GameSession.submit_pool_words (shared with the host's own request path).
+@rpc("any_peer", "call_remote", "reliable")
+func rpc_request_submit_words(pool_id: String, words: PackedStringArray) -> void:
+	if not multiplayer.is_server():
+		return                                             # 1. authority
+	var sender: int = multiplayer.get_remote_sender_id()
+	var player: Roster.PlayerState = Session.roster.get_by_peer(sender)
+	if player == null or _session == null:
+		return                                             # 2. resolve sender
+	_session.submit_pool_words(player.platform_id, pool_id, words)  # 3-5
+
+
+## host -> submitting peer only (Slice 7): a pool submission failed host
+## validation (client pre-check disagreed - tampered/outdated client).
+@rpc("authority", "call_remote", "reliable")
+func rpc_do_words_rejected(pool_id: String, reason: int) -> void:
+	EventBus.pool_words_rejected.emit(pool_id, reason)
+
+
+## host -> all (Slice 7): waiting-panel submission progress.
+@rpc("authority", "call_local", "reliable")
+func rpc_sync_pool_setup_progress(progress: Array) -> void:
+	_pool_setup["progress"] = progress
+	EventBus.pool_setup_progress_changed.emit(progress)
