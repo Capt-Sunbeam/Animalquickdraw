@@ -598,3 +598,16 @@ Per `workflows/testing-protocol.md`: tests written alongside code; blocking user
 ---
 
 **End of Slice 2: Lobby & Session Roster**
+
+---
+
+## Implementation Status
+
+**Status:** COMPLETE (core-confirmed; fine-grain items in `TDD/qa-backlog.md`)
+**Completed:** 2026-07-06 (session 3; owner confirmed join-by-code + wrong-code recovery + 3-player lobby-to-game flow; automated gate `tools/verify_lobby.sh` PASS)
+**Implementation Notes:** `TDD/02-lobby-session-roster-implementation-notes.md`
+
+### Summary of Deviations
+- `Session` autoload lives in `game/session/session_manager.gd` (NOT `game_session.gd` — reserved for Slice 3's sim per consistency guide §4)
+- `GameSettings.rounds` → `round_count`; `pool_type_id` added (Slice 3 contract alignment)
+- New `session_rules.gd` (network-free validators); client-side join/register watchdogs; close-reason handoff for menu toasts; `LobbyCiDriver` automated gate

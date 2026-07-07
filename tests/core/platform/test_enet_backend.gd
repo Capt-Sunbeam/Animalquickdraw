@@ -36,3 +36,10 @@ func test_arg_value_returns_default_when_absent() -> void:
 	var args: PackedStringArray = PackedStringArray(["--ci-host"])
 	assert_str(EnetBackend.arg_value(args, "code", "LOCAL")).is_equal("LOCAL")
 	assert_str(EnetBackend.arg_value(args, "name")).is_equal("")
+
+
+func test_platform_id_disambiguation_suffixes_name_arg() -> void:
+	# Slice 2 §10: dev instances share profile.json; the --name arg keeps
+	# their platform ids distinct. No arg = unmodified id.
+	assert_str(EnetBackend.disambiguate_platform_id("uuid-123", "P2")).is_equal("uuid-123#P2")
+	assert_str(EnetBackend.disambiguate_platform_id("uuid-123", "")).is_equal("uuid-123")

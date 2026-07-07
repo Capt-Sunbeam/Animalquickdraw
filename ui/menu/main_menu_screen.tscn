@@ -1,7 +1,8 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://ui/menu/main_menu_screen.gd" id="1_menu"]
 [ext_resource type="PackedScene" path="res://ui/shared/toast.tscn" id="2_toast"]
+[ext_resource type="PackedScene" path="res://ui/menu/join_dialog.tscn" id="3_join"]
 
 [node name="MainMenuScreen" type="Control"]
 layout_mode = 3
@@ -68,6 +69,9 @@ text = "Connected peers:"
 unique_name_in_owner = true
 layout_mode = 2
 custom_minimum_size = Vector2(0, 140)
+
+[node name="JoinDialog" parent="." instance=ExtResource("3_join")]
+unique_name_in_owner = true
 
 [node name="Toast" parent="." instance=ExtResource("2_toast")]
 unique_name_in_owner = true

@@ -36,10 +36,26 @@ static func arg_value(args: PackedStringArray, key: String, default: String = ""
 	return default
 
 
+## Dev instances on one machine share user://profile.json, so they would
+## present identical platform ids. Suffixing the --name arg keeps them
+## distinct ("<uuid>#P2") - Slice 9's rejoin key inherits this mitigation
+## (Slice 2 TDD §10). Steam IDs are unique; this is dev-only.
+static func disambiguate_platform_id(base_id: String, name_arg: String) -> String:
+	if name_arg.is_empty():
+		return base_id
+	return "%s#%s" % [base_id, name_arg]
+
+
+## Name resolution chain (Slice 2 TDD §4): --name= CLI arg wins, then the
+## optional display_name saved in profile.json, then "Dev-<pid>".
 func get_display_name() -> String:
 	var name_arg: String = arg_value(OS.get_cmdline_user_args(), "name")
 	if not name_arg.is_empty():
 		return name_arg
+	var profile: Dictionary = Save.read_json(PROFILE_PATH, {})
+	var stored: String = str(profile.get("display_name", ""))
+	if not stored.is_empty():
+		return stored
 	return "Dev-%d" % OS.get_process_id()
 
 
@@ -52,8 +68,11 @@ func get_platform_id() -> String:
 		stored = UuidV4.generate()
 		profile["v"] = int(profile.get("v", 1))
 		profile["platform_id"] = stored
+		if not profile.has("display_name"):
+			profile["display_name"] = ""
 		Save.write_json(PROFILE_PATH, profile)
-	_platform_id = stored
+	var name_arg: String = arg_value(OS.get_cmdline_user_args(), "name")
+	_platform_id = disambiguate_platform_id(stored, name_arg)
 	return _platform_id
 
 

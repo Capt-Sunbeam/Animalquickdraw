@@ -12,6 +12,59 @@
 
 ---
 
+### QA process: core-flow sign-offs + deferred fine-grain QA backlog
+**Date:** 2026-07-06 | **Slice:** All | **Decided by:** Owner
+
+**Context:** The testing protocol's slice-completion gate batches all UI confirmation onto the owner at every slice boundary. With multi-slice sessions, the detailed checklists outpace the owner's between-session testing time.
+
+**Decision:** Owner playtests between slices/sessions cover **broad strokes and core functions only**. A slice is signed off (marked COMPLETE) on: core-flow owner playtest + full test suite green + automated multi-instance gates green. All fine-grain checks, edge cases, and polish items accumulate in **`TDD/qa-backlog.md`** ("bug hunt" list) — items are added at every slice boundary and never dropped. A full QA sweep of the backlog happens after the game is content-complete (before/with Slice 15 release prep).
+
+**Rationale:** Keeps development velocity while guaranteeing nothing slips untracked; automated gates already machine-verify most mechanics, so human QA can focus on feel and edge cases in one batch.
+
+**Impact:** Affects every slice's completion workflow (supersedes the per-slice batchable-confirmation step of `workflows/slice-completion.md` §3 — batchable items now go to the backlog by default). Retroactively applied: Slices 1, 2, 3 marked COMPLETE (core-confirmed); their deferred items are the backlog's initial content.
+
+**Status:** [x] qa-backlog.md created [x] Slices 1–3 statuses updated [x] WHERE_WE_ARE updated
+
+---
+
+### Slice 3: round-start handshake, return-to-lobby, CI gate substitution
+**Date:** 2026-07-06 | **Slice:** 3 | **Type:** Quick
+
+**Decision:**
+- **Round-start readiness handshake:** clients' `SessionClient` sends `rpc_request_round_ready`; the host starts the simulation when all connected roster peers report ready or after `ROUND_START_FAILSAFE_SEC = 3.0` (a broken client never stalls the start). Added beyond the TDD because the first `ROUND_INTRO` broadcast can otherwise race clients' deferred scene swap (RPCs to missing node paths are dropped, not queued).
+- **`rpc_sync_return_to_lobby`** added to the Session autoload: the standings screen's "Back to lobby" returns everyone to the lobby with roster/settings intact; host prunes mid-game leavers. The TDD named the button but no mechanism.
+- **In-GdUnit ENet loopback relay test replaced** by `tools/verify_round.sh` + `RoundCiDriver`: three real processes play a full 2-round game (pick +2, deliberate no-pick −1) and verify phase sequences, role views, and results bundles per peer. GdUnit cannot host two SceneTrees; the multi-process pattern (from `verify_connect`/`verify_lobby`) covers more.
+- **EventBus ordering contract:** `SessionClient.rpc_sync_phase` emits phase-specific signals before `phase_changed` so screens always see a current replica.
+- **`drawing_id` minted at collect time** (TDD §2 "on acceptance" vs §6 "at collect" — collect wins; resubmission would churn acceptance-time ids).
+- **Session-3 pacing (owner directive):** blocking playtest gates for Slices 2+3 are batched to a single owner checklist at session end; automated equivalents ran green first (extends the session-2 precedent).
+
+**Context:** Slice 3 implementation (session 3). Full detail in `TDD/03-core-round-loop-implementation-notes.md`. 178 tests green; `verify_lobby.sh` + `verify_round.sh` both PASS.
+
+**Impact:** Affects Slices 9 (readiness signal reusable for rejoin), 10 (working lobby-return path). Migration: none. Breaking: none.
+
+**Status:** [x] Code implemented [x] Tests green (178) [x] Implementation notes written [ ] Owner playtest confirmation
+
+---
+
+### Slice 2: Session autoload placement, settings field names, dev-gate harness
+**Date:** 2026-07-06 | **Slice:** 2 | **Type:** Quick
+
+**Decision:**
+- **`Session` autoload** registered as `game/session/session_manager.gd`, ordered after `Save`, before `Nav`. The Slice 2 TDD's `game_session.gd` placement is superseded: that file name stays reserved for Slice 3's host-only `GameSession` RefCounted simulation (consistency guide §4 SessionClient/GameSession split wins on conflict).
+- **`GameSettings` field names unified with Slice 3:** `round_count` (not `rounds`), plus `pool_type_id` defaulting to `SettingsDefaults.DEFAULT_POOL_TYPE_ID` ("animal_adjective") added now so the start snapshot is forward-compatible.
+- **Draw-time range** 15–180 s per Slice 2 TDD; default stays 30 s (2026-07-04 decision supersedes the TDD's 45).
+- **New `game/session/session_rules.gd`:** pure static validators + injectable-clock `ChatRateLimiter`, so every host-side rule is unit-testable without a network (cg §9). Future request handlers follow this pattern.
+- **Client-side join/register watchdogs** (10 s, epoch-guarded) added beyond the TDD's host-side timeout — ENet/UDP gives no fast failure for dead room codes; without them the client hangs in "Connecting…".
+- **Automated Slice 2 gate:** `LobbyCiDriver` + `tools/verify_lobby.sh` (3-instance roster/chat/start + dead-code recovery), per the session-2 "automated equivalents for blocking gates" precedent. Owner playtests remain the formal gate.
+
+**Context:** Slice 2 implementation (session 3). Full deviation detail in `TDD/02-lobby-session-roster-implementation-notes.md`.
+
+**Impact:** Affects Slices 3 (file name now free as documented), 6 (settings field names), 9 (watchdog/timeout groundwork). Migration: none. Breaking: none.
+
+**Status:** [x] Code implemented [x] Tests green (135 total) [x] Implementation notes written [ ] Owner playtest confirmation
+
+---
+
 ### Palette picker redesign: all-colors overlay + drag-to-pin quick slots
 **Date:** 2026-07-06 | **Slice:** 1 | **Decided by:** Owner (playtest feedback)
 

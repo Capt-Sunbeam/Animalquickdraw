@@ -639,3 +639,16 @@ Per `workflows/testing-protocol.md`: tests written alongside each part, run befo
 
 #### Documentation
 - [ ] Update WHERE_WE_ARE; Implementation Notes for Slice 1; Decision Log entries (palette hex values chosen, any deviations — e.g. exact golden-hash platform verification notes)
+
+---
+
+## Implementation Status
+
+**Status:** COMPLETE (core-confirmed; fine-grain items in `TDD/qa-backlog.md`)
+**Completed:** 2026-07-06 (implementation session 2; sign-off session 3 under the core-flow QA process — see decision log 2026-07-06)
+**Implementation Notes:** `TDD/01-drawing-canvas-stroke-engine-implementation-notes.md`
+
+### Summary of Deviations
+- Palette picker redesigned from owner playtest feedback (all-colors overlay + drag-to-pin quick slots — decision log 2026-07-06)
+- CPU-only authoritative rasterization; int32-array scanline fill (decision log)
+- Deferred to QA backlog: letterboxing at odd sizes, portrait layout, rotate-confirm wording, undo disabled-state timing

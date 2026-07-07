@@ -22,6 +22,7 @@ EventBus="*res://core/events/event_bus.gd"
 Platform="*res://core/platform/platform_service.gd"
 Net="*res://core/network/network_manager.gd"
 Save="*res://core/save/save_service.gd"
+Session="*res://game/session/session_manager.gd"
 Nav="*res://core/nav/scene_manager.gd"
 
 [debug]

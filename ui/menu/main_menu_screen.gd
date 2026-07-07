@@ -10,12 +10,24 @@ extends Control
 
 const CI_TIMEOUT_SEC: float = 20.0
 
+## Friendly text for Session close reasons (EventBus.session_closed keys).
+## "left" is deliberately absent - leaving on purpose needs no toast.
+const CLOSE_MESSAGES: Dictionary = {
+	"full": "Lobby is full.",
+	"in_progress": "That game has already started.",
+	"bad_identity": "Couldn't join - identity error.",
+	"host_quit": "Host left the game.",
+	"connection_failed": "Connection failed.",
+	"timeout": "Couldn't reach the host.",
+}
+
 @onready var _status_label: Label = %StatusLabel
 @onready var _identity_label: Label = %IdentityLabel
 @onready var _peer_list: ItemList = %PeerList
 @onready var _host_button: Button = %HostButton
 @onready var _join_button: Button = %JoinButton
 @onready var _sandbox_button: Button = %SandboxButton
+@onready var _join_dialog: JoinDialog = %JoinDialog
 @onready var _toast: Toast = %Toast
 
 
@@ -23,13 +35,16 @@ func _ready() -> void:
 	_identity_label.text = "%s  (%s)" % [Platform.get_display_name(), Platform.get_platform_id().substr(0, 8)]
 	_host_button.pressed.connect(_on_host_pressed)
 	_join_button.pressed.connect(_on_join_pressed)
+	_join_dialog.join_requested.connect(_on_join_code_entered)
 	_sandbox_button.visible = OS.is_debug_build()
 	_sandbox_button.pressed.connect(func() -> void: Nav.goto(Routes.CANVAS_SANDBOX))
 	EventBus.peer_connected.connect(_on_peer_connected)
 	EventBus.peer_disconnected.connect(_on_peer_disconnected)
-	EventBus.connection_failed.connect(_on_connection_failed)
-	EventBus.server_disconnected.connect(_on_server_disconnected)
 	_refresh_peer_list()
+	# Session returns players here after closes/rejects; explain why.
+	var close_reason: String = Session.consume_close_reason()
+	if CLOSE_MESSAGES.has(close_reason):
+		_toast.show_error(str(CLOSE_MESSAGES[close_reason]))
 	if OS.is_debug_build():
 		_handle_ci_args()
 
@@ -40,46 +55,34 @@ func _room_code() -> String:
 
 func _on_host_pressed() -> void:
 	_set_buttons_enabled(false)
-	var err: Error = await Net.host(_room_code())
+	var err: Error = await Session.host_session(_room_code())
 	if err != OK:
 		_toast.show_error("Couldn't host (%s)." % error_string(err))
 		_set_buttons_enabled(true)
-		return
-	_status_label.text = "Hosting %s - waiting for players..." % _room_code()
-	_refresh_peer_list()
+	# Success navigates to the lobby; nothing more to do here.
 
 
 func _on_join_pressed() -> void:
+	_join_dialog.open(_room_code())
+
+
+func _on_join_code_entered(code: String) -> void:
 	_set_buttons_enabled(false)
-	_status_label.text = "Connecting to %s..." % _room_code()
-	var err: Error = await Net.join(_room_code())
+	_status_label.text = "Connecting to %s..." % code
+	var err: Error = await Session.join_session(code)
 	if err != OK:
 		_toast.show_error("Couldn't connect (%s)." % error_string(err))
 		_status_label.text = ""
 		_set_buttons_enabled(true)
+	# Success: Session registers and navigates to the lobby; failures after
+	# this point (reject/timeout) reload the menu with a close reason.
 
 
-func _on_peer_connected(peer_id: int) -> void:
-	if not Net.is_host() and peer_id == 1:
-		_status_label.text = "Connected to host (%s)." % _room_code()
+func _on_peer_connected(_peer_id: int) -> void:
 	_refresh_peer_list()
 
 
 func _on_peer_disconnected(_peer_id: int) -> void:
-	_refresh_peer_list()
-
-
-func _on_connection_failed() -> void:
-	_toast.show_error("Connection failed.")
-	_status_label.text = ""
-	_set_buttons_enabled(true)
-	_refresh_peer_list()
-
-
-func _on_server_disconnected() -> void:
-	_toast.show_error("Host disconnected.")
-	_status_label.text = ""
-	_set_buttons_enabled(true)
 	_refresh_peer_list()
 
 
@@ -106,6 +109,33 @@ func _handle_ci_args() -> void:
 		_run_ci(true)
 	elif args.has("--ci-join"):
 		_run_ci(false)
+	elif args.has("--ci-lobby-host") or args.has("--ci-lobby-join") or args.has("--ci-lobby-join-fail"):
+		_run_lobby_ci(args)
+	elif args.has("--ci-round-host") or args.has("--ci-round-join"):
+		_run_round_ci(args)
+
+
+## Slice 2 automated gate (tools/verify_lobby.sh): the driver node lives on
+## the tree root so it survives the menu -> lobby navigation.
+func _run_lobby_ci(args: PackedStringArray) -> void:
+	var driver: LobbyCiDriver = LobbyCiDriver.new()
+	if args.has("--ci-lobby-host"):
+		driver.role = "host"
+	elif args.has("--ci-lobby-join"):
+		driver.role = "join"
+	else:
+		driver.role = "join_fail"
+	driver.room_code = _room_code()
+	driver.expect_players = int(EnetBackend.arg_value(args, "expect", "3"))
+	get_tree().root.add_child.call_deferred(driver)
+
+
+## Slice 3 automated gate (tools/verify_round.sh): full scripted game.
+func _run_round_ci(args: PackedStringArray) -> void:
+	var driver: RoundCiDriver = RoundCiDriver.new()
+	driver.role = "host" if args.has("--ci-round-host") else "join"
+	driver.room_code = _room_code()
+	get_tree().root.add_child.call_deferred(driver)
 
 
 func _run_ci(as_host: bool) -> void:

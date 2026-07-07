@@ -802,3 +802,18 @@ Organized by chunk per the plan in `TDD/overview-of-slices.md` (Chunk 5 = headle
 ---
 
 **End of Slice 3: Core Round Loop**
+
+---
+
+## Implementation Status
+
+**Status:** COMPLETE (core-confirmed; fine-grain items in `TDD/qa-backlog.md`)
+**Completed:** 2026-07-06 (session 3; owner played a full 3-player game — start → draw → reveal → judging + winner pick → scoring → standings; automated full-game gate `tools/verify_round.sh` PASS incl. no-pick −1)
+**Implementation Notes:** `TDD/03-core-round-loop-implementation-notes.md`
+
+### Summary of Deviations
+- Round-start readiness handshake (`rpc_request_round_ready` + 3 s failsafe) added
+- `rpc_sync_return_to_lobby` on Session for the standings "Back to lobby" path
+- In-GdUnit ENet loopback test replaced by the multi-process `verify_round.sh` gate
+- `drawing_id` minted at collect time; EventBus specific-signal-before-`phase_changed` ordering contract
+- **Open design gap logged (owner):** no in-game pause/leave menu — tracked in qa-backlog + WHERE_WE_ARE Active Decisions

@@ -7,6 +7,10 @@ enum Mode { DEFAULT, STREAMLINED, SOCIAL, CUSTOM }
 
 const DEFAULT_DRAW_TIME_SEC: float = GameConstants.DRAW_TIME_DEFAULT_SEC
 
+## Data-driven prompt pool type (Slice 3 defines the engine; Slice 2's
+## GameSettings carries the id so the start snapshot is forward-compatible).
+const DEFAULT_POOL_TYPE_ID: String = "animal_adjective"
+
 # Preset dictionaries are filled with real values in Slice 6 (kept as empty
 # stubs so the PRESETS map shape is stable from day one).
 const PRESET_DEFAULT: Dictionary = {}

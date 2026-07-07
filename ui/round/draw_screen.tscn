@@ -1,0 +1,58 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://ui/round/draw_screen.gd" id="1_draw"]
+[ext_resource type="PackedScene" path="res://ui/shared/phase_timer.tscn" id="2_ptimer"]
+[ext_resource type="PackedScene" path="res://ui/canvas/drawing_canvas.tscn" id="3_canvas"]
+
+[node name="DrawScreen" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_draw")
+
+[node name="Root" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 8
+
+[node name="TopBar" type="HBoxContainer" parent="Root"]
+layout_mode = 2
+
+[node name="PromptLabel" type="Label" parent="Root/TopBar"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 28
+text = ""
+
+[node name="Timer" parent="Root/TopBar" instance=ExtResource("2_ptimer")]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="Canvas" parent="Root" instance=ExtResource("3_canvas")]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+show_save_toggle = false
+
+[node name="BottomBar" type="HBoxContainer" parent="Root"]
+layout_mode = 2
+
+[node name="StatusLabel" type="Label" parent="Root/BottomBar"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = ""
+
+[node name="SubmitButton" type="Button" parent="Root/BottomBar"]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(140, 40)
+text = "Submit"

@@ -18,7 +18,28 @@ Respond to the user acknowledging that you're starting a new session:
 
 > "Starting a new development session. Let me load the project context."
 
-### Step 2: Context Load
+### Step 2: Load the 3 Pillars System (BEFORE project state)
+
+This project is built and documented under the **3 Pillars system**. You must understand and follow it for the entire session — documentation procedures, slice structure, testing protocol, and session workflows are all defined by it, and every slice boundary and session end has required documentation steps.
+
+**Read these system documents (paths relative to project root):**
+
+| Document | Path | What it defines |
+|----------|------|-----------------|
+| 3 Pillars README | `pillars/3 Pillars systemREADME.md` | System overview: pillars, workflows, templates, key concepts |
+| Pillar 1: Documentation Procedures | `pillars/01-documentation-procedures.md` | How/when to update docs; reading guidance; session logs; implementation notes; decision log format |
+| Pillar 2: Slice Contract Template | `pillars/02-slice-contract-template.md` | The 12-section structure every slice TDD follows; exit criteria |
+| Pillar 3: Consistency Guide Template | `pillars/03-consistency-guide-template.md` | Template behind the project's filled-in `TDD/consistency-guide.md` |
+| Session End workflow | `workflows/session-end.md` | Required steps when the session closes |
+| Slice Completion workflow | `workflows/slice-completion.md` | Required steps when a slice finishes |
+| Testing Protocol | `workflows/testing-protocol.md` | Test-alongside rules; blocking vs batchable user tests |
+
+**Reading depth:** first time working on this project, read them fully. On later sessions, the Quick Reference summaries (Pillar 1) and a skim of the workflow checklists are sufficient — per the reading tiers in Pillar 1 §2. **"When in doubt, read more."**
+
+**After reading, confirm:**
+> "I have loaded the 3 Pillars system and will follow its documentation procedures, testing protocol, and workflows this session."
+
+### Step 3: Project Context Load
 
 ---
 ### CONTEXT REFRESH: Session Start
@@ -42,14 +63,14 @@ Respond to the user acknowledging that you're starting a new session:
 > - **Next Steps:** [immediate actions from WHERE_WE_ARE]"
 ---
 
-### Step 3: Review Last Session Context
+### Step 4: Review Last Session Context
 
 If there's a recent session log referenced in WHERE_WE_ARE, briefly review it to understand:
 - What was accomplished
 - Where we left off
 - Any notes for this session
 
-### Step 4: Confirm Understanding with User
+### Step 5: Confirm Understanding with User
 
 Before proceeding with implementation work, confirm with the user:
 
@@ -59,7 +80,7 @@ Before proceeding with implementation work, confirm with the user:
 > 
 > Does this align with what you'd like to work on today, or would you like to adjust our focus?"
 
-### Step 5: Begin Work
+### Step 6: Begin Work
 
 Once user confirms (or provides adjusted direction):
 - Start working on the identified next steps
@@ -72,10 +93,13 @@ Once user confirms (or provides adjusted direction):
 
 | Document | When to Read | What to Look For |
 |----------|--------------|------------------|
-| WHERE_WE_ARE.md | Always first | Current status, active slice, next steps |
+| 3 Pillars docs (`pillars/3 Pillars systemREADME.md`, `pillars/01-documentation-procedures.md`, `pillars/02-slice-contract-template.md`, `pillars/03-consistency-guide-template.md`) | Always, before project state (Step 2) | The system itself: doc procedures, slice structure, standards. Full read first encounter; Quick Reference summaries thereafter |
+| Workflows (`workflows/session-end.md`, `workflows/slice-completion.md`, `workflows/testing-protocol.md`) | With Step 2 | Required steps at slice/session boundaries; blocking vs batchable testing |
+| WHERE_WE_ARE.md | Always, first project-state doc | Current status, active slice, next steps |
 | Current Slice TDD | After WHERE_WE_ARE | Implementation details, checklist status |
-| Consistency Guide | Before coding | Patterns, naming conventions, integration points |
-| Last Session Log | If context unclear | What was done, issues encountered |
+| Consistency Guide (`TDD/consistency-guide.md`) | Before coding | Patterns, naming conventions, integration points |
+| QA Backlog (`TDD/qa-backlog.md`) | At slice boundaries | Where deferred fine-grain test items are appended (owner QA process, decision log 2026-07-06) |
+| Last Session Log (`TDD/logs/`) | If context unclear | What was done, issues encountered |
 
 ---
 

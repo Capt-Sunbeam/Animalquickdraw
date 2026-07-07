@@ -28,6 +28,31 @@ const DRAW_TIME_DEFAULT_SEC: float = 30.0  # decision log 2026-07-04, pending pl
 # --- Replay pacing cap (brief §7: a 30 s drawing replays in <= ~10 s) ---
 const REPLAY_MAX_DURATION_SEC: float = 10.0
 
+# --- Slice 2: Lobby & Session Roster ---
+const SUGGESTED_ROUNDS_PER_PLAYER: int = 2     # brief §10: ~2x player count
+const ROUNDS_MIN: int = 1
+const ROUNDS_MAX: int = 32
+const DRAW_TIME_MIN_SEC: float = 15.0          # reconcile with Slice 6's 10-120 range when it lands
+const DRAW_TIME_MAX_SEC: float = 180.0
+const MAX_CHAT_LEN: int = 200
+const CHAT_RATE_LIMIT_COUNT: int = 5           # max messages...
+const CHAT_RATE_LIMIT_WINDOW_SEC: float = 3.0  # ...per window, per peer
+const MAX_NAME_LEN: int = 24
+const MAX_PLATFORM_ID_LEN: int = 64
+const REGISTER_TIMEOUT_SEC: float = 10.0       # connected-but-unregistered peers get dropped
+const REJECT_DISCONNECT_DELAY_SEC: float = 0.5 # let the reject RPC flush before closing the peer
+
+# --- Slice 3: Core Round Loop (§6 timer/scoring constants; draw time and
+# judging window become mode tunables via GameSettings in Slice 6) ---
+const ROUND_INTRO_SEC: float = 4.0
+const SUBMIT_GRACE_MS: int = 1500              # acceptance window after the drawing deadline
+const REVEAL_GRID_SEC: float = 5.0             # v1 grid-look beat before judging opens
+const JUDGING_WINDOW_SEC: float = 30.0
+const RESOLUTION_SEC: float = 6.0
+const MAX_DRAWING_BYTES: int = 262144          # wire-size cap for a submitted doc (~50 KB typical)
+const COMBO_REPEAT_MAX_ATTEMPTS: int = 40      # prompt redraws before allowing a repeat
+const ROUND_START_FAILSAFE_SEC: float = 3.0    # host starts even if a peer never reports ready
+
 # --- Slice 1: Drawing Canvas & Stroke Engine ---
 const BRUSH_RADII_PX: PackedInt32Array = [3, 7, 14]  # size indices 0/1/2 (brief §6)
 const STROKE_MIN_POINT_DIST_PX: float = 2.0          # input decimation threshold

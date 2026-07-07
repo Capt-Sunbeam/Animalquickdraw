@@ -1,0 +1,33 @@
+{
+	"v": 1,
+	"pool_id": "animals",
+	"words": [
+		"aardvark", "alligator", "alpaca", "anteater", "armadillo",
+		"axolotl", "badger", "bat", "beaver", "bee",
+		"bison", "blobfish", "bulldog", "bunny", "butterfly",
+		"camel", "capybara", "cat", "caterpillar", "chameleon",
+		"cheetah", "chicken", "chihuahua", "chinchilla", "cobra",
+		"corgi", "cow", "crab", "crocodile", "crow",
+		"dachshund", "dodo", "dolphin", "donkey", "dragonfly",
+		"duck", "eagle", "eel", "elephant", "emu",
+		"ferret", "flamingo", "fox", "frog", "giraffe",
+		"goat", "goldfish", "goose", "gorilla", "hamster",
+		"hedgehog", "hermit crab", "hippo", "horse", "hummingbird",
+		"iguana", "jellyfish", "kangaroo", "kiwi bird", "koala",
+		"komodo dragon", "ladybug", "lemur", "lion", "llama",
+		"lobster", "manatee", "meerkat", "mole", "moose",
+		"moth", "mouse", "narwhal", "newt", "octopus",
+		"opossum", "ostrich", "otter", "owl", "panda",
+		"pangolin", "parrot", "peacock", "pelican", "penguin",
+		"pig", "pigeon", "platypus", "polar bear", "porcupine",
+		"pufferfish", "pug", "quokka", "raccoon", "reindeer",
+		"rhino", "rooster", "salamander", "seagull", "seahorse",
+		"seal", "shark", "sheep", "shrimp", "skunk",
+		"sloth", "slug", "snail", "squid", "squirrel",
+		"starfish", "stingray", "swan", "t-rex", "tapir",
+		"tarantula", "tiger", "toad", "tortoise", "toucan",
+		"turkey", "turtle", "unicorn", "velociraptor", "vulture",
+		"walrus", "warthog", "weasel", "whale", "wolf",
+		"wombat", "woodpecker", "worm", "yak", "zebra"
+	]
+}
