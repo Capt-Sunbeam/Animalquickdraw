@@ -1,9 +1,10 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=6 format=3]
 
 [ext_resource type="Script" path="res://ui/lobby/lobby_screen.gd" id="1_lobby"]
 [ext_resource type="PackedScene" path="res://ui/shared/player_list.tscn" id="2_plist"]
 [ext_resource type="PackedScene" path="res://ui/shared/chat_panel.tscn" id="3_chat"]
 [ext_resource type="PackedScene" path="res://ui/shared/toast.tscn" id="4_toast"]
+[ext_resource type="PackedScene" path="res://ui/lobby/mode_settings_panel.tscn" id="5_mpanel"]
 
 [node name="LobbyScreen" type="Control"]
 layout_mode = 3
@@ -156,6 +157,16 @@ layout_mode = 2
 
 [node name="ModeSpacer" type="Control" parent="Margin/Root/Main/SettingsPanel/SettingsMargin/SettingsBox/Grid"]
 layout_mode = 2
+
+[node name="ModeScroll" type="ScrollContainer" parent="Margin/Root/Main/SettingsPanel/SettingsMargin/SettingsBox"]
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="ModePanel" parent="Margin/Root/Main/SettingsPanel/SettingsMargin/SettingsBox/ModeScroll" instance=ExtResource("5_mpanel")]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
 
 [node name="Chat" parent="Margin/Root" instance=ExtResource("3_chat")]
 unique_name_in_owner = true

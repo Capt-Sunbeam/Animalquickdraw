@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://ui/round/reaction_bar.gd" id="1_rbar"]
+
+[node name="ReactionBar" type="HBoxContainer"]
+script = ExtResource("1_rbar")

@@ -1,9 +1,10 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=6 format=3]
 
 [ext_resource type="Script" path="res://ui/round/round_root.gd" id="1_rroot"]
 [ext_resource type="Script" path="res://game/session/session_client.gd" id="2_sclient"]
 [ext_resource type="PackedScene" path="res://ui/shared/chat_panel.tscn" id="3_chat"]
 [ext_resource type="PackedScene" path="res://ui/shared/toast.tscn" id="4_toast"]
+[ext_resource type="PackedScene" path="res://ui/round/game_menu.tscn" id="5_menu"]
 
 [node name="RoundRoot" type="Control"]
 layout_mode = 3
@@ -63,3 +64,7 @@ layout_mode = 2
 
 [node name="Toast" parent="." instance=ExtResource("4_toast")]
 unique_name_in_owner = true
+
+[node name="Menu" parent="." instance=ExtResource("5_menu")]
+unique_name_in_owner = true
+layout_mode = 1

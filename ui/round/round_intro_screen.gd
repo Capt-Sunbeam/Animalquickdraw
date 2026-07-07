@@ -21,3 +21,9 @@ func setup(data: Dictionary, _client: SessionClient) -> void:
 
 func chat_prominence() -> ChatPanel.Prominence:
 	return ChatPanel.Prominence.NORMAL
+
+
+## Slice 6 pause: fresh deadline after a host resume.
+func refresh_deadline(data: Dictionary) -> void:
+	if data.has("deadline_ms"):
+		_timer.start(int(data["deadline_ms"]))

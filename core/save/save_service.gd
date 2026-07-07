@@ -49,6 +49,21 @@ func write_json(path: String, data: Dictionary) -> Error:
 	return rename_err
 
 
+## Writes an Image as PNG (Slice 4 thumbnail cache). Same path rules as JSON
+## writes; not atomic - PNG caches are regenerable, never authoritative.
+func write_png(path: String, image: Image) -> Error:
+	if not _path_ok(path):
+		return ERR_INVALID_PARAMETER
+	var full: String = _full(path)
+	var dir_err: Error = _ensure_parent_dir(full)
+	if dir_err != OK:
+		return dir_err
+	var err: Error = image.save_png(full)
+	if err != OK:
+		push_warning("Save: PNG write failed for %s (%s)" % [path, error_string(err)])
+	return err
+
+
 func delete(path: String) -> Error:
 	if not _path_ok(path):
 		return ERR_INVALID_PARAMETER

@@ -50,12 +50,14 @@ This slice turns Slice 3's utilitarian "drawings appear in a grid" reveal into t
 
 Stored in `GameSettings` (`res://game/session/settings.gd`); enum homes noted. Full lobby surface, presets, and lock rules are Slice 6's job — **these keys, types, and defaults are authoritative from this slice on** and Slice 6 must not rename them.
 
+> **Update (2026-07-06, owner playtest):** the replay settings changed from speed multipliers to **target durations** — the strokes speed up to fit the set time (a 30 s drawing with a 5 s target is very fast; a 30 s target is realtime), floored at realtime for shorter drawings. Keys renamed accordingly; Slice 6 surfaces these names.
+
 | Key | Type | Default | Range/Values | Consumed by |
 |-----|------|---------|--------------|-------------|
 | `reveal_style` | `GameSettings.RevealStyle` | `ONE_AT_A_TIME` | `GRID`, `ONE_AT_A_TIME` | this slice |
 | `replay_mode` | `GameSettings.ReplayMode` | `WINNER_ONLY` | `OFF`, `WINNER_ONLY`, `FULL` | this slice |
-| `reveal_replay_speed` | `float` | `4.0` | 2.0–10.0, step 0.5 (× real time) | this slice |
-| `winner_replay_speed` | `float` | `3.0` | 2.0–10.0, step 0.5 | this slice |
+| `reveal_replay_secs` | `float` | `5.0` | 2.0–15.0 (target duration, budget-capped) | this slice |
+| `winner_replay_secs` | `float` | `8.0` | 2.0–30.0 (target duration) | this slice |
 | `comments_enabled` | `bool` | `true` | — | this slice |
 
 ```gdscript
@@ -479,3 +481,17 @@ Each beat renders one live replay at most; settled cards are cached `ImageTextur
 ---
 
 **End of Slice 5**
+
+---
+
+## Implementation Status
+
+**Status:** COMPLETE
+**Completed:** 2026-07-06 (session 4; owner playtested the reveal live, directed four changes — all applied and re-verified same session; remaining detail tests deferred to qa-backlog per owner)
+**Implementation Notes:** `TDD/05-reveal-styles-replay-implementation-notes.md`
+
+### Summary of Deviations
+- Stage built inside `reveal_judging_screen` (seamless gather by construction); no `reveal_stage.tscn`, no `GridLayout`
+- One idle-gap constant (Slice 1's `REPLAY_MAX_OP_GAP_SEC`), not a duplicate
+- Owner changes: replay settings became target durations (`reveal_replay_secs`/`winner_replay_secs`); RESOLUTION sized to fit replay + 2 s still hold; reaction UI enlarged; host pause → Slice 6 Esc menu
+- Captions payload-level and session-transient; `show_save_toggle` fixed on (Slice 4 gap)

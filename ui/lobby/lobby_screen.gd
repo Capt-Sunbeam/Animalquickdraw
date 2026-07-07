@@ -16,6 +16,7 @@ var _updating_ui: bool = false  # guards value_changed while applying syncs
 @onready var _draw_time_value: Label = %DrawTimeValue
 @onready var _pool_option: OptionButton = %PoolOption
 @onready var _mode_option: OptionButton = %ModeOption
+@onready var _mode_panel: ModeSettingsPanel = %ModePanel
 @onready var _chat: ChatPanel = %Chat
 @onready var _start_button: Button = %StartButton
 @onready var _start_hint: Label = %StartHint
@@ -26,6 +27,7 @@ var _updating_ui: bool = false  # guards value_changed while applying syncs
 func _ready() -> void:
 	EventBus.roster_updated.connect(_on_roster_updated)
 	EventBus.lobby_settings_changed.connect(_on_settings_changed)
+	EventBus.round_suggestion_changed.connect(_on_round_suggestion_changed)
 	EventBus.game_started.connect(_on_game_started)
 	_room_code_label.text = "Room code: %s" % Session.room_code
 	_leave_button.pressed.connect(Session.leave)
@@ -54,8 +56,7 @@ func _setup_settings_controls() -> void:
 		_draw_time_spin.max_value = GameConstants.DRAW_TIME_MAX_SEC
 		_draw_time_spin.step = 5.0
 		_draw_time_spin.value_changed.connect(_on_draw_time_edited)
-	# Placeholder selectors: only Built-in / Default selectable until
-	# Slices 7 / 6 - the rest render greyed with a "(coming soon)" hint.
+	# Pool stays gated until Slice 7; modes are live from Slice 6.
 	_pool_option.clear()
 	_pool_option.add_item("Built-in", GameSettings.PoolSource.BUILT_IN)
 	_pool_option.add_item("Player-created (coming soon)", GameSettings.PoolSource.PLAYER_CREATED)
@@ -64,13 +65,13 @@ func _setup_settings_controls() -> void:
 	_pool_option.tooltip_text = "More prompt pools coming soon"
 	_mode_option.clear()
 	_mode_option.add_item("Default", SettingsDefaults.Mode.DEFAULT)
-	_mode_option.add_item("Streamlined (coming soon)", SettingsDefaults.Mode.STREAMLINED)
-	_mode_option.add_item("Social (coming soon)", SettingsDefaults.Mode.SOCIAL)
-	_mode_option.add_item("Custom (coming soon)", SettingsDefaults.Mode.CUSTOM)
-	for i: int in range(1, _mode_option.item_count):
-		_mode_option.set_item_disabled(i, true)
+	_mode_option.add_item("Streamlined", SettingsDefaults.Mode.STREAMLINED)
+	_mode_option.add_item("Social", SettingsDefaults.Mode.SOCIAL)
+	_mode_option.add_item("Custom", SettingsDefaults.Mode.CUSTOM)
 	_mode_option.disabled = not host
-	_mode_option.tooltip_text = "More modes coming soon"
+	if host:
+		_mode_option.item_selected.connect(_on_mode_selected)
+	_mode_panel.setting_edited.connect(_on_panel_setting_edited)
 
 
 func _on_rounds_edited(value: float) -> void:
@@ -90,6 +91,25 @@ func _on_draw_time_edited(value: float) -> void:
 	Session.set_settings(s)
 
 
+## Slice 6: preset switch - locked keys re-apply; the always-three survive.
+func _on_mode_selected(index: int) -> void:
+	if _updating_ui:
+		return
+	var s: GameSettings = Session.settings.duplicate_settings()
+	s.apply_preset(_mode_option.get_item_id(index))
+	Session.set_settings(s)
+
+
+## Slice 6: Custom-surface edit routed through the single mutation gate
+## (lock rule + clamping enforced there, defense in depth).
+func _on_panel_setting_edited(key: StringName, value: Variant) -> void:
+	if _updating_ui:
+		return
+	var s: GameSettings = Session.settings.duplicate_settings()
+	if s.set_value(key, value):
+		Session.set_settings(s)
+
+
 func _on_settings_changed(settings_dict: Dictionary) -> void:
 	_apply_settings_dict(settings_dict)
 
@@ -104,7 +124,16 @@ func _apply_settings_dict(d: Dictionary) -> void:
 	_draw_time_value.text = "%d s" % int(s.draw_time_sec)
 	_pool_option.select(_pool_option.get_item_index(s.pool_source))
 	_mode_option.select(_mode_option.get_item_index(s.mode))
+	_mode_panel.render(s)   # Slice 6: summary chips vs Custom surface
 	_updating_ui = false
+
+
+## Slice 6: live "(suggested: N)" hint - always visible so an overriding
+## host still sees what the game recommends for the current lobby size.
+func _on_round_suggestion_changed(suggested: int, overridden: bool) -> void:
+	_suggested_tag.text = "(suggested: %d)" % suggested
+	_suggested_tag.visible = true
+	_suggested_tag.modulate.a = 0.6 if overridden else 1.0
 
 
 func _on_roster_updated(_players: Array) -> void:

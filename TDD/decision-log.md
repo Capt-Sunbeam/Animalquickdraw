@@ -12,6 +12,75 @@
 
 ---
 
+### Slice 6: snapshot as a separate object, permissive engine clamps, preset v1 values, pause shell
+**Date:** 2026-07-06 | **Slice:** 6 | **Type:** Quick
+
+**Decision:**
+- **`Session.game_settings`** (new, per-peer) holds the frozen start-payload snapshot every in-game system reads; the lobby `Session.settings` object stays editable and keeps AUTO sentinels for the next lobby. The TDD's freeze-the-lobby-object lifecycle conflated the two.
+- **Engine clamps stay permissive (rounds 1–32); the lobby stepper enforces the player-facing 3–20** — CI and unit tests legitimately run 1–2-round games, and dual clamp regimes would desync host/client mirrors.
+- **Preset v1 values recorded** (expect tuning): Streamlined = grid/no replay/15 s judging/20 s draw/captions off; Social = one-at-a-time/FULL replay/8 s reveal + 12 s winner targets/40 s judging/45 s draw; Default = one-at-a-time/winner-only 8 s/25 s judging/30 s draw. Identity tests pin each mode's meaning, not exact numbers.
+- **`judging_window_sec` became a setting** (was Slice 3's constant; default 25 s per TDD).
+- **Pause (owner addition):** `GameSession.pause()` (ex-Slice 9 stub) broadcasts a PAUSED phase; `RoundRoot` keeps the live screen under a forced overlay and resume refreshes deadlines **in place** (`refresh_deadline` on all phase screens) so a mid-drawing pause never wipes a canvas. Beat metronome freezes via `Timer.paused`. Leave = existing Slice 2 semantics until Slice 9.
+- Existing names win over the TDD draft (`draw_time_sec`, duration-based replay keys, `SettingsDefaults.Mode`); draw-time range reconciled to 10–120 s; no 150 ms coalescing (steppers don't chatter); mode selector reuses Slice 2's OptionButton.
+
+**Status:** [x] Code implemented [x] Tests green (287/287) [x] Gates PASS [x] Implementation notes written [ ] Owner core-flow sign-off
+
+---
+
+### Replay settings are target durations; finished replays hold a 2 s still
+**Date:** 2026-07-06 | **Slice:** 5 (contract consumed by 6) | **Decided by:** Owner (playtest)
+
+**Decision:** `reveal_replay_secs` / `winner_replay_secs` replace the speed-multiplier settings: the replay speeds up to fit the set time (30 s drawing @ 5 s target = 6×; @ 30 s = realtime), floored at realtime for shorter drawings. Every finished replay holds the completed still for `REPLAY_STILL_HOLD_SECS = 2.0`; the host sizes RESOLUTION to fit the full winner replay + hold (it may exceed the 6 s base — a replay is never cut off). `ReplayPlayer`'s Slice 1 hard 10 s cap became caller-optional (`enforce_duration_cap`) since a host-set 30 s realtime replay is now legitimate. Also from the same playtest: reaction UI enlarged; host pause button folded into Slice 6's Esc menu.
+
+**Impact:** Slice 5 TDD §2 table updated in place; Slice 6 must surface the renamed keys (its TDD draft references the old speed keys — the updated table wins).
+
+---
+
+### In-game pause/leave menu lands in Slice 6 (shell), semantics upgraded in Slice 9
+**Date:** 2026-07-06 | **Slice:** 6, 9 | **Decided by:** Owner
+
+**Context:** Owner-flagged gap (2026-07-06, session 3): once a game starts there is no settings access or exit-to-menu short of closing the window. Covered by no planned slice; candidate homes were Slice 6 (settings surface) or Slice 9 (resilience/voluntary-leave).
+
+**Decision:** Slice 6 ships the menu shell — an in-game Esc overlay with Resume / Leave to main menu (leave uses the existing session paths: host leaving ends the session for everyone, a drawer leaving becomes a blank and stays on the roster). Slice 9 upgrades the semantics behind the same button (graceful voluntary leave, rejoin memory, below-minimum pause) without moving the UI.
+
+**Rationale:** The gap hurts every playtest between now and Chunk 12; Slice 6 is UI-heavy anyway and the shell only exposes already-existing behavior, so the added scope is small.
+
+**Impact:** Slice 6 scope grows by the Esc overlay; Slice 9's TDD assumptions unchanged (it owns leave/rejoin semantics either way). WHERE_WE_ARE Active Decisions entry resolved.
+
+---
+
+### Slice 5: stage-in-screen reveal, single gap constant, captions transient, beat failsafe
+**Date:** 2026-07-06 | **Slice:** 5 | **Type:** Quick
+
+**Decision:**
+- **One-at-a-time stage built inside `reveal_judging_screen`** (no `reveal_stage.tscn`, no `GridLayout` retrofit): beats settle into the real judging cells, making REVEAL→JUDGING seamless by construction and reusing all Slice 4 cell wiring. GridLayout can be created when Slices 8/10 actually need it.
+- **Single idle-gap constant:** kept Slice 1's implemented `REPLAY_MAX_OP_GAP_SEC = 1.0` instead of adding the TDD's duplicate `REPLAY_MAX_IDLE_GAP_SECS = 0.35` — planner and renderer must share one compression rule or host beat schedules drift from client renders; the reveal caps already guarantee pacing.
+- **Captions are session-transient and payload-level:** they ride the submission payload beside the doc (never inside it), so collection saves can never leak them; not persisted in v1 (revisit if playtests miss them).
+- **Beat-chain failsafe:** the REVEAL phase deadline = beat schedule + `REVEAL_BEAT_FAILSAFE_SECS`; the ordinary deadline force-advances if beats stall, and stale beat timers self-drop — the host phase timer and beat timer can never double-advance.
+- **`ReactionGate.open_for()` now preserves a running close-grace** so reactions racing a beat boundary still land for the previous drawing (§10).
+- **Slice 4 follow-up fix:** `draw_screen.tscn` had `show_save_toggle = false`, making self-save unreachable in real rounds; flipped to true.
+- Slice 1's `ReplayPlayer` needed no extension (already had `speed_multiplier` + cap, composing safely with planner timescales).
+
+**Status:** [x] Code implemented [x] Tests green (260/260) [x] Gates PASS (incl. beat/gather/caption checks) [x] Implementation notes written [ ] Owner core-flow sign-off
+
+---
+
+### Slice 4: RPC placement, collection write path details, pending-state UX, CI social gate
+**Date:** 2026-07-06 | **Slice:** 4 | **Type:** Quick
+
+**Decision:**
+- **Reaction/kudos RPCs live on `SessionClient`** (steps 1–2) with validated `GameSession.react()/give_kudos()` entry points (steps 3–5) — the TDD's "GameSession RPC surface" wording predates the Slice 3 SessionClient/GameSession split, which wins.
+- **`CollectionStore` writes doc-before-index** (TDD said index first): a dangling index entry would render as a broken item in the Slice 8 browser, an orphaned doc file is invisible. `Save.write_png()` added so thumbnails stay behind the single-choke-point rule; `CollectionStore.root_dir` static seam keeps tests/CI out of real collections. `CollectionStore` centrally emits `collection_item_added` + new 6th signal `collection_save_failed`.
+- **Self-save fires when the draw screen retires** (last *submitted* doc), not per submit call — latest-wins resubmission makes per-submit idempotent saves keep the wrong (first) version.
+- **KudosButton pending state re-enables on a 2 s timeout**, not the TDD's "next total/phase sync" heuristic — the giver's own `kudos_total_changed` precedes their private confirm on the reliable channel, so the heuristic flicker-re-enables mid-flight. No optimistic spend, per TDD.
+- **`GameSettings.kudos_allotment` field added now** (default `KUDOS_AUTO = -1`; explicit 0 = kudos off, min-1 clamp AUTO-only). Slice 6 adds the UI.
+- **Results bundle `reaction_stats`/`kudos_stats` filled** with uid-keyed nonzero-only aggregates (`totals_by_author` / `received_by_author` + `drawing_totals`); Slice 10 mines full `SessionStats` host-side.
+- **`verify_round.sh` gate extended to the social layer** (judge react/un-react/re-react + kudos with giver-side collection-file verification; drawers cross-react; per-peer convergence checks). **Incident:** the first driver version used a raw ENet peer id (random 32-bit int) as an op-count loop bound — two headless instances froze allocating ~10⁹ dictionaries (~80 GB RAM, machine crash). Fixed to `joined_order` + hard clamp; rule recorded: never use peer ids as sizes/bounds. Gate runs now use a guarded wrapper (output to file + RSS watchdog).
+
+**Status:** [x] Code implemented [x] Tests green (233/233) [x] Gates PASS [x] Implementation notes written [ ] Owner core-flow sign-off
+
+---
+
 ### QA process: core-flow sign-offs + deferred fine-grain QA backlog
 **Date:** 2026-07-06 | **Slice:** All | **Decided by:** Owner
 

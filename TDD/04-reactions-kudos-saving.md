@@ -553,3 +553,19 @@ Per `workflows/testing-protocol.md` — tests written alongside, mirror-pathed u
 ---
 
 **End of Slice 4**
+
+---
+
+## Implementation Status
+
+**Status:** COMPLETE
+**Completed:** 2026-07-06 (session 4; owner acknowledged at the slice boundary — playtest pacing per owner QA process)
+**Implementation Notes:** `TDD/04-reactions-kudos-saving-implementation-notes.md`
+
+### Summary of Deviations
+- RPCs on `SessionClient` (steps 1–2) + validated `GameSession.react()/give_kudos()` (steps 3–5) per the Slice 3 split — not a literal "GameSession RPC surface"
+- Grid cells extended in code (`reveal_judging_screen._build_cell`); no `drawing_grid_cell.tscn` ever existed
+- Self-save fires on draw-screen retire with the last *submitted* doc (latest-wins-safe), not per submit call
+- KudosButton pending state re-enables via 2 s timeout (the TDD's next-sync heuristic races the giver's own confirm)
+- Added: `Save.write_png()`, `EventBus.collection_save_failed`, `GameSettings.kudos_allotment` (+`KUDOS_AUTO`), `CollectionStore.root_dir` test seam; CollectionStore writes doc before index
+- Results bundle `reaction_stats`/`kudos_stats` filled with uid-keyed nonzero-only aggregates

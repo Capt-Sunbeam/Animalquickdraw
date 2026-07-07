@@ -7,6 +7,7 @@ var drawing_id: String = ""        # uuidv4 minted by the host at collect time
 var author_player_id: String = ""  # HOST-PRIVATE until RESOLUTION
 var doc: Dictionary = {}           # serialized DrawingDoc (cg §6 wire format)
 var is_blank: bool = false         # host-synthesized for a missing drawer
+var caption: String = ""           # Slice 5: host-censored, anonymous, session-transient
 
 
 static func blank_doc() -> Dictionary:

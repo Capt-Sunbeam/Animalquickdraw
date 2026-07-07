@@ -33,8 +33,13 @@ var _op_announced: bool = false
 var _finished: bool = false
 
 
-## speed_multiplier >= 1.0; caller (Slice 5/6 settings, sandbox UI) supplies it.
-func load_doc(doc: DrawingDoc, speed_multiplier: float = 1.0) -> void:
+## speed_multiplier >= 1.0; caller (Slice 5/6 settings, sandbox UI) supplies
+## it. enforce_duration_cap keeps the Slice 1 REPLAY_MAX_DURATION_SEC guard
+## for callers with no plan of their own (sandbox); Slice 5 passes false -
+## its ReplayPlanner timescales already encode the host-set target duration
+## (which may legitimately exceed the old 10 s cap, e.g. realtime replays).
+func load_doc(doc: DrawingDoc, speed_multiplier: float = 1.0,
+		enforce_duration_cap: bool = true) -> void:
 	_doc = doc
 	_image = DocRasterizer.new_canvas_image(doc.canvas_size())
 	_schedule.clear()
@@ -62,7 +67,7 @@ func load_doc(doc: DrawingDoc, speed_multiplier: float = 1.0) -> void:
 		natural_prev_end = maxf(natural_end, natural_prev_end)
 		_schedule.append(entry)
 	_total_duration = cursor
-	if _total_duration > 0.0:
+	if _total_duration > 0.0 and enforce_duration_cap:
 		_rate = maxf(speed_multiplier, _total_duration / GameConstants.REPLAY_MAX_DURATION_SEC)
 	else:
 		_rate = maxf(speed_multiplier, 1.0)

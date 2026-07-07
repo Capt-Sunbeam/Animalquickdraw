@@ -31,6 +31,12 @@ func chat_prominence() -> ChatPanel.Prominence:
 	return ChatPanel.Prominence.PROMINENT
 
 
+## Slice 6 pause: fresh deadline after a host resume.
+func refresh_deadline(data: Dictionary) -> void:
+	if data.has("deadline_ms"):
+		_timer.start(int(data["deadline_ms"]))
+
+
 func _animate_dots() -> void:
 	_dots = (_dots + 1) % 4
 	_waiting_label.text = "players are drawing" + ".".repeat(_dots)

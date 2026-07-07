@@ -18,6 +18,11 @@ enum LocalState { MENU, HOST_CREATING, JOIN_CONNECTING, REGISTERING, IN_LOBBY, S
 var phase: NetIds.Phase = NetIds.Phase.LOBBY
 var roster: Roster = Roster.new()          # host: authoritative; client: mirror
 var settings: GameSettings = GameSettings.new()
+## Slice 6: the frozen settings snapshot every in-game system reads (set on
+## every peer from the start payload; a fresh default outside a game so
+## tests/smokes read sane values). The lobby `settings` object is never
+## consulted after start.
+var game_settings: GameSettings = GameSettings.new()
 var room_code: String = ""                 # display value from welcome/host call
 
 var _local_state: LocalState = LocalState.MENU
@@ -48,6 +53,12 @@ func host_session(code: String) -> Error:
 	_reset_session_state()
 	room_code = code.strip_edges().to_upper()
 	_apply_register(1, Platform.get_platform_id(), Platform.get_display_name())
+	# Slice 6 host convenience: restore the last-hosted lobby's settings
+	# (round count re-seeds from the current suggestion by design).
+	var profile: Dictionary = Save.read_json("profile.json", {})
+	if profile.get("last_lobby_settings") is Dictionary:
+		settings = GameSettings.restore_for_lobby(
+				profile["last_lobby_settings"], roster.connected_count())
 	_local_state = LocalState.IN_LOBBY
 	Nav.goto(Routes.LOBBY)
 	return OK
@@ -92,6 +103,9 @@ func set_settings(new_settings: GameSettings) -> void:
 	settings = new_settings.duplicate_settings()  # defensive copy - UI keeps no handle
 	settings.clamp_to_limits()
 	rpc_sync_settings.rpc(settings.to_dict())
+	rpc_sync_round_suggestion.rpc(
+			GameSettings.suggested_rounds(roster.connected_count()),
+			settings.rounds_overridden)
 
 
 func can_start() -> bool:
@@ -103,6 +117,13 @@ func can_start() -> bool:
 func start_game() -> void:
 	if not can_start():
 		return
+	if not settings.validate_for_start(roster.connected_count()).is_empty():
+		return   # Slice 7 fills real blockers; unreachable today (clamped edits)
+	# Slice 6: persist the host's lobby setup (pre-snapshot - keeps AUTO
+	# sentinels), then freeze the snapshot the whole game reads.
+	var profile: Dictionary = Save.read_json("profile.json", {})
+	profile["last_lobby_settings"] = settings.to_dict()
+	Save.write_json("profile.json", profile)
 	rpc_sync_game_started.rpc(_build_start_data())
 
 
@@ -116,6 +137,14 @@ func return_to_lobby() -> void:
 
 func is_host() -> bool:
 	return Net.is_host()
+
+
+## Host-only (Slice 4): mid-game roster re-broadcast after PlayerState
+## economy fields (kudos_granted/kudos_spent) change on the host.
+func broadcast_roster() -> void:
+	if not Net.is_host():
+		return
+	rpc_sync_roster.rpc(roster.to_dicts())
 
 
 func local_player() -> Roster.PlayerState:
@@ -170,19 +199,24 @@ func _refresh_suggested_rounds() -> void:
 
 
 func _build_start_data() -> Dictionary:
-	# to_dict/to_dicts copies = the snapshot is frozen by construction;
-	# later host edits mutate the live objects, never this payload.
-	return {"settings": settings.to_dict(), "roster": roster.to_dicts()}
+	# Slice 6: the payload carries the frozen snapshot (kudos AUTO resolved
+	# to a concrete count); later host edits mutate the live lobby object,
+	# never this payload.
+	return {"settings": settings.snapshot().to_dict(), "roster": roster.to_dicts()}
 
 
 func _broadcast_lobby_state() -> void:
 	rpc_sync_roster.rpc(roster.to_dicts())
 	rpc_sync_settings.rpc(settings.to_dict())
+	rpc_sync_round_suggestion.rpc(
+			GameSettings.suggested_rounds(roster.connected_count()),
+			settings.rounds_overridden)
 
 
 func _reset_session_state() -> void:
 	roster = Roster.new()
 	settings = GameSettings.new()
+	game_settings = GameSettings.new()
 	room_code = ""
 	phase = NetIds.Phase.LOBBY
 	_rate_limiter.reset()
@@ -349,11 +383,21 @@ func rpc_sync_chat_message(sender_peer_id: int, sender_name: String, text: Strin
 	EventBus.chat_message_received.emit(sender_peer_id, sender_name, text)
 
 
+## host -> all: settings mirror replace (also sent to fresh joiners).
+@rpc("authority", "call_local", "reliable")
+func rpc_sync_round_suggestion(suggested: int, overridden: bool) -> void:
+	EventBus.round_suggestion_changed.emit(suggested, overridden)
+
+
 ## host -> all: settings/roster frozen; Slice 3 takes over from here.
 @rpc("authority", "call_local", "reliable")
 func rpc_sync_game_started(start_data: Dictionary) -> void:
 	phase = NetIds.Phase.ROUND_INTRO  # coarse marker; GameSession drives the real machine
 	_local_state = LocalState.STARTING
+	# Slice 6: every peer constructs its immutable in-game snapshot from the
+	# payload - nothing reads lobby settings after start.
+	game_settings = GameSettings.from_dict(start_data.get("settings", {}))
+	game_settings.freeze()
 	EventBus.game_started.emit(start_data)
 	# Slice 3 handoff: every peer enters RoundRoot (which hosts SessionClient;
 	# the host side constructs the GameSession simulation there).

@@ -92,9 +92,9 @@ Hard ~180k-token context budget per session (Decision Log 2026-07-04). One chunk
 | 1 | `TDD/01-drawing-canvas-stroke-engine.md` | `TDD/01-drawing-canvas-stroke-engine-implementation-notes.md` |
 | 2 | `TDD/02-lobby-session-roster.md` | `TDD/02-lobby-session-roster-implementation-notes.md` |
 | 3 | `TDD/03-core-round-loop.md` | `TDD/03-core-round-loop-implementation-notes.md` |
-| 4 | `TDD/04-reactions-kudos-saving.md` | — |
-| 5 | `TDD/05-reveal-styles-replay.md` | — |
-| 6 | `TDD/06-game-modes-settings.md` | — |
+| 4 | `TDD/04-reactions-kudos-saving.md` | `TDD/04-reactions-kudos-saving-implementation-notes.md` |
+| 5 | `TDD/05-reveal-styles-replay.md` | `TDD/05-reveal-styles-replay-implementation-notes.md` |
+| 6 | `TDD/06-game-modes-settings.md` | `TDD/06-game-modes-settings-implementation-notes.md` |
 | 7 | `TDD/07-player-created-pools.md` | — |
 | 8 | `TDD/08-collection-browser-export.md` | — |
 | 9 | `TDD/09-connectivity-resilience.md` | — |

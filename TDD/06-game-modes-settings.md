@@ -489,3 +489,18 @@ Settings dicts are ~15 scalar entries; even un-coalesced broadcast traffic is ne
 ---
 
 **End of Slice 6**
+
+---
+
+## Implementation Status
+
+**Status:** COMPLETE (playtest deferred)
+**Completed:** 2026-07-06 (session 4; 287/287 tests + both automated gates green; owner deferred ALL human checks to `TDD/qa-backlog.md` — the deferred-blocking section there must be cleared before Slice 7 builds on this surface)
+**Implementation Notes:** `TDD/06-game-modes-settings-implementation-notes.md`
+
+### Summary of Deviations
+- `Session.game_settings` is a separate frozen snapshot object; the lobby settings object stays editable (AUTO sentinels intact)
+- Existing field names win (`draw_time_sec`, duration-based `reveal_replay_secs`/`winner_replay_secs`, `SettingsDefaults.Mode`); draw-time range reconciled to 10–120 s
+- Engine clamps permissive (1–32 rounds); lobby stepper enforces the player-facing 3–20
+- Mode selector reuses Slice 2's OptionButton; panel is code-built `mode_settings_panel`; no broadcast coalescing (steppers, not sliders)
+- Owner additions: Esc `GameMenu` with host Pause (GameSession.pause broadcasts PAUSED; screens refresh deadlines in place on resume) and two-click Leave

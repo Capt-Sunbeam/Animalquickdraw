@@ -30,10 +30,18 @@ const REPLAY_MAX_DURATION_SEC: float = 10.0
 
 # --- Slice 2: Lobby & Session Roster ---
 const SUGGESTED_ROUNDS_PER_PLAYER: int = 2     # brief §10: ~2x player count
-const ROUNDS_MIN: int = 1
+const ROUNDS_MIN: int = 1                      # engine clamp stays permissive (dev/CI); UI uses ROUNDS_UI_MIN
 const ROUNDS_MAX: int = 32
-const DRAW_TIME_MIN_SEC: float = 15.0          # reconcile with Slice 6's 10-120 range when it lands
-const DRAW_TIME_MAX_SEC: float = 180.0
+const DRAW_TIME_MIN_SEC: float = 10.0          # Slice 6 range reconciled (TDD 06 §2)
+const DRAW_TIME_MAX_SEC: float = 120.0
+
+# --- Slice 6: Game Modes & Settings ---
+const ROUNDS_UI_MIN: int = 3                   # player-facing stepper range (TDD 06 §2)
+const ROUNDS_UI_MAX: int = 20
+const JUDGING_WINDOW_MIN_SEC: float = 10.0
+const JUDGING_WINDOW_MAX_SEC: float = 60.0
+const KUDOS_ALLOTMENT_MAX: int = 8             # explicit setting cap; -1 = AUTO
+const SETTING_STEP_SEC: float = 5.0            # stepper granularity for time settings
 const MAX_CHAT_LEN: int = 200
 const CHAT_RATE_LIMIT_COUNT: int = 5           # max messages...
 const CHAT_RATE_LIMIT_WINDOW_SEC: float = 3.0  # ...per window, per peer
@@ -52,6 +60,25 @@ const RESOLUTION_SEC: float = 6.0
 const MAX_DRAWING_BYTES: int = 262144          # wire-size cap for a submitted doc (~50 KB typical)
 const COMBO_REPEAT_MAX_ATTEMPTS: int = 40      # prompt redraws before allowing a repeat
 const ROUND_START_FAILSAFE_SEC: float = 3.0    # host starts even if a peer never reports ready
+
+# --- Slice 5: Reveal choreography (all dev-tunable, none host-exposed;
+# "Social plays longer" comes from preset settings, not these) ---
+const REVEAL_CARD_IN_SECS: float = 0.35        # card slide/scale onto stage
+const REVEAL_SHOW_FADE_SECS: float = 0.25      # non-replay content fade-in
+const REVEAL_CAPTION_SECS: float = 0.6         # caption fade-in (skipped if no caption)
+const REVEAL_REACT_HOLD_SECS: float = 3.0      # react-and-heckle hold per drawing
+const REVEAL_TO_GRID_SECS: float = 0.45        # card shrink into its grid slot (also the gather budget)
+const REVEAL_GRID_FADE_SECS: float = 0.25      # grid-style: all-at-once fade
+const REVEAL_REPLAY_BUDGET_SECS: float = 30.0  # total replay budget across all beats (snappiness guard)
+const REVEAL_BEAT_FAILSAFE_SECS: float = 1.5   # main REVEAL deadline margin past the beat schedule
+const REPLAY_STILL_HOLD_SECS: float = 2.0      # finished replay holds the still this long (owner, 2026-07-06)
+const CAPTION_MAX_CHARS: int = 80
+
+# --- Slice 4: Reactions, Kudos & Saving ---
+const REACTION_EVENT_CAP: int = 24             # changed-toggles per (player, drawing); bounds SessionStats
+const REACTION_CLOSE_GRACE_MSEC: int = 250     # requests landing just after gate close still count (§10)
+const REACTION_DEBOUNCE_MSEC: int = 150        # client-side reaction button debounce
+const COLLECTION_THUMB_MAX_PX: int = 200       # long-edge cap for the regenerable thumbnail cache
 
 # --- Slice 1: Drawing Canvas & Stroke Engine ---
 const BRUSH_RADII_PX: PackedInt32Array = [3, 7, 14]  # size indices 0/1/2 (brief §6)

@@ -47,6 +47,9 @@ func _make_rig(player_count: int = 4, round_count: int = 2,
 	var settings := GameSettings.new()
 	settings.round_count = round_count
 	settings.pool_source = pool_source
+	# GRID keeps this Slice 3 suite's phase-deadline driving exact (the
+	# Slice 5 ONE_AT_A_TIME beat chain is covered by TestGameSessionReveal).
+	settings.reveal_style = GameSettings.RevealStyle.GRID
 	var rig := Rig.new()
 	rig.session = GameSession.new(settings, roster, Callable(rig.clock, "now"))
 	rig.session.rng.seed = 42
@@ -223,7 +226,9 @@ func test_reveal_entries_contain_no_author_info_and_are_shuffled() -> void:
 	var ids: Dictionary = {}
 	var op_counts: Array[int] = []
 	for entry: Dictionary in entries:
-		assert_array(entry.keys()).contains_exactly_in_any_order(["drawing_id", "doc"])
+		# caption added by Slice 5 - anonymous and empty unless supplied.
+		assert_array(entry.keys()).contains_exactly_in_any_order(
+				["drawing_id", "doc", "caption"])
 		assert_str(str(entry["drawing_id"])).is_not_empty()
 		ids[str(entry["drawing_id"])] = true
 		op_counts.append(((entry["doc"] as Dictionary)["ops"] as Array).size())
@@ -347,8 +352,11 @@ func test_results_bundle_shape_rounds_scores_standings_reserved_keys() -> void:
 	# p2/p3 tie at 0 (rank 1); p0/p1 tie at -1 (rank 3).
 	assert_int(int((standings[0] as Dictionary)["rank"])).is_equal(1)
 	assert_int(int((standings[2] as Dictionary)["rank"])).is_equal(3)
-	assert_dict(results["reaction_stats"]).is_empty()
-	assert_dict(results["kudos_stats"]).is_empty()
+	# Slice 4 fills the formerly-reserved keys with uid-keyed aggregates;
+	# a game with no reactions/kudos carries empty rollups.
+	assert_dict(results["reaction_stats"]).is_equal({"totals_by_author": {}})
+	assert_dict(results["kudos_stats"]).is_equal(
+			{"received_by_author": {}, "drawing_totals": {}})
 
 
 # --- integration: full scripted game (sim harness) ---

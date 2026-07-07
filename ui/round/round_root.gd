@@ -16,27 +16,52 @@ const PHASE_SCREENS: Dictionary = {
 }
 
 var _current_screen: Control = null
+var _current_phase: NetIds.Phase = NetIds.Phase.LOBBY
 
 @onready var _phase_area: Control = %PhaseArea
 @onready var _chat: ChatPanel = %Chat
 @onready var _session_client: SessionClient = %SessionClient
 @onready var _waiting_label: Label = %WaitingLabel
+@onready var _menu: GameMenu = %Menu
 
 
 func _ready() -> void:
 	EventBus.phase_changed.connect(_on_phase_changed)
 	_chat.message_submitted.connect(Session.submit_chat)
 	_chat.prominence = ChatPanel.Prominence.NORMAL
+	_menu.setup(_session_client)
+
+
+## Slice 6: Esc toggles the in-game menu (forced open while paused).
+func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("ui_cancel"):
+		_menu.toggle()
+		get_viewport().set_input_as_handled()
 
 
 func _on_phase_changed(phase: NetIds.Phase, data: Dictionary) -> void:
 	_waiting_label.visible = false
+	# Slice 6 pause: keep the live screen (canvas strokes, staged reveals)
+	# under the overlay; nothing is rebuilt.
+	if phase == NetIds.Phase.PAUSED:
+		_menu.show_paused()
+		return
+	_menu.hide_paused()
+	# Resume re-enters the SAME phase with a fresh deadline: refresh in
+	# place - a rebuild would wipe the canvas mid-drawing.
+	if phase == _current_phase and _current_screen != null \
+			and _current_screen.has_method("refresh_deadline"):
+		_current_screen.refresh_deadline(data)
+		_apply_chat_prominence(_current_screen)
+		return
 	# REVEAL -> JUDGING keeps the same screen alive (one grid, two phases).
 	if phase == NetIds.Phase.JUDGING and _current_screen != null \
 			and _current_screen.has_method("enter_judging"):
+		_current_phase = phase
 		_current_screen.enter_judging(data)
 		_apply_chat_prominence(_current_screen)
 		return
+	_current_phase = phase
 	_swap_screen(phase, data)
 
 

@@ -1,0 +1,23 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://ui/round/caption_input.gd" id="1_caption"]
+
+[node name="CaptionInput" type="HBoxContainer"]
+script = ExtResource("1_caption")
+
+[node name="CaptionChip" type="Button" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(140, 32)
+text = "Add a caption…"
+
+[node name="CaptionEdit" type="LineEdit" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(280, 32)
+placeholder_text = "say something about it…"
+
+[node name="CaptionCounter" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+text = ""
