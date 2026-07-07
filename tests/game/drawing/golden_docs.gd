@@ -27,6 +27,16 @@ static func make_fill(color_index: int, x: int, y: int) -> FillOp:
 	return fill
 
 
+static func make_text(color_index: int, size_index: int, x: int, y: int, text: String) -> TextOp:
+	var op := TextOp.new()
+	op.color_index = color_index
+	op.size_index = size_index
+	op.x = x
+	op.y = y
+	op.text = text
+	return op
+
+
 ## Three dots, one per brush size, different colors.
 static func dots() -> DrawingDoc:
 	var doc := DrawingDoc.new()
@@ -84,6 +94,18 @@ static func portrait_stroke() -> DrawingDoc:
 	return doc
 
 
+## Stroke + text at all three scales, punctuation, and an edge-clipped line
+## (Slice 16 §11): pins the PixelFont bitmaps and the blit math.
+static func text_mixed() -> DrawingDoc:
+	var doc := DrawingDoc.new()
+	doc.ops.append(make_stroke(Palette.base_index(4), 1,
+		[Vector2(80.0, 480.0), Vector2(720.0, 480.0)], 0.0, 0.2))
+	doc.ops.append(make_text(4, 2, 60, 60, "MOO 123 !?"))
+	doc.ops.append(make_text(Palette.base_index(1), 1, 120, 200, "Hello, World"))
+	doc.ops.append(make_text(Palette.base_index(6), 0, 760, 580, "edge"))  # clips right+bottom
+	return doc
+
+
 ## name -> DrawingDoc, for iterating in tests and the bake script.
 static func all() -> Dictionary:
 	return {
@@ -93,4 +115,5 @@ static func all() -> Dictionary:
 		"stroke_fill": stroke_fill(),
 		"fill_blank": fill_blank(),
 		"portrait_stroke": portrait_stroke(),
+		"text_mixed": text_mixed(),
 	}

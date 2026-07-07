@@ -65,14 +65,12 @@ const ROUND_START_FAILSAFE_SEC: float = 3.0    # host starts even if a peer neve
 # "Social plays longer" comes from preset settings, not these) ---
 const REVEAL_CARD_IN_SECS: float = 0.35        # card slide/scale onto stage
 const REVEAL_SHOW_FADE_SECS: float = 0.25      # non-replay content fade-in
-const REVEAL_CAPTION_SECS: float = 0.6         # caption fade-in (skipped if no caption)
 const REVEAL_REACT_HOLD_SECS: float = 3.0      # react-and-heckle hold per drawing
 const REVEAL_TO_GRID_SECS: float = 0.45        # card shrink into its grid slot (also the gather budget)
 const REVEAL_GRID_FADE_SECS: float = 0.25      # grid-style: all-at-once fade
 const REVEAL_REPLAY_BUDGET_SECS: float = 30.0  # total replay budget across all beats (snappiness guard)
 const REVEAL_BEAT_FAILSAFE_SECS: float = 1.5   # main REVEAL deadline margin past the beat schedule
 const REPLAY_STILL_HOLD_SECS: float = 2.0      # finished replay holds the still this long (owner, 2026-07-06)
-const CAPTION_MAX_CHARS: int = 80
 
 # --- Slice 4: Reactions, Kudos & Saving ---
 const REACTION_EVENT_CAP: int = 24             # changed-toggles per (player, drawing); bounds SessionStats
@@ -91,6 +89,11 @@ const FILL_BUDGET_MS: int = 50                       # flood fill budget, main t
 # --- Slice 7: Player-Created Prompt Pools ---
 const WORD_MAX_CHARS: int = 24                       # per submitted pool word
 const POOL_SETUP_FORCE_AVAILABLE_SEC: float = 120.0  # host force-continue unlock
+
+# --- Slice 16 (mini): In-Image Text Tool ---
+const TEXT_MAX_CHARS: int = 50                       # one full-width line at the smallest size
+const TEXT_SCALES: PackedInt32Array = [2, 3, 4]      # size indices 0/1/2 -> 16/24/32 px glyphs
+const TEXT_GLYPH_PX: int = 8                         # PixelFont cell size; advance = TEXT_GLYPH_PX * scale
 
 # --- Slice 8: Collection Browser & Export ---
 const EXPORT_SCALE: int = 2                          # nearest-neighbor upscale for exported PNGs

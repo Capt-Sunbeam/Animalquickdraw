@@ -18,6 +18,29 @@ script = ExtResource("1_canvas")
 unique_name_in_owner = true
 layout_mode = 2
 
+[node name="TextRow" type="HBoxContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="TextRowLabel" type="Label" parent="TextRow"]
+layout_mode = 2
+text = "Text:"
+
+[node name="TextInput" type="LineEdit" parent="TextRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(220, 34)
+layout_mode = 2
+placeholder_text = "Type, then drag it onto your drawing"
+clear_button_enabled = true
+
+[node name="TextChip" type="TextureRect" parent="TextRow"]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Drag me onto the canvas"
+expand_mode = 1
+stretch_mode = 5
+
 [node name="CanvasFrame" type="AspectRatioContainer" parent="."]
 unique_name_in_owner = true
 layout_mode = 2

@@ -52,6 +52,10 @@ func to_dict() -> Dictionary:
 				out_ops.append({"t": "fill", "c": fill.color_index, "x": fill.x, "y": fill.y})
 			DrawingOp.Type.CLEAR:
 				out_ops.append({"t": "clear"})
+			DrawingOp.Type.TEXT:
+				var text_op: TextOp = op
+				out_ops.append({"t": "text", "c": text_op.color_index, "s": text_op.size_index,
+						"x": text_op.x, "y": text_op.y, "str": text_op.text})
 	return {"v": FORMAT_VERSION, "orientation": String(orientation), "ops": out_ops}
 
 
@@ -97,6 +101,11 @@ static func from_dict(data: Variant) -> DrawingDoc:
 				doc.ops.append(fill)
 			"clear":
 				doc.ops.append(ClearOp.new())
+			"text":
+				var text_op: TextOp = _parse_text(op_dict, size)
+				if text_op == null:
+					return null
+				doc.ops.append(text_op)
 			_:
 				return _reject("unknown op type '%s'" % t)
 	return doc
@@ -162,6 +171,44 @@ static func _parse_fill(op_dict: Dictionary, canvas: Vector2i) -> FillOp:
 	fill.x = int(x)
 	fill.y = int(y)
 	return fill
+
+
+## TEXT op (Slice 16 §2): anchor must be in-canvas (clip handles overflow
+## right/bottom); content is 1..TEXT_MAX_CHARS chars, PixelFont charset only.
+static func _parse_text(op_dict: Dictionary, canvas: Vector2i) -> TextOp:
+	if not _color_index_ok(op_dict.get("c")):
+		_reject("text c out of range")
+		return null
+	var s: Variant = op_dict.get("s")
+	if not _is_int_value(s) or int(s) < 0 or int(s) >= GameConstants.TEXT_SCALES.size():
+		_reject("text s out of range")
+		return null
+	var x: Variant = op_dict.get("x")
+	var y: Variant = op_dict.get("y")
+	if not _is_int_value(x) or not _is_int_value(y):
+		_reject("text x/y not ints")
+		return null
+	if int(x) < 0 or int(x) >= canvas.x or int(y) < 0 or int(y) >= canvas.y:
+		_reject("text anchor out of bounds")
+		return null
+	var raw_text: Variant = op_dict.get("str")
+	if not raw_text is String:
+		_reject("text str missing")
+		return null
+	var text: String = raw_text
+	if text.is_empty() or text.length() > GameConstants.TEXT_MAX_CHARS:
+		_reject("text length invalid")
+		return null
+	if not PixelFont.is_supported_text(text):
+		_reject("text contains unsupported characters")
+		return null
+	var text_op := TextOp.new()
+	text_op.color_index = int(op_dict.get("c"))
+	text_op.size_index = int(s)
+	text_op.x = int(x)
+	text_op.y = int(y)
+	text_op.text = text
+	return text_op
 
 
 static func _color_index_ok(c: Variant) -> bool:

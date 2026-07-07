@@ -19,6 +19,10 @@ const FAMILY_GREYSCALE: int = 0
 ## Default brush color: black (greyscale family, darkest shade).
 const DEFAULT_COLOR_INDEX: int = 4
 
+## Eraser strokes paint this index (Slice 16): white == CANVAS_BACKGROUND,
+## so "erasing" is an ordinary deterministic stroke op that replays visibly.
+const ERASE_COLOR_INDEX: int = 0
+
 const COLORS: Array[Color] = [
 	# 0 greyscale: white -> black
 	Color("#ffffff"), Color("#c8c8c8"), Color("#8c8c8c"), Color("#4b4b4b"), Color("#000000"),

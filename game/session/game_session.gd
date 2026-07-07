@@ -30,6 +30,9 @@ signal pool_setup_progress_changed(progress: Array)
 ## (unknown sender/pool, post-lock) never emit.
 signal pool_words_rejected(player_id: String, pool_id: String, reason: int)
 
+## Slice 17: the ready-up set changed (SessionClient broadcasts it).
+signal ready_state_changed(ready_ids: PackedStringArray)
+
 ## Public so tests can seed deterministic shuffles/draws.
 var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 ## Test-observable POOL_SETUP hook flag (branch is inert until Slice 7).
@@ -48,6 +51,7 @@ var _records: Array[RoundRecord] = []
 var _authors: Dictionary = {}              # drawing_id -> player_id (PRIVATE)
 var _pending_winner_id: String = ""        # judge's latched pick; applied at deadline
 var _submissions: Dictionary = {}          # player_id -> Submission (current round)
+var _ready_ids: Dictionary = {}            # Slice 17: player_id -> true, per phase
 var _entries: Array[Dictionary] = []       # current reveal entries (id + doc only)
 var _phase_deadline_ms: int = 0            # 0 = no deadline armed (WRAP_UP)
 var _last_phase_data: Dictionary = {}      # pre-deadline copy, for pause/resume
@@ -168,14 +172,16 @@ func submit_drawing(player_id: String, payload: Dictionary) -> bool:
 		return false                                    # oversized - drop
 	if DrawingDoc.from_dict(doc) == null:
 		return false                                    # malformed - drop
+	if _ready_ids.has(player_id):
+		return false                                    # ready locks you in (Slice 17)
 	var sub := Submission.new()
 	sub.author_player_id = player_id
-	sub.doc = doc
+	sub.doc = _censor_text_ops(doc)                     # Slice 16 (§6 rules)
 	sub.is_blank = false
-	sub.caption = _clean_caption(payload)               # Slice 5 (§10 rules)
 	_submissions[player_id] = sub                       # replace = latest wins
-	if _all_drawers_submitted():
-		_collect_and_reveal()                           # flow over waiting (§1)
+	# Slice 17: submitting no longer ends the phase early - the ready-up set
+	# does (all connected drawers ready -> collect). The deadline (blanks for
+	# missing drawers) remains the guarantee.
 	return true
 
 
@@ -192,8 +198,45 @@ func pick_winner(player_id: String, drawing_id: String) -> bool:
 		return false
 	if not _authors.has(drawing_id):
 		return false
+	if _ready_ids.has(player_id):
+		return false        # ready locks the latched pick (Slice 17)
 	_pending_winner_id = drawing_id
 	return true
+
+
+## Slice 17: shared validated ready-up entry point (RPC handler + host UI).
+## DRAWING: connected drawers only, and only with a submission in (the Done
+## button submits first). JUDGING: every connected participant; the judge
+## only after latching a pick - a group can never ready the judge into an
+## accidental no-pick -1. Ready locks you in (resubmits/re-picks dropped);
+## un-ready is the escape hatch until the phase advances. When every
+## participant is ready the phase advances immediately; the phase deadline
+## remains the guarantee when someone never readies.
+func set_ready(player_id: String, ready: bool) -> bool:
+	if not _ready_participants().has(player_id):
+		return false
+	if ready:
+		if _phase == NetIds.Phase.DRAWING and not _submissions.has(player_id):
+			return false
+		if _phase == NetIds.Phase.JUDGING and player_id == current_judge_id() \
+				and _pending_winner_id.is_empty():
+			return false
+		_ready_ids[player_id] = true
+	else:
+		_ready_ids.erase(player_id)
+	ready_state_changed.emit(ready_snapshot())
+	if ready and _all_ready():
+		match _phase:
+			NetIds.Phase.DRAWING: _collect_and_reveal()
+			NetIds.Phase.JUDGING: _finish_judging(_pending_winner_id)
+	return true
+
+
+func ready_snapshot() -> PackedStringArray:
+	var ids := PackedStringArray()
+	for pid: String in _ready_ids:
+		ids.append(pid)
+	return ids
 
 
 ## Slice 7: shared validated entry point for pool-word submissions - the RPC
@@ -401,10 +444,7 @@ func _collect_and_reveal() -> void:
 		sub.drawing_id = UuidV4.generate()
 		_authors[sub.drawing_id] = pid
 		_round.submissions.append(sub)
-		# Captions ride the reveal entries (anonymous, session-transient) -
-		# never inside the doc dict, which is what collections persist.
-		_entries.append({"drawing_id": sub.drawing_id, "doc": sub.doc,
-				"caption": sub.caption})
+		_entries.append({"drawing_id": sub.drawing_id, "doc": sub.doc})
 		# Slice 4: stats registration (blanks included - they are reactable).
 		_session_stats.register_drawing(sub.drawing_id, _round_index, pid,
 				_round.prompt.display_text if _round.prompt != null else "")
@@ -445,16 +485,29 @@ func _advance_reveal() -> void:
 		_open_judging()
 
 
-## Caption rules (Slice 5 §3/§10): stripped when comments are disabled,
-## newlines flattened, trimmed, truncated, host-censored. A censored caption
-## is funnier than a missing one - never rejected.
-func _clean_caption(payload: Dictionary) -> String:
-	if not _settings.comments_enabled:
-		return ""
-	var caption: String = str(payload.get("caption", ""))
-	caption = caption.replace("\n", " ").replace("\r", " ").strip_edges()
-	caption = caption.left(GameConstants.CAPTION_MAX_CHARS)
-	return TextFilter.censor(caption)
+## In-image text moderation (Slice 16 §6): every TEXT op's content is
+## host-censored, then re-truncated (censoring can lengthen). The censored
+## dict is what gets stored and broadcast; the canvas applies the same censor
+## at commit, so honest clients never see a difference. Censored text is
+## funnier than a rejected drawing - never rejected (chat/caption precedent).
+func _censor_text_ops(doc: Dictionary) -> Dictionary:
+	var raw_ops: Variant = doc.get("ops")
+	if not raw_ops is Array:
+		return doc
+	var needs_censor: bool = false
+	for op: Variant in raw_ops:
+		if op is Dictionary and str(op.get("t", "")) == "text" \
+				and not TextFilter.is_clean(str(op.get("str", ""))):
+			needs_censor = true
+			break
+	if not needs_censor:
+		return doc
+	var out: Dictionary = doc.duplicate(true)
+	for op: Variant in out["ops"]:
+		if op is Dictionary and str(op.get("t", "")) == "text":
+			op["str"] = TextFilter.censor(str(op.get("str", ""))) \
+					.left(GameConstants.TEXT_MAX_CHARS)
+	return out
 
 
 func _open_judging() -> void:
@@ -544,6 +597,7 @@ func _build_results() -> Dictionary:
 
 func _enter_phase(phase: NetIds.Phase, duration_sec: float, data: Dictionary) -> void:
 	_phase = phase
+	_ready_ids.clear()   # Slice 17: ready-up never carries across phases
 	_last_phase_data = data.duplicate(true)
 	if duration_sec > 0.0:
 		_phase_deadline_ms = int(_now_ms.call()) + int(duration_sec * 1000.0)
@@ -566,9 +620,38 @@ func _is_drawer_this_round(player_id: String) -> bool:
 	return _judge_order.has(player_id) and player_id != current_judge_id()
 
 
-func _all_drawers_submitted() -> bool:
-	for pid: String in _drawers_this_round():
-		if not _submissions.has(pid):
+## Slice 17: who must ready for the current phase to advance early -
+## connected drawers during DRAWING (the judge has nothing to finish);
+## connected drawers + judge during JUDGING. Other phases have no ready-up.
+## Disconnected players never block (roster keeps their entry; Slice 9 owns
+## richer departure semantics).
+func _ready_participants() -> Array[String]:
+	match _phase:
+		NetIds.Phase.DRAWING:
+			return _connected_of(_drawers_this_round())
+		NetIds.Phase.JUDGING:
+			var all: Array[String] = _drawers_this_round()
+			all.append(current_judge_id())
+			return _connected_of(all)
+		_:
+			return []
+
+
+func _connected_of(ids: Array[String]) -> Array[String]:
+	var out: Array[String] = []
+	for pid: String in ids:
+		var p: Roster.PlayerState = _roster.get_by_platform_id(pid)
+		if p != null and p.is_connected:
+			out.append(pid)
+	return out
+
+
+func _all_ready() -> bool:
+	var participants: Array[String] = _ready_participants()
+	if participants.is_empty():
+		return false
+	for pid: String in participants:
+		if not _ready_ids.has(pid):
 			return false
 	return true
 

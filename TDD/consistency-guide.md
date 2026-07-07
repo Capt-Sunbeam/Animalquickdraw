@@ -226,12 +226,14 @@ user://
   "ops": [
     {"t": "stroke", "c": 4, "s": 1, "pts": [x0,y0, x1,y1, ...], "ts": [0.0, 0.016, ...]},
     {"t": "fill", "c": 7, "x": 120, "y": 88},
-    {"t": "clear"}
+    {"t": "clear"},
+    {"t": "text", "c": 4, "s": 1, "x": 120, "y": 88, "str": "MOO"}
   ]
 }
 ```
 
 - `c` = palette color index (never raw RGB — palette is a versioned constant table), `s` = brush size index (0/1/2), `pts` = flattened point pairs in **internal canvas coordinates** (800×600 landscape / 600×800 portrait), `ts` = per-point seconds since drawing start (drives replay).
+- `text` op (Slice 16): `s` = text scale index into `TEXT_SCALES`, `x`/`y` = in-canvas top-left anchor, `str` = 1–50 chars of ASCII 32–126 rendered from the embedded `PixelFont` (append-only glyph table, like the palette). Content is host-censored via `TextFilter` at submission; the canvas pre-censors identically at commit.
 - Fill is an op replayed against the rasterized state of all prior ops at the fixed internal resolution — this is what makes replay deterministic. Rendering code must be resolution-independent only at *display* time (scale the finished texture), never at raster time.
 - **Determinism rule:** all authoritative rasterization (fill resolution, replay, export, golden tests) happens on the **CPU** via the Slice 1 `DocRasterizer` — GPU/SubViewport rendering is display-only, since GPU raster output is not bit-identical across platforms. Fill/clear ops carry no timestamps; replay assigns them a nominal duration constant (Slice 1).
 

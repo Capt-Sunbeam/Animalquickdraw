@@ -31,7 +31,6 @@ var _replay_texture: ImageTexture = null
 var _beat_tween: Tween = null
 var _stage: CenterContainer = null
 var _stage_rect: TextureRect = null
-var _stage_caption: Label = null
 var _stage_social: HBoxContainer = null
 
 @onready var _header_label: Label = %HeaderLabel
@@ -105,13 +104,12 @@ func _build_grid(entries: Array[Dictionary]) -> void:
 	_grid.columns = clampi(ceili(sqrt(float(entries.size()))), 1, 4)
 	for entry: Dictionary in entries:
 		var drawing_id: String = str(entry.get("drawing_id", ""))
-		var cell: Button = _build_cell(drawing_id, entry.get("doc"),
-				str(entry.get("caption", "")))
+		var cell: Button = _build_cell(drawing_id, entry.get("doc"))
 		_grid.add_child(cell)
 		_cells[drawing_id] = cell
 
 
-func _build_cell(drawing_id: String, doc_dict: Variant, caption: String = "") -> Button:
+func _build_cell(drawing_id: String, doc_dict: Variant) -> Button:
 	var cell := Button.new()
 	cell.custom_minimum_size = CELL_MIN_SIZE
 	cell.disabled = true   # pickable only for the judge at JUDGING
@@ -133,9 +131,10 @@ func _build_cell(drawing_id: String, doc_dict: Variant, caption: String = "") ->
 	layout.add_child(rect)
 	# Slice 4 social block. FIXED shape in every cell so the grid lines up
 	# (owner feedback 2026-07-06: rows aligned terribly): row 1 = centered
-	# reactions, row 2 = yours-hint | caption | kudos. Empty slots keep
-	# their space - caption or ownership never reflows a cell. Own-cell
-	# state is LOCAL knowledge only - nothing on the wire marks authorship.
+	# reactions, row 2 = yours-hint | spacer | kudos (center slot was the
+	# caption until Slice 16; the spacer keeps alignment). Empty slots keep
+	# their space - ownership never reflows a cell. Own-cell state is LOCAL
+	# knowledge only - nothing on the wire marks authorship.
 	var own: bool = _client != null and _client.is_own_drawing(drawing_id)
 	var bar: ReactionBar = REACTION_BAR_SCENE.instantiate()
 	bar.drawing_id = drawing_id
@@ -152,17 +151,10 @@ func _build_cell(drawing_id: String, doc_dict: Variant, caption: String = "") ->
 	yours.add_theme_font_size_override("font_size", 12)
 	yours.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	info_row.add_child(yours)
-	# Slice 5: anonymous caption, one truncated line + full-text tooltip.
-	var caption_label := Label.new()
-	caption_label.text = "“%s”" % caption if not caption.is_empty() else ""
-	caption_label.tooltip_text = caption
-	caption_label.clip_text = true
-	caption_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	caption_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	caption_label.mouse_filter = Control.MOUSE_FILTER_STOP \
-			if not caption.is_empty() else Control.MOUSE_FILTER_IGNORE
-	caption_label.add_theme_font_size_override("font_size", 12)
-	info_row.add_child(caption_label)
+	var spacer := Control.new()
+	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	info_row.add_child(spacer)
 	var kudos: KudosButton = KUDOS_BUTTON_SCENE.instantiate()
 	kudos.drawing_id = drawing_id
 	kudos.own_drawing = own
@@ -178,7 +170,7 @@ func _build_cell(drawing_id: String, doc_dict: Variant, caption: String = "") ->
 # --- Slice 5: one-at-a-time stage ---
 
 
-## Programmer-art stage overlay: big card + caption + fresh social row.
+## Programmer-art stage overlay: big card + fresh social row.
 func _build_stage() -> void:
 	_stage = CenterContainer.new()
 	_stage.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -192,10 +184,6 @@ func _build_stage() -> void:
 	_stage_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_stage_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	card.add_child(_stage_rect)
-	_stage_caption = Label.new()
-	_stage_caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_stage_caption.add_theme_font_size_override("font_size", 18)
-	card.add_child(_stage_caption)
 	_stage_social = HBoxContainer.new()
 	_stage_social.alignment = BoxContainer.ALIGNMENT_CENTER
 	card.add_child(_stage_social)
@@ -226,9 +214,6 @@ func _on_reveal_beat(index: int, drawing_id: String, beat_secs: float) -> void:
 		_stage_rect.texture = _replay_texture
 	else:
 		_stage_rect.texture = _rasterize(doc)
-	var caption: String = _caption_for(drawing_id)
-	_stage_caption.text = "“%s”" % caption if not caption.is_empty() else ""
-	_stage_caption.visible = not caption.is_empty()
 	_build_stage_social(drawing_id)
 	_stage.visible = true
 	_stage.modulate.a = 0.0
@@ -278,15 +263,6 @@ func _finish_stage(everything: bool) -> void:
 func _on_reveal_gathered() -> void:
 	_finish_stage(true)
 	_header_label.text = "Behold!"
-
-
-func _caption_for(drawing_id: String) -> String:
-	if _client == null:
-		return ""
-	for entry: Dictionary in _client.reveal_entries():
-		if str(entry.get("drawing_id", "")) == drawing_id:
-			return str(entry.get("caption", ""))
-	return ""
 
 
 func _process(delta: float) -> void:

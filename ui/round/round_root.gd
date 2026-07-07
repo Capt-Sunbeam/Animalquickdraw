@@ -33,6 +33,13 @@ func _ready() -> void:
 	_chat.message_submitted.connect(Session.submit_chat)
 	_chat.prominence = ChatPanel.Prominence.NORMAL
 	_menu.setup(_session_client)
+	# Slice 17: the chat header hosts the JUDGING ready-up strip; RoundRoot
+	# forwards its button to the client (ChatPanel stays Session-free).
+	_chat.ready_toggled.connect(func(ready: bool) -> void:
+		_session_client.request_set_ready(ready))
+	EventBus.ready_state_changed.connect(_on_ready_state_changed)
+	EventBus.judge_pick_latched.connect(func() -> void:
+		_chat.set_ready_button_enabled(true))
 
 
 ## Slice 6: Esc toggles the in-game menu (forced open while paused).
@@ -50,6 +57,13 @@ func _on_phase_changed(phase: NetIds.Phase, data: Dictionary) -> void:
 		_menu.show_paused()
 		return
 	_menu.hide_paused()
+	# Slice 17: the judging ready strip lives in the chat header. The judge's
+	# button unlocks once they latch a pick (EventBus.judge_pick_latched).
+	if phase == NetIds.Phase.JUDGING:
+		_chat.show_ready_strip(_connected_players_view())
+		_chat.set_ready_button_enabled(not _session_client.is_local_player_judge())
+	else:
+		_chat.hide_ready_strip()
 	# Resume re-enters the SAME phase with a fresh deadline: refresh in
 	# place - a rebuild would wipe the canvas mid-drawing.
 	if phase == _current_phase and _current_screen != null \
@@ -89,6 +103,22 @@ func _screen_path_for(phase: NetIds.Phase) -> String:
 		# Role views (§5): the judge never sees a canvas or live strokes.
 		return JUDGE_WAIT_SCREEN if _session_client.is_local_player_judge() else DRAW_SCREEN
 	return str(PHASE_SCREENS.get(phase, ""))
+
+
+func _on_ready_state_changed(ready_ids: PackedStringArray) -> void:
+	_chat.update_ready_ids(ready_ids)
+	var me: Roster.PlayerState = Session.local_player()
+	if me != null:
+		_chat.set_ready_local(ready_ids.has(me.platform_id))
+
+
+## All connected players (drawers + judge) - the JUDGING ready-up roster.
+func _connected_players_view() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for p: Roster.PlayerState in Session.roster.players_in_join_order():
+		if p.is_connected:
+			out.append({"id": p.platform_id, "name": p.display_name})
+	return out
 
 
 ## Prominence AND placement are properties of the phase screen, never a

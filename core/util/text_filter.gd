@@ -2,7 +2,7 @@ class_name TextFilter
 ## Blocklist filter for all typed text (skeleton guide §3.8; brief §13).
 ## Case-insensitive, substring-with-word-boundary matching against
 ## res://data/blocklist.txt (one word per line, # comments). Applied to
-## chat, captions, and custom words by later slices - always on the host.
+## chat, in-image text ops, and custom pool words - always on the host.
 
 const BLOCKLIST_PATH: String = "res://data/blocklist.txt"
 const CENSOR_TEXT: String = "***"

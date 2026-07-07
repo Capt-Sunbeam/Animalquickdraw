@@ -62,6 +62,11 @@ func _ready() -> void:
 		var s: GameSettings = Session.settings.duplicate_settings()
 		s.round_count = ROUNDS
 		s.rounds_overridden = true
+		# Pin every setting this script's flow depends on: a restored host
+		# profile (last_lobby_settings) must never reroute CI - e.g. a saved
+		# pool_source=PLAYER_SUBMITTED parks the game in deadline-less
+		# POOL_SETUP and the gate times out (found 2026-07-07, Slice 16 run).
+		s.pool_source = GameSettings.PoolSource.BUILT_IN
 		Session.set_settings(s)
 	else:
 		var err: Error = await Session.join_session(room_code)
@@ -148,11 +153,17 @@ func _maybe_submit() -> void:
 	var me: Roster.PlayerState = Session.local_player()
 	var op_count: int = clampi(1 + (me.joined_order if me != null else 0), 1, 9)
 	var ops: Array = []
-	for i: int in op_count:
+	for i: int in op_count - 1:
 		ops.append({"t": "clear"})
+	# Slice 16 pipeline check: every doc carries a TEXT op; it must survive
+	# to every peer's reveal entries (per-peer-unique via op_count).
+	ops.append({"t": "text", "c": 4, "s": 1, "x": 100, "y": 100,
+			"str": "ci text %d" % op_count})
 	client.request_submit_drawing(
-			{"doc": {"v": 1, "orientation": "landscape", "ops": ops},
-			"caption": "ci caption %d" % op_count})   # Slice 5 pipeline check
+			{"doc": {"v": 1, "orientation": "landscape", "ops": ops}})
+	# Slice 17: submitting no longer ends DRAWING - readying up does. The
+	# ready RPC follows the submit on the same reliable channel (ordered).
+	client.request_set_ready(true)
 
 
 ## Slice 4 social script, round 0 JUDGING only. Judge: LAUGH on -> off -> on
@@ -177,6 +188,9 @@ func _maybe_social() -> void:
 		for id: String in _r0_entry_ids:
 			if not client.is_own_drawing(id):
 				client.request_react(id, NetIds.Reaction.FIRE, true)
+		# Slice 17: drawers ready up after their reactions (ordered channel:
+		# every FIRE lands before this peer counts toward the early end).
+		client.request_set_ready(true)
 
 
 func _maybe_pick() -> void:
@@ -195,7 +209,11 @@ func _maybe_pick() -> void:
 		if _finished:
 			return
 		client.request_pick_winner(str((_entries[0] as Dictionary)["drawing_id"]))
-	# Round 1: stay silent - the window must lapse into the -1 penalty.
+		# Slice 17: judge readies after latching - with the drawers already
+		# ready this ends JUDGING early and crowns the latched pick.
+		client.request_set_ready(true)
+	# Round 1: stay silent - the window must lapse into the -1 penalty
+	# (drawers' readies alone never end JUDGING; the judge is required).
 
 
 func _on_reaction_counts(drawing_id: String, counts: Dictionary) -> void:
@@ -335,7 +353,8 @@ func _is_local_judge_platform_round0() -> bool:
 
 ## Slice 5: default settings run ONE_AT_A_TIME - every peer must see one
 ## beat per drawing per round (indices 0..n-1), a gather per round, and
-## captions delivered inside the reveal entries.
+## (Slice 16) the submitted TEXT ops delivered inside the entry docs with
+## no caption key anywhere.
 func _verify_reveal_choreography() -> bool:
 	var per_round: int = EXPECT_PLAYERS - 1
 	if _beats.size() != per_round * ROUNDS:
@@ -349,10 +368,19 @@ func _verify_reveal_choreography() -> bool:
 	if _gathers != ROUNDS:
 		_fail("gather count %d != %d" % [_gathers, ROUNDS])
 		return false
-	# Round 1's entries are still cached - every drawer sent a caption.
+	# Round 1's entries are still cached - every drawer's doc carried a TEXT
+	# op (Slice 16); it must arrive intact, and the caption key must be gone.
 	for entry: Dictionary in _entries:
-		if str(entry.get("caption", "")).is_empty():
-			_fail("caption missing from reveal entry: %s" % str(entry.keys()))
+		if entry.has("caption"):
+			_fail("stale caption key in reveal entry: %s" % str(entry.keys()))
+			return false
+		var has_text_op: bool = false
+		for op: Variant in (entry.get("doc", {}) as Dictionary).get("ops", []):
+			if op is Dictionary and str((op as Dictionary).get("t", "")) == "text" \
+					and str((op as Dictionary).get("str", "")).begins_with("ci text "):
+				has_text_op = true
+		if not has_text_op:
+			_fail("text op missing from reveal entry doc: %s" % str(entry.keys()))
 			return false
 	return true
 

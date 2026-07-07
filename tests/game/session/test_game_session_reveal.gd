@@ -1,9 +1,9 @@
 class_name TestGameSessionReveal
 extends GdUnitTestSuite
 ## Slice 5 on the state machine: beat chain drives REVEAL -> JUDGING, the
-## gate follows the staged drawing (with cross-beat grace), captions are
-## validated in the submit path, and the failsafe deadline can never
-## double-advance. Headless via the Slice 3/4 rig pattern.
+## gate follows the staged drawing (with cross-beat grace), in-image text is
+## censored in the submit path (Slice 16), and the failsafe deadline can
+## never double-advance. Headless via the Slice 3/4 rig pattern.
 
 const FIXTURE_DIR: String = "res://tests/fixtures/prompts/"
 
@@ -36,8 +36,7 @@ class Rig extends RefCounted:
 		return last_data(NetIds.Phase.REVEAL).get("entries", [])
 
 
-func _make_rig(style: GameSettings.RevealStyle = GameSettings.RevealStyle.ONE_AT_A_TIME,
-		comments: bool = true) -> Rig:
+func _make_rig(style: GameSettings.RevealStyle = GameSettings.RevealStyle.ONE_AT_A_TIME) -> Rig:
 	var rig := Rig.new()
 	rig.roster = Roster.new()
 	for i: int in 4:
@@ -45,7 +44,6 @@ func _make_rig(style: GameSettings.RevealStyle = GameSettings.RevealStyle.ONE_AT
 	var settings := GameSettings.new()
 	settings.round_count = 2
 	settings.reveal_style = style
-	settings.comments_enabled = comments
 	var pools := PromptPools.new()
 	pools.rng.seed = 7
 	pools.load_from(FIXTURE_DIR)
@@ -61,12 +59,13 @@ func _make_rig(style: GameSettings.RevealStyle = GameSettings.RevealStyle.ONE_AT
 	return rig
 
 
-func _submit_all(rig: Rig, captions: Dictionary = {}) -> void:
+func _submit_all(rig: Rig) -> void:
 	for pid: String in ["p1", "p2", "p3"]:
 		rig.session.submit_drawing(pid, {
 			"doc": {"v": 1, "orientation": "landscape", "ops": []},
-			"caption": str(captions.get(pid, "")),
 		})
+	for pid: String in ["p1", "p2", "p3"]:
+		rig.session.set_ready(pid, true)   # Slice 17: ready ends DRAWING early
 
 
 func test_beat_chain_covers_entries_then_gathers_then_judging() -> void:
@@ -146,28 +145,57 @@ func test_kudos_during_beat_allowed() -> void:
 	assert_bool(rig.session.give_kudos("p0", staged)).is_true()
 
 
-func test_captions_cleaned_and_delivered_in_entries() -> void:
+func test_text_ops_censored_at_submission_and_entries_have_no_caption() -> void:
+	# Slice 16: blocked words inside TEXT ops are host-censored before the
+	# doc is stored/broadcast; censoring never rejects; entries carry only
+	# {drawing_id, doc}.
+	TextFilter.configure(PackedStringArray(["sock"]))
 	var rig: Rig = _make_rig()
 	rig.session.start_game()
 	rig.session.on_phase_deadline()
-	var raw: String = "  it's\nresting,  honest  "
-	var expected: String = TextFilter.censor("it's resting,  honest")
-	_submit_all(rig, {"p1": raw, "p2": "x".repeat(200)})
-	var captions: Dictionary = {}
+	assert_bool(rig.session.submit_drawing("p1", {"doc": {
+		"v": 1, "orientation": "landscape", "ops": [
+			{"t": "text", "c": 4, "s": 1, "x": 100, "y": 100, "str": "nice sock buddy"},
+			{"t": "text", "c": 4, "s": 0, "x": 10, "y": 10, "str": "clean words"},
+	]}})).is_true()
+	rig.session.submit_drawing("p2", {"doc": {"v": 1, "orientation": "landscape", "ops": []}})
+	rig.session.submit_drawing("p3", {"doc": {"v": 1, "orientation": "landscape", "ops": []}})
+	for pid: String in ["p1", "p2", "p3"]:
+		rig.session.set_ready(pid, true)
+	TextFilter.configure(PackedStringArray())   # reset before asserting
+	var censored_seen: bool = false
 	for entry: Dictionary in rig.entries():
-		captions[str(entry.get("caption", "missing"))] = true
-	assert_bool(captions.has(expected)).is_true()
-	assert_bool(captions.has("x".repeat(GameConstants.CAPTION_MAX_CHARS))).is_true()
-	assert_bool(captions.has("")).is_true()   # p3 sent none
+		assert_bool(entry.has("caption")).is_false()
+		assert_array(entry.keys()).contains_exactly_in_any_order(["drawing_id", "doc"])
+		var ops: Array = (entry["doc"] as Dictionary).get("ops", [])
+		for op: Variant in ops:
+			var op_dict: Dictionary = op
+			if str(op_dict.get("t", "")) != "text":
+				continue
+			var text: String = str(op_dict["str"])
+			assert_bool(text.contains("sock")).is_false()
+			if text == "nice %s buddy" % TextFilter.CENSOR_TEXT:
+				censored_seen = true
+	assert_bool(censored_seen).is_true()
 
 
-func test_captions_stripped_when_comments_disabled() -> void:
-	var rig: Rig = _make_rig(GameSettings.RevealStyle.ONE_AT_A_TIME, false)
+func test_clean_text_ops_pass_through_untouched() -> void:
+	TextFilter.configure(PackedStringArray(["sock"]))
+	var rig: Rig = _make_rig()
 	rig.session.start_game()
 	rig.session.on_phase_deadline()
-	_submit_all(rig, {"p1": "should vanish", "p2": "me too"})
+	var doc: Dictionary = {"v": 1, "orientation": "landscape", "ops": [
+			{"t": "text", "c": 4, "s": 1, "x": 100, "y": 100, "str": "totally fine"}]}
+	rig.session.submit_drawing("p1", {"doc": doc})
+	rig.session.submit_drawing("p2", {"doc": {"v": 1, "orientation": "landscape", "ops": []}})
+	rig.session.submit_drawing("p3", {"doc": {"v": 1, "orientation": "landscape", "ops": []}})
+	for pid: String in ["p1", "p2", "p3"]:
+		rig.session.set_ready(pid, true)
+	TextFilter.configure(PackedStringArray())
 	for entry: Dictionary in rig.entries():
-		assert_str(str(entry.get("caption", "missing"))).is_equal("")
+		var ops: Array = (entry["doc"] as Dictionary).get("ops", [])
+		if not ops.is_empty():
+			assert_str(str((ops[0] as Dictionary)["str"])).is_equal("totally fine")
 
 
 func test_failsafe_deadline_never_double_advances() -> void:
@@ -197,6 +225,8 @@ func test_resolution_sized_to_fit_winner_replay_plus_still_hold() -> void:
 			"pts": [10.0, 10.0, 400.0, 300.0], "ts": [0.0, 30.0]}]}})
 	rig.session.submit_drawing("p2", {"doc": {"v": 1, "orientation": "landscape", "ops": []}})
 	rig.session.submit_drawing("p3", {"doc": {"v": 1, "orientation": "landscape", "ops": []}})
+	for pid: String in ["p1", "p2", "p3"]:
+		rig.session.set_ready(pid, true)   # Slice 17 -> REVEAL
 	rig.session.on_phase_deadline()   # REVEAL -> JUDGING
 	var long_drawing: String = ""
 	for entry: Dictionary in rig.entries():

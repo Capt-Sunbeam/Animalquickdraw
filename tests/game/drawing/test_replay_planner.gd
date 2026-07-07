@@ -97,6 +97,10 @@ func test_planner_matches_player_schedule() -> void:
 		_two_stroke_doc(0.2),
 		{"v": 1, "orientation": "landscape", "ops": [{"t": "clear"},
 			{"t": "fill", "c": 3, "x": 100, "y": 100}]},
+		{"v": 1, "orientation": "landscape", "ops": [
+			{"t": "text", "c": 4, "s": 1, "x": 50, "y": 50, "str": "MOO"},
+			{"t": "stroke", "c": 0, "s": 1, "pts": [10.0, 10.0, 100.0, 100.0], "ts": [0.0, 2.0]},
+			{"t": "text", "c": 4, "s": 0, "x": 200, "y": 200, "str": "quick brown fox"}]},
 	]
 	for doc: Dictionary in docs:
 		var player := ReplayPlayer.new()

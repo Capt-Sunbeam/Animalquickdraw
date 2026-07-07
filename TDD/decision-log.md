@@ -12,6 +12,50 @@
 
 ---
 
+### Slice 17 (mini): ready-up — all-ready ends DRAWING and JUDGING early; supersedes "judging never ends early"
+**Date:** 2026-07-07 | **Slice:** 17 (state-machine change to 3; UI on 2/6 surfaces) | **Decided by:** Owner
+
+**Decision:**
+- **DRAWING:** submitting no longer ends the phase — the ready-up set does (all CONNECTED drawers ready → collect). The **Done!** button (prominent, replaces Submit) = submit current canvas + ready + lock tools; **Unready** is the escape hatch. A ready drawer's resubmissions are dropped.
+- **JUDGING:** ends early when ALL connected participants (drawers + judge) ready — this amends the 2026-07-06 "the deadline is the only crown" rule, which flagged full-window pacing for review; group consensus is the fix. **The judge's ready requires a latched pick** (a group can never ready the judge into an accidental −1) and locks it (re-picks dropped until un-ready). Empty-latch −1 still only via deadline lapse.
+- **UI:** ready panel (initials chips + ☐/✅; Slice 11 swaps in real avatars) left of the canvas in DRAWING; in JUDGING a strip inline in the chat header — "Chat | Ready | player chips" (owner spec). Ready set clears at every phase change (incl. pause/resume — players re-ready).
+- Deadlines remain the guarantee everywhere; disconnected players never block all-ready.
+
+**Impact:** Slice 3 TDD transition table updated in place; Slice 9 folds rejoiners into the participant set; CI driver readies after submit/social/pick (round-1 no-pick lapse still deadline-driven). Mini-TDD: `TDD/17-ready-up.md`.
+
+**Status:** [x] Code implemented [x] Tests green (376/376, incl. new ready suite) [x] Gates PASS [ ] Owner blocking checks (Done/Unready flow; chat-header strip; both early advances)
+
+---
+
+### Slice 16 rework: drag-to-place text (Option B) + Eraser tool
+**Date:** 2026-07-07 | **Slice:** 16 (canvas surface) | **Decided by:** Owner (post-playtest)
+
+**Decision:**
+- **Text placement is now drag-and-drop** (owner picked Option B over in-place drag): a persistent **Text row** under the toolbar — type in the box, a chip rendered by the committal blitter appears beside it, drag the chip onto the canvas; the drop point commits the TextOp (centered on cursor, clamped in-canvas). Text stays in the box for repeat stamps; the input's clear button resets it. The drag preview and the drop-hover preview both render through `DocRasterizer`, so what you hold is exactly what lands. The click-to-place floating editor, `TEXT_EDITING` input state, and `Tool.TEXT` are gone; typed-but-undragged text is simply not part of the drawing (no auto-commit surprise at the deadline).
+- **Eraser tool added:** a toolbar tool that strokes in `Palette.ERASE_COLOR_INDEX` (0 = white == `CANVAS_BACKGROUND`). A true op-removing eraser was rejected: op-list surgery + invisible-in-replay erasing; background-color strokes are deterministic, undoable, replay-visible (part of the show), and format-free. The palette selection is untouched while erasing.
+- Owner confirmed the pre-rework blocking checks first (font legible; in-round flow worked as implemented) — the rework is UX-directed, not a defect fix.
+
+**Impact:** `drawing_canvas.gd/.tscn`, `canvas_toolbar.gd/.tscn`, `palette.gd` (+`ERASE_COLOR_INDEX`); no wire/format/raster changes — TextOp and the blitter are untouched. Slice 16 TDD §7 superseded by this entry.
+
+**Status:** [x] Code implemented [x] Tests green [x] Gates PASS [ ] Owner re-check of the drag flow + eraser
+
+---
+
+### Slice 16 (mini): in-image text tool — format stays v1, font8x8 glyphs, censor-not-reject, caption pipeline deleted
+**Date:** 2026-07-07 | **Slice:** 16 (touches 1/3/5/6) | **Type:** Quick
+
+**Decision:**
+- **TEXT op ships inside DrawingDoc v1** (`{"t":"text","c","s","x","y","str"}`): additive op types are backward-compatible (old docs never contain them) and no shipped build exists to care about forward-compatibility — no version bump, no migration. Strict `from_dict` rules: ASCII 32–126 only, 1–50 chars, in-canvas anchor, scale index 0–2.
+- **Font = public-domain `font8x8_basic`** (Hepper/Sondaar/IBM), embedded as a 760-byte table in `core/constants/pixel_font.gd` — fetched from the canonical repo, not hand-transcribed. Append-only like the palette; goldens pin the rendered pixels (new `text_mixed` golden). Integer scales [2,3,4] → 16/24/32 px glyphs; blit = per-row bit-runs → `fill_rect` spans (CPU, no AA — determinism rules hold).
+- **Blocked words are censored, never rejected** (owner choice 2026-07-07, chat precedent): host censors TEXT ops at submission (censor → re-truncate); the canvas applies the IDENTICAL sequence at commit so the drawer's local doc equals the broadcast doc — which `SessionClient.is_own_drawing`'s doc-equality check depends on.
+- **Text is permanent once placed** (owner choice): commit-on-Enter, undo removes the whole op; no movable text objects in v1.
+- **Caption pipeline deleted outright** (files, `Submission.caption`, reveal-entry key, beat-secs term, `comments_enabled` setting + presets row + Custom checkbox, `CAPTION_MAX_CHARS`/`REVEAL_CAPTION_SECS`). Removing the settings field makes stale `last_lobby_settings` keys silently ignored — the qa-backlog "caption box leftover" resolves permanently with no migration.
+- **CI hardening (found during the gate run):** the round driver now pins `pool_source = BUILT_IN` — the host's restored profile carried `PLAYER_SUBMITTED` from the owner's Slice 7 playtest, parking the gate in deadline-less POOL_SETUP until timeout. Rule: CI drivers pin every setting their script's flow depends on.
+
+**Status:** [x] Code implemented [x] Tests green (365/365) [x] Gates PASS (verify_lobby + verify_round incl. text-op round-trip assertions) [x] Mini-TDD `TDD/16-in-image-text-tool.md` (owner-approved pre-build) [ ] Owner blocking checks (font legibility in sandbox; full-round text flow)
+
+---
+
 ### Slice 8: exports rasterize at 1× and upscale 2× nearest-neighbor
 **Date:** 2026-07-07 | **Slice:** 8 | **Type:** Quick
 

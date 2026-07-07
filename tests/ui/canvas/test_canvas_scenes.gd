@@ -53,11 +53,12 @@ func test_toolbar_signals_fire_with_payloads() -> void:
 	toolbar.rotate_pressed.connect(func() -> void: clicks.append("rotate"))
 	toolbar._size_buttons[2].pressed.emit()
 	toolbar._fill_button.pressed.emit()
+	toolbar._eraser_button.pressed.emit()   # Slice 16
 	toolbar._undo_button.pressed.emit()
 	toolbar._clear_button.pressed.emit()
 	toolbar._rotate_button.pressed.emit()
 	assert_array(sizes).is_equal([2])
-	assert_array(tools).is_equal([CanvasToolbar.Tool.FILL])
+	assert_array(tools).is_equal([CanvasToolbar.Tool.FILL, CanvasToolbar.Tool.ERASER])
 	assert_array(clicks).is_equal(["undo", "clear", "rotate"])
 
 

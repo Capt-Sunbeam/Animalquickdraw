@@ -27,6 +27,9 @@ static func apply_op(img: Image, op: DrawingOp, mask: Image = null) -> void:
 			_flood_fill(img, fill, mask)
 		DrawingOp.Type.CLEAR:
 			_clear(img, mask)
+		DrawingOp.Type.TEXT:
+			var text_op: TextOp = op
+			_blit_text(img, text_op, mask)
 
 
 ## Stamps a partial stroke segment (points[from_idx..to_idx] inclusive) -
@@ -96,6 +99,51 @@ static func _stamp_circle(img: Image, center: Vector2, radius: int, color: Color
 			for px: int in range(maxi(cx - span, 0), mini(cx + span + 1, width)):
 				if mask.get_pixel(px, py).a >= 0.5:
 					img.set_pixel(px, py, color)
+
+
+## Hard-edged glyph blit (Slice 16 §6): PixelFont rows scaled by an integer
+## factor, runs of consecutive set bits become fill_rect spans (native,
+## clipped) - the text analogue of the circle-stamp row spans. Integer math
+## only, no AA (determinism rules 1-2). Masked path is per-pixel (Slice 11).
+static func _blit_text(img: Image, op: TextOp, mask: Image) -> void:
+	var scale: int = GameConstants.TEXT_SCALES[op.size_index]
+	var color: Color = Palette.COLORS[op.color_index]
+	var advance: int = GameConstants.TEXT_GLYPH_PX * scale
+	var pen_x: int = op.x
+	for i: int in op.text.length():
+		var rows: PackedByteArray = PixelFont.glyph_rows(op.text.unicode_at(i))
+		if rows.is_empty():
+			pen_x += advance  # unsupported char (parser prevents; defensive)
+			continue
+		for row: int in PixelFont.ROWS_PER_GLYPH:
+			var bits: int = rows[row]
+			if bits == 0:
+				continue
+			var py: int = op.y + row * scale
+			var col: int = 0
+			while col < GameConstants.TEXT_GLYPH_PX:
+				if bits & (1 << col) == 0:
+					col += 1
+					continue
+				var run: int = 1
+				while col + run < GameConstants.TEXT_GLYPH_PX and bits & (1 << (col + run)) != 0:
+					run += 1
+				var rect := Rect2i(pen_x + col * scale, py, run * scale, scale)
+				if mask == null:
+					img.fill_rect(rect, color)
+				else:
+					_fill_rect_masked(img, rect, color, mask)
+				col += run
+		pen_x += advance
+
+
+## Per-pixel masked variant of fill_rect (clips to the image first).
+static func _fill_rect_masked(img: Image, rect: Rect2i, color: Color, mask: Image) -> void:
+	var clipped: Rect2i = rect.intersection(Rect2i(0, 0, img.get_width(), img.get_height()))
+	for py: int in range(clipped.position.y, clipped.end.y):
+		for px: int in range(clipped.position.x, clipped.end.x):
+			if mask.get_pixel(px, py).a >= 0.5:
+				img.set_pixel(px, py, color)
 
 
 static func _clear(img: Image, mask: Image) -> void:

@@ -32,15 +32,11 @@ func setup(data: Dictionary, client: SessionClient) -> void:
 	_build_scores(data.get("scores", {}))
 
 
-## Slice 5 victory lap: winner large, author revealed, caption attributed,
-## strokes replayed unless replay_mode == OFF. No-pick rounds never get here.
+## Slice 5 victory lap: winner large, author revealed, strokes replayed
+## unless replay_mode == OFF. No-pick rounds never get here.
 func _mount_spotlight(data: Dictionary, winner_id: String, client: SessionClient) -> void:
 	_winner_rect.visible = false
 	var doc: Dictionary = client.get_drawing_doc(winner_id)
-	var caption: String = ""
-	for entry: Dictionary in client.reveal_entries():
-		if str(entry.get("drawing_id", "")) == winner_id:
-			caption = str(entry.get("caption", ""))
 	var spotlight: WinnerSpotlight = WINNER_SPOTLIGHT_SCENE.instantiate()
 	spotlight.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	spotlight.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -49,7 +45,7 @@ func _mount_spotlight(data: Dictionary, winner_id: String, client: SessionClient
 	main.move_child(spotlight, _winner_rect.get_index())
 	var animate: bool = Session.game_settings.replay_mode != GameSettings.ReplayMode.OFF
 	spotlight.present(winner_id, doc, str(data.get("winner_display_name", "???")),
-			caption, ReplayPlanner.winner_timescale(doc, Session.game_settings.winner_replay_secs),
+			ReplayPlanner.winner_timescale(doc, Session.game_settings.winner_replay_secs),
 			animate)
 
 

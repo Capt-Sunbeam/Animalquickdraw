@@ -66,10 +66,22 @@ func test_non_stroke_ops_consume_nominal_duration() -> void:
 	var doc := DrawingDoc.new()
 	doc.ops.append(GoldenDocs.make_fill(7, 10, 10))
 	doc.ops.append(ClearOp.new())
+	doc.ops.append(GoldenDocs.make_text(4, 1, 100, 100, "HI"))  # Slice 16: text = non-stroke beat
 	var player := ReplayPlayer.new()
 	player.load_doc(doc, 1.0)
 	assert_float(player.get_total_duration()) \
-		.is_equal_approx(GameConstants.REPLAY_NON_STROKE_OP_SEC * 2.0, 0.001)
+		.is_equal_approx(GameConstants.REPLAY_NON_STROKE_OP_SEC * 3.0, 0.001)
+
+
+func test_text_op_applies_at_op_start() -> void:
+	# Like fill/clear, a text op's pixels land the moment its beat begins.
+	var doc := DrawingDoc.new()
+	doc.ops.append(GoldenDocs.make_text(4, 1, 100, 100, "HI"))
+	var player := ReplayPlayer.new()
+	player.load_doc(doc, 1.0)
+	player.advance(0.001)  # well inside the nominal beat
+	assert_str(DocRasterizer.image_hash(player.get_image())) \
+		.is_equal(DocRasterizer.image_hash(DocRasterizer.rasterize(doc)))
 
 
 func test_op_started_fires_once_per_op_in_order() -> void:

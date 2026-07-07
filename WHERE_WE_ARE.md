@@ -2,17 +2,17 @@
 
 **Purpose:** Single source of truth for project status and session continuity. Any developer or AI can read this to understand the current state and resume work seamlessly.
 
-**Last Updated:** 2026-07-07 (end of session 5)
-**Total Sessions:** 5
+**Last Updated:** 2026-07-07 (session 6, mid-session — Slice 16 built, awaiting owner checks)
+**Total Sessions:** 6 (session 6 in progress)
 
 ---
 
 ## Current Status
 
-**Active Slice:** None — next up: **in-image text tool** (owner-scheduled captions replacement, needs a design/mini-TDD first), then Slice 9: Connectivity & Resilience (Chunk 12)
-**Current Objective:** Session 6 opens with the text-tool design + implementation (decision log 2026-07-07 has the design direction), then Slice 9 per `TDD/09-connectivity-resilience.md`
+**Active Slice:** **16 (text tool, drag-rework + Eraser) and 17 (ready-up)** — both implemented same session; 376 tests green; both gates PASS. First build of 16 was owner-confirmed, then owner-directed rework: drag-to-place text (Option B), Eraser tool, and the new ready-up system (mini-TDD 17). Awaiting owner re-check of the rework + ready-up blocking checks. Then Slice 9 (Chunk 12)
+**Current Objective:** Owner checks → mark Slices 16+17 COMPLETE → Slice 9 per `TDD/09-connectivity-resilience.md`
 **Blockers:** None
-**Pending owner confirmations (all owner-deferred to the end-of-content QA pass):** Slice 7 force-continue blocking check (qa-backlog top section); Slice 7 + 8 batchable lists; caption entry box leftover for pre-2026-07-07 host profiles (root cause + workaround in qa-backlog)
+**Pending owner confirmations:** Slice 16 drag-flow + eraser re-check; Slice 17 blocking checks (Done/Unready, chat-header strip, early advances); owner-deferred to end-of-content QA: Slice 7 force-continue check, Slice 7 + 8 + 16 + 17 batchable lists
 
 ---
 
@@ -22,7 +22,10 @@
 |----------|------|-------|
 | Skeleton TDD | `TDD/00-skeleton-build-guide.md` | Implemented — see implementation notes |
 | Skeleton Implementation Notes | `TDD/00-skeleton-implementation-notes.md` | What was actually built + deviations |
-| Next Slice TDD | `TDD/09-connectivity-resilience.md` | After the text tool (Chunk 12) |
+| **Slice 16 TDD (text tool)** | `TDD/16-in-image-text-tool.md` | Owner-approved mini-TDD; built + drag-reworked session 6 |
+| **Slice 16 Implementation Notes** | `TDD/16-in-image-text-tool-implementation-notes.md` | TEXT op, PixelFont, drag-to-place Text row, Eraser, caption pipeline deleted |
+| **Slice 17 TDD (ready-up)** | `TDD/17-ready-up.md` | Done/Unready in DRAWING; all-ready early advance; chat-header strip in JUDGING |
+| Next Slice TDD | `TDD/09-connectivity-resilience.md` | After Slice 16 owner checks (Chunk 12) |
 | Slice 7 Implementation Notes | `TDD/07-player-created-pools-implementation-notes.md` | What was actually built + deviations (enum NONE, signal-routed rejections, branch draws) |
 | Slice 8 Implementation Notes | `TDD/08-collection-browser-export-implementation-notes.md` | What was actually built + deviations (Slice 4 reality adaptations, atomic write_png) |
 | Slice 4 Implementation Notes | `TDD/04-reactions-kudos-saving-implementation-notes.md` | What was actually built + deviations (incl. RAM-incident lesson) |
@@ -60,14 +63,14 @@
 
 | Slice | Name | Started | Status | % Complete |
 |-------|------|---------|--------|------------|
-| — | — | — | — | — |
+| 16 (mini) | In-Image Text Tool + Eraser | 2026-07-07 | First build owner-confirmed; drag-to-place rework + Eraser built same session; **awaiting owner re-check** | ~95% |
+| 17 (mini) | Ready-Up | 2026-07-07 | Implementation complete; 376 tests green; both gates PASS; **awaiting owner blocking checks** | ~95% |
 
 ### Upcoming (see chunk plan in overview-of-slices.md)
 
 | Slice | Name | Dependencies | Priority |
 |-------|------|--------------|----------|
-| — | In-image text tool (captions replacement — owner 2026-07-07) | 1, 3, 5 | **Next (first item, session 6)** — design/mini-TDD first |
-| 9 | Connectivity & Resilience | 2, 3 | Chunk 12, after the text tool |
+| 9 | Connectivity & Resilience | 2, 3 | Chunk 12, next after Slice 16 sign-off |
 
 ---
 
@@ -85,11 +88,11 @@
 
 ## Next Steps
 
-**Immediate (Next Session — Session 6):**
-1. Session Start workflow: read this file fully, then consistency guide Quick Reference
-2. **First: the in-image text tool** (owner, 2026-07-07 — replaces captions). No TDD exists: draft a design/mini-TDD, get owner approval, then implement. Design direction (decision log 2026-07-07): TEXT op in the DrawingDoc v1 format; **bitmap-font glyph-atlas rendering** so CPU raster stays deterministic cross-platform (no OS font rasterization); host-side `TextFilter` on text content at submission; canvas placement UI (paint-editor-style text box). Scope includes REMOVING the caption pipeline (caption_input, `comments_enabled` setting + presets row, cell/stage caption rendering, the profile-restore leftover in qa-backlog)
-3. Then Slice 9: Connectivity & Resilience (Chunk 12) — read its FULL TDD; `CustomPoolCollector.mark_departed()` extension point is ready for it
-4. Reality notes: replay settings are TARGET DURATIONS; in-game reads use `Session.game_settings` (frozen snapshot); `judging_window_sec` setting (default 25 s); judging never ends early (latched picks, deadline crowns); chat placement/prominence are per-phase-screen properties (`chat_placement()`/`chat_prominence()`); captions default OFF (pre-2026-07-07 host profiles may restore ON — qa-backlog); POOL_SETUP has no phase clock (pause is a no-op there); `CollectionStore` read surface + `Save` PNG/`globalize` helpers exist (Slice 8) for future image work
+**Immediate (Session 6 — in progress):**
+1. ~~Text tool (Slice 16)~~ DONE + first-build checks confirmed; ~~owner-directed rework~~ DONE (drag-to-place Option B, Eraser, ready-up Slice 17; 376 tests green; both gates PASS)
+2. **Owner checks:** (a) Slice 16 rework — type in the Text row, drag the chip onto the canvas (all 3 sizes, colors); Eraser feel; (b) Slice 17 — Done!/Unready in drawing (panel checkmarks update everywhere, phase advances when all drawers ready), JUDGING chat-header strip (judge's Ready locked until they pick; all-ready crowns early). Then slice-completion workflow for 16+17
+3. Then Slice 9: Connectivity & Resilience (Chunk 12) — read its FULL TDD; `CustomPoolCollector.mark_departed()` extension point is ready for it; **Slice 9 must fold rejoiners into the ready-up participant set (TDD 17 §9)**
+4. Reality notes: replay settings are TARGET DURATIONS; in-game reads use `Session.game_settings` (frozen snapshot); `judging_window_sec` setting (default 25 s); judging ends at the deadline OR when all connected participants ready up (Slice 17 — judge's ready requires a latched pick; submitting never advances DRAWING, ready does); chat placement/prominence are per-phase-screen properties (`chat_placement()`/`chat_prominence()`); **captions are GONE — text lives inside the DrawingDoc as TEXT ops (v1 format, `PixelFont`, host-censored at submission; canvas pre-censors identically — own-drawing detection relies on that equality)**; POOL_SETUP has no phase clock (pause is a no-op there); `CollectionStore` read surface + `Save` PNG/`globalize` helpers exist (Slice 8) for future image work; **CI drivers must pin every setting their flow depends on** (round driver pins `pool_source` — a restored host profile once parked the gate in POOL_SETUP)
 
 **Workflow gotchas:** run `godot --headless --path . --import` after creating new class_name scripts, before tests; test command needs `--ignoreHeadlessMode`; `Session` autoload = `game/session/session_manager.gd` (NOT game_session.gd — that's the host-only sim); settings field is `round_count`, not `rounds`; `SessionClient.rpc_sync_phase` emits specific EventBus signals BEFORE `phase_changed` (ordering contract); automated gates: `tools/verify_lobby.sh` (~15 s) and `tools/verify_round.sh` (~90 s — waits out a real judging window + reveal beats). **Run gates through a guarded wrapper: redirect all output to a file, poll godot RSS and kill above ~3 GB, hard wall-clock cap (the session-4 scratchpad `safe_verify_round.sh` did exactly this — recreate it; scratchpads don't persist). NEVER use ENet peer ids as loop bounds/sizes (random 32-bit ints; caused the 2026-07-06 ~80 GB RAM crash).** Manual playtests: `tools/dev_run.sh 3` launches 3 windowed instances.
 
@@ -99,7 +102,7 @@
 
 | Topic | Status | Notes |
 |-------|--------|-------|
-| **In-image text tool (captions replacement)** | **Decided (2026-07-07)** | Owner: captions retired (off everywhere); players will instead place text INTO drawings (paint-editor style). Build after Slices 7+8 this session if budget allows, else first next session. Design notes in decision log (bitmap-font deterministic raster, host-side TextFilter, touches Slices 1/3/5) |
+| **In-image text tool (captions replacement)** | **Built (2026-07-07, session 6)** | Slice 16 mini-TDD approved + implemented same session (censor-not-reject and permanent-text confirmed by owner pre-build). Awaiting the two blocking owner checks; batchables in qa-backlog Slice 16 section |
 | **In-game pause/leave menu** | **Decided (2026-07-06)** | Owner: menu shell (Esc → Resume / Leave to menu) ships in **Slice 6**; Slice 9 upgrades leave semantics (graceful leave, rejoin, below-minimum pause) behind the same button. See decision log |
 | Steam App ID registration | Deferred | Register before Chunk 15 (Slice 12); dev uses App ID 480 |
 | Art & sound | Deferred | Placeholder programmer art; MVP reached (Chunk 6) — revisit timing owner's call |

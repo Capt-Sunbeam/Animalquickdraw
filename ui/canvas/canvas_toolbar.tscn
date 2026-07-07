@@ -44,6 +44,13 @@ layout_mode = 2
 tooltip_text = "Bucket fill tool"
 text = "Fill"
 
+[node name="EraserButton" type="Button" parent="."]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(64, 36)
+layout_mode = 2
+tooltip_text = "Eraser (paints canvas background)"
+text = "Eraser"
+
 [node name="Sep2" type="VSeparator" parent="."]
 layout_mode = 2
 

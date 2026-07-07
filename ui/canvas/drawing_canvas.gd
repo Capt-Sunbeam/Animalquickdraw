@@ -40,6 +40,15 @@ var _live_stroke: Stroke = null
 var _tools_enabled: bool = true
 var _replay: ReplayPlayer = null
 var _mask: Image = null  # Slice 11 populates for MaskMode.CIRCLE
+# Slice 16 text tool (drag-to-place rework, owner 2026-07-07): type in the
+# TextRow, a rendered chip appears, drag it onto the canvas; the drop point
+# commits a TextOp (centered on the cursor). Chip + drag preview + drop are
+# ALL blitted by the same DocRasterizer path that commits, and the text is
+# censored live - what you see is exactly what the table sees.
+var _preview_view: TextureRect = null
+var _preview_image: Image = null
+var _preview_texture: ImageTexture = null
+var _chip_texture: ImageTexture = null
 
 @onready var _toolbar: CanvasToolbar = %Toolbar
 @onready var _palette: PalettePicker = %PalettePickerBox
@@ -49,23 +58,35 @@ var _mask: Image = null  # Slice 11 populates for MaskMode.CIRCLE
 @onready var _raster_view: TextureRect = %RasterView
 @onready var _save_toggle: CheckButton = %SaveToggle
 @onready var _rotate_confirm: ConfirmDialog = %RotateConfirm
+@onready var _text_row: HBoxContainer = %TextRow
+@onready var _text_input: LineEdit = %TextInput
+@onready var _text_chip: TextureRect = %TextChip
 
 
 func _ready() -> void:
-	_toolbar.size_selected.connect(func(idx: int) -> void: _current_size_index = idx)
+	_toolbar.size_selected.connect(func(idx: int) -> void:
+		_current_size_index = idx
+		_refresh_text_chip())
 	_toolbar.tool_selected.connect(func(tool: CanvasToolbar.Tool) -> void: _current_tool = tool)
 	_toolbar.undo_pressed.connect(_press_undo)
 	_toolbar.clear_pressed.connect(_press_clear)
 	_toolbar.rotate_pressed.connect(_press_rotate)
 	_toolbar.set_rotate_visible(show_rotate)
-	_palette.color_selected.connect(func(idx: int) -> void: _current_color_index = idx)
+	_palette.color_selected.connect(func(idx: int) -> void:
+		_current_color_index = idx
+		_refresh_text_chip())
 	_save_toggle.visible = show_save_toggle
 	_save_toggle.button_pressed = false  # off by default (brief §6)
 	_save_toggle.toggled.connect(_on_save_toggled)
 	_rotate_confirm.confirmed.connect(_confirm_rotate)
 	_rotate_confirm.cancelled.connect(func() -> void: _input_state = InputState.IDLE)
 	_viewport_box.gui_input.connect(_on_canvas_gui_input)
+	_text_input.max_length = GameConstants.TEXT_MAX_CHARS
+	_text_input.text_changed.connect(func(_t: String) -> void: _refresh_text_chip())
+	_text_chip.set_drag_forwarding(_chip_get_drag_data, Callable(), Callable())
+	_viewport_box.set_drag_forwarding(Callable(), _can_drop_text, _drop_text)
 	_rebuild_surface()
+	_refresh_text_chip()
 	begin_drawing()
 
 
@@ -75,6 +96,9 @@ func _ready() -> void:
 ## Resets doc + clock, keeps orientation. Round screens call this when the
 ## drawing phase starts.
 func begin_drawing() -> void:
+	if _text_input != null:
+		_text_input.clear()   # stale text never carries into a fresh drawing
+		_refresh_text_chip()
 	_commit_live_stroke()
 	var kept_orientation: StringName = _doc.orientation
 	_doc = DrawingDoc.new()
@@ -106,6 +130,8 @@ func set_tools_enabled(enabled: bool) -> void:
 	_tools_enabled = enabled
 	_toolbar.set_all_enabled(enabled)
 	_palette.set_enabled(enabled)
+	_text_input.editable = enabled
+	_refresh_text_chip()   # chip hides while tools are locked
 	_refresh_undo_state()
 
 
@@ -164,6 +190,8 @@ func _notification(what: int) -> void:
 	if what == NOTIFICATION_APPLICATION_FOCUS_OUT or what == NOTIFICATION_WM_WINDOW_FOCUS_OUT:
 		if _input_state == InputState.STROKING:
 			_end_stroke_at_last_point()
+	elif what == NOTIFICATION_DRAG_END:
+		_clear_drop_preview()   # drag cancelled or dropped elsewhere
 
 
 func _unhandled_key_input(event: InputEvent) -> void:
@@ -181,10 +209,10 @@ func _on_canvas_gui_input(event: InputEvent) -> void:
 		var mb: InputEventMouseButton = event
 		if mb.button_index == MOUSE_BUTTON_LEFT and mb.pressed:
 			var pos: Vector2 = _display_to_internal(mb.position)
-			if _current_tool == CanvasToolbar.Tool.BRUSH:
-				_stroke_begin(pos)
-			else:
+			if _current_tool == CanvasToolbar.Tool.FILL:
 				_fill_at(pos)
+			else:
+				_stroke_begin(pos)   # BRUSH and ERASER both stroke (§6)
 
 
 ## Display -> internal coordinate mapping through the letterbox transform.
@@ -204,7 +232,10 @@ func _display_to_internal(container_local: Vector2) -> Vector2:
 
 func _stroke_begin(internal_pos: Vector2) -> void:
 	_live_stroke = Stroke.new()
-	_live_stroke.color_index = _current_color_index
+	# Eraser = a stroke in the canvas-background color (Slice 16): fully
+	# deterministic, replays visibly, and the palette selection is untouched.
+	_live_stroke.color_index = Palette.ERASE_COLOR_INDEX \
+			if _current_tool == CanvasToolbar.Tool.ERASER else _current_color_index
 	_live_stroke.size_index = _current_size_index
 	_append_point(internal_pos, true)
 	_input_state = InputState.STROKING
@@ -278,6 +309,160 @@ func _fill_at(internal_pos: Vector2) -> void:
 	doc_changed.emit()
 
 
+# --- Internal: text tool, drag-to-place (Slice 16 rework, owner
+# 2026-07-07; _commit_text_at is also the headless-test seam) ---
+
+
+## The committal string: charset-filtered, censored, re-truncated - the
+## exact sequence the host applies (Slice 16 §6), so the local doc equals
+## the broadcast doc (own-drawing detection depends on this).
+func _sanitized_text() -> String:
+	var raw: String = _text_input.text
+	var clean: String = ""
+	for i: int in raw.length():
+		if PixelFont.is_supported(raw.unicode_at(i)):
+			clean += raw[i]
+	return TextFilter.censor(clean).left(GameConstants.TEXT_MAX_CHARS)
+
+
+## Renders the committal text through the committal blitter, at internal
+## resolution, on transparency - the chip/drag/hover previews are all this.
+func _render_text_image(text: String) -> Image:
+	var scale: int = GameConstants.TEXT_SCALES[_current_size_index]
+	var w: int = maxi(1, text.length() * GameConstants.TEXT_GLYPH_PX * scale)
+	var h: int = GameConstants.TEXT_GLYPH_PX * scale
+	var img: Image = Image.create_empty(w, h, false, Image.FORMAT_RGBA8)
+	var op := TextOp.new()
+	op.color_index = _current_color_index
+	op.size_index = _current_size_index
+	op.x = 0
+	op.y = 0
+	op.text = text
+	DocRasterizer.apply_op(img, op)
+	return img
+
+
+func _refresh_text_chip() -> void:
+	if _text_chip == null:
+		return
+	var text: String = _sanitized_text()
+	if text.is_empty() or not _tools_enabled:
+		_text_chip.visible = false
+		return
+	var img: Image = _render_text_image(text)
+	_chip_texture = ImageTexture.create_from_image(img)
+	_text_chip.texture = _chip_texture
+	var chip_h: float = 28.0
+	var chip_w: float = minf(img.get_width() * (chip_h / float(img.get_height())), 320.0)
+	_text_chip.custom_minimum_size = Vector2(chip_w, chip_h)
+	_text_chip.visible = true
+
+
+## Drag source (chip). The preview matches the on-canvas display scale so
+## what you're holding is what will land.
+func _chip_get_drag_data(_at_position: Vector2) -> Variant:
+	var text: String = _sanitized_text()
+	if text.is_empty() or not _tools_enabled or _input_state != InputState.IDLE:
+		return null
+	var img: Image = _render_text_image(text)
+	var preview := TextureRect.new()
+	preview.texture = ImageTexture.create_from_image(img)
+	preview.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	preview.stretch_mode = TextureRect.STRETCH_SCALE
+	var display_scale: float = 1.0
+	var internal: Vector2 = Vector2(_doc.canvas_size())
+	if internal.x > 0.0 and _viewport_box.size.x > 0.0:
+		display_scale = _viewport_box.size.x / internal.x
+	preview.size = Vector2(img.get_width(), img.get_height()) * display_scale
+	# Hold the text by its center - matches the drop anchoring.
+	preview.position = -preview.size / 2.0
+	var wrapper := Control.new()
+	wrapper.add_child(preview)
+	_text_chip.set_drag_preview(wrapper)
+	return {"aq_text_drop": true}
+
+
+## Drop target (canvas). Fires continuously during the drag - also paints
+## the exact-placement preview into the overlay layer.
+func _can_drop_text(at_position: Vector2, data: Variant) -> bool:
+	if not (data is Dictionary and (data as Dictionary).has("aq_text_drop")):
+		return false
+	if not _tools_enabled or _input_state != InputState.IDLE:
+		return false
+	var text: String = _sanitized_text()
+	if text.is_empty():
+		return false
+	_paint_drop_preview(_drop_anchor(at_position, text), text)
+	return true
+
+
+func _drop_text(at_position: Vector2, data: Variant) -> void:
+	if not _can_drop_text(at_position, data):
+		return
+	_commit_text_at(_drop_anchor(at_position, _sanitized_text()))
+	_clear_drop_preview()
+
+
+## Anchor so the text centers on the cursor, clamped in-canvas (the wire
+## format requires an in-canvas anchor; overflow clips at raster time).
+func _drop_anchor(display_pos: Vector2, text: String) -> Vector2i:
+	return _anchor_for_internal(_display_to_internal(display_pos), text)
+
+
+## Pure centering math on internal coordinates (headless-test seam - the
+## display mapping needs a laid-out viewport box).
+func _anchor_for_internal(internal: Vector2, text: String) -> Vector2i:
+	var scale: int = GameConstants.TEXT_SCALES[_current_size_index]
+	var w: float = float(text.length() * GameConstants.TEXT_GLYPH_PX * scale)
+	var h: float = float(GameConstants.TEXT_GLYPH_PX * scale)
+	var size: Vector2i = _doc.canvas_size()
+	return Vector2i(clampi(roundi(internal.x - w / 2.0), 0, size.x - 1),
+			clampi(roundi(internal.y - h / 2.0), 0, size.y - 1))
+
+
+## Commits the TextRow's current text at anchor - the fill-op lifecycle
+## exactly. No-op for empty/unsupported-only text.
+func _commit_text_at(anchor: Vector2i) -> void:
+	var text: String = _sanitized_text()
+	if text.is_empty():
+		return
+	var op := TextOp.new()
+	op.color_index = _current_color_index
+	op.size_index = _current_size_index
+	op.x = anchor.x
+	op.y = anchor.y
+	op.text = text
+	_doc.ops.append(op)
+	DocRasterizer.apply_op(_raster, op, _mask)
+	_texture_dirty = true
+	_refresh_undo_state()
+	op_committed.emit(_doc.ops.size() - 1)
+	doc_changed.emit()
+	# Text stays in the box for repeat stamps ("HA HA HA"); the input's
+	# clear button resets it.
+
+
+func _paint_drop_preview(anchor: Vector2i, text: String) -> void:
+	if _preview_image == null:
+		return
+	_preview_image.fill(Color(0.0, 0.0, 0.0, 0.0))
+	var op := TextOp.new()
+	op.color_index = _current_color_index
+	op.size_index = _current_size_index
+	op.x = anchor.x
+	op.y = anchor.y
+	op.text = text
+	DocRasterizer.apply_op(_preview_image, op, _mask)
+	_preview_texture.update(_preview_image)
+
+
+func _clear_drop_preview() -> void:
+	if _preview_image == null:
+		return
+	_preview_image.fill(Color(0.0, 0.0, 0.0, 0.0))
+	_preview_texture.update(_preview_image)
+
+
 # --- Internal: toolbar actions ---
 
 
@@ -349,6 +534,18 @@ func _apply_orientation_to_surface() -> void:
 	var size: Vector2i = _doc.canvas_size()
 	_viewport.size = size
 	_frame.ratio = float(size.x) / float(size.y)
+	# Slice 16: transparent preview layer over the raster view, at internal
+	# resolution (rebuilt here so orientation flips keep it in sync).
+	if _preview_view == null:
+		_preview_view = TextureRect.new()
+		_preview_view.name = "TextPreview"
+		_preview_view.stretch_mode = TextureRect.STRETCH_KEEP
+		_viewport.add_child(_preview_view)
+	_preview_view.position = Vector2.ZERO
+	_preview_view.size = Vector2(size)
+	_preview_image = Image.create_empty(size.x, size.y, false, Image.FORMAT_RGBA8)
+	_preview_texture = ImageTexture.create_from_image(_preview_image)
+	_preview_view.texture = _preview_texture
 
 
 func _full_reraster() -> void:

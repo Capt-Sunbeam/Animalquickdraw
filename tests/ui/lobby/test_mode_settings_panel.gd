@@ -41,7 +41,7 @@ func test_non_host_sees_disabled_controls() -> void:
 	s.apply_preset(SettingsDefaults.Mode.CUSTOM)
 	panel.render(s)
 	assert_bool(panel._reveal_option.disabled).is_true()
-	assert_bool(panel._captions_check.disabled).is_true()
+	assert_bool(panel._title_points_check.disabled).is_true()
 	assert_bool(panel._judging_spin.editable).is_false()
 
 

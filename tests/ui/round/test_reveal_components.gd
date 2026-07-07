@@ -1,11 +1,10 @@
 class_name TestRevealComponents
 extends GdUnitTestSuite
-## Slice 5 UI smoke tests (TDD §11): CaptionInput / WinnerSpotlight
-## instantiate and behave; the reveal screen's stage mode responds to beat
-## events and settles into the judging cells. Choreography feel is owner
-## territory; the beat schedule itself is covered headless.
+## Slice 5 UI smoke tests (TDD §11; captions removed by Slice 16):
+## WinnerSpotlight instantiates and behaves; the reveal screen's stage mode
+## responds to beat events and settles into the judging cells. Choreography
+## feel is owner territory; the beat schedule itself is covered headless.
 
-const CAPTION_INPUT: PackedScene = preload("res://ui/round/caption_input.tscn")
 const WINNER_SPOTLIGHT: PackedScene = preload("res://ui/round/winner_spotlight.tscn")
 const REVEAL: PackedScene = preload("res://ui/round/reveal_judging_screen.tscn")
 const DRAW: PackedScene = preload("res://ui/round/draw_screen.tscn")
@@ -24,10 +23,9 @@ func _instantiate(scene: PackedScene) -> Node:
 
 func _entries() -> Array:
 	return [
-		{"drawing_id": "id-a", "doc": {"v": 1, "orientation": "landscape", "ops": []},
-			"caption": "it's resting"},
-		{"drawing_id": "id-b", "doc": {"v": 1, "orientation": "portrait", "ops": [{"t": "clear"}]},
-			"caption": ""},
+		{"drawing_id": "id-a", "doc": {"v": 1, "orientation": "landscape", "ops": [
+			{"t": "text", "c": 4, "s": 1, "x": 100, "y": 100, "str": "in-image text"}]}},
+		{"drawing_id": "id-b", "doc": {"v": 1, "orientation": "portrait", "ops": [{"t": "clear"}]}},
 	]
 
 
@@ -40,17 +38,6 @@ func _client_with_entries(entries: Array) -> SessionClient:
 	return client
 
 
-func test_caption_input_expands_and_pre_censors() -> void:
-	var input: CaptionInput = _instantiate(CAPTION_INPUT)
-	var edit: LineEdit = input.find_child("CaptionEdit", true, false)
-	assert_bool(edit.visible).is_false()
-	(input.find_child("CaptionChip", true, false) as Button).pressed.emit()
-	assert_bool(edit.visible).is_true()
-	assert_int(edit.max_length).is_equal(GameConstants.CAPTION_MAX_CHARS)
-	edit.text = "  hello there  "
-	assert_str(input.caption_text()).is_equal(TextFilter.censor("hello there"))
-
-
 func test_winner_spotlight_static_presentation_finishes() -> void:
 	var spotlight: WinnerSpotlight = _instantiate(WINNER_SPOTLIGHT)
 	var finished: Array = []
@@ -59,15 +46,13 @@ func test_winner_spotlight_static_presentation_finishes() -> void:
 	var handler: Callable = func(id: String) -> void: lapped.append(id)
 	EventBus.winner_lap_finished.connect(handler)
 	spotlight.present("id-w", {"v": 1, "orientation": "landscape", "ops": []},
-			"Alice", "a masterpiece", 3.0, false)
+			"Alice", 3.0, false)
 	await get_tree().process_frame   # static path completes deferred
 	EventBus.winner_lap_finished.disconnect(handler)
 	assert_int(finished.size()).is_equal(1)
 	assert_array(lapped).contains_exactly(["id-w"])
 	var author: Label = spotlight.find_child("AuthorLabel", true, false)
 	assert_str(author.text).contains("Alice")
-	var caption: Label = spotlight.find_child("CaptionLabel", true, false)
-	assert_str(caption.text).contains("a masterpiece")
 
 
 func test_stage_mode_hides_cells_then_beats_reveal_them() -> void:
@@ -94,33 +79,24 @@ func test_stage_mode_hides_cells_then_beats_reveal_them() -> void:
 		assert_bool(bar.interactive).is_true()
 
 
-func test_grid_cells_show_caption_line_with_tooltip() -> void:
+func test_grid_cells_render_docs_with_text_ops() -> void:
+	# Text is pixels inside the doc now - the cell needs no extra label, and
+	# the fixed-shape social row keeps its spacer slot for alignment.
 	var client: SessionClient = _client_with_entries(_entries())
 	var screen: Control = _instantiate(REVEAL)
 	screen.setup({"entries": _entries(), "deadline_ms": _now_ms() + 20000,
 			"reveal_style": GameSettings.RevealStyle.GRID}, client)
-	var captioned: Button = screen._cells["id-a"]
-	var found: bool = false
-	for label: Node in captioned.find_children("*", "Label", true, false):
-		if (label as Label).tooltip_text == "it's resting":
-			found = true
-	assert_bool(found).is_true()
+	assert_int(screen._cells.size()).is_equal(2)
+	for label: Node in (screen._cells["id-a"] as Button).find_children("*", "Label", true, false):
+		assert_str((label as Label).tooltip_text).is_empty()
 
 
-func test_draw_screen_caption_rides_submission_payload() -> void:
+func test_draw_screen_submission_payload_is_doc_only() -> void:
 	var client: SessionClient = auto_free(SESSION_CLIENT_SCRIPT.new())
 	add_child(client)
-	# Captions default OFF since 2026-07-07 - this covers the dormant opt-in
-	# plumbing until the in-image text tool replaces it.
-	Session.game_settings.comments_enabled = true
 	var screen: Control = _instantiate(DRAW)
 	screen.setup({"prompt_text": "sleepy aardvark", "deadline_ms": _now_ms() + 30000}, client)
-	var caption_input: CaptionInput = screen.find_child("Caption", true, false)
-	assert_bool(caption_input.visible).is_true()   # visible when opted in
-	Session.game_settings.comments_enabled = false
-	(caption_input.find_child("CaptionEdit", true, false) as LineEdit).text = "wow"
+	assert_object(screen.find_child("Caption", true, false)).is_null()   # UI removed (Slice 16)
 	screen._send_current_doc()
-	# The client cached the doc; the caption went out beside it (host strips
-	# or censors authoritatively - covered headless).
 	assert_bool(screen._last_submitted_doc.has("ops")).is_true()
 	assert_bool(screen._last_submitted_doc.has("caption")).is_false()   # never inside the doc

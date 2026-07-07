@@ -9,6 +9,7 @@ func _valid_doc() -> DrawingDoc:
 	doc.ops.append(GoldenDocs.make_stroke(4, 1, [Vector2(10.0, 20.0), Vector2(30.5, 40.1)], 0.0, 0.016))
 	doc.ops.append(GoldenDocs.make_fill(7, 120, 88))
 	doc.ops.append(ClearOp.new())
+	doc.ops.append(GoldenDocs.make_text(3, 1, 200, 150, "MOO!"))
 	return doc
 
 
@@ -16,7 +17,13 @@ func test_round_trip_preserves_all_ops() -> void:
 	var doc: DrawingDoc = _valid_doc()
 	var parsed: DrawingDoc = DrawingDoc.from_dict(doc.to_dict())
 	assert_object(parsed).is_not_null()
-	assert_int(parsed.ops.size()).is_equal(3)
+	assert_int(parsed.ops.size()).is_equal(4)
+	var text_op: TextOp = parsed.ops[3]
+	assert_int(text_op.color_index).is_equal(3)
+	assert_int(text_op.size_index).is_equal(1)
+	assert_int(text_op.x).is_equal(200)
+	assert_int(text_op.y).is_equal(150)
+	assert_str(text_op.text).is_equal("MOO!")
 	var stroke: Stroke = parsed.ops[0]
 	assert_int(stroke.color_index).is_equal(4)
 	assert_int(stroke.size_index).is_equal(1)
@@ -35,7 +42,7 @@ func test_round_trip_through_actual_json_text() -> void:
 	var json_text: String = JSON.stringify(doc.to_dict())
 	var parsed: DrawingDoc = DrawingDoc.from_dict(JSON.parse_string(json_text))
 	assert_object(parsed).is_not_null()
-	assert_int(parsed.ops.size()).is_equal(3)
+	assert_int(parsed.ops.size()).is_equal(4)
 	# Raster equality after a real JSON round trip is covered in the
 	# rasterizer suite (hash stability test).
 
@@ -49,6 +56,7 @@ func test_serialized_shape_matches_consistency_guide() -> void:
 	assert_array(ops[0].keys()).contains_exactly_in_any_order(["t", "c", "s", "pts", "ts"])
 	assert_array(ops[1].keys()).contains_exactly_in_any_order(["t", "c", "x", "y"])
 	assert_array(ops[2].keys()).contains_exactly_in_any_order(["t"])
+	assert_array(ops[3].keys()).contains_exactly_in_any_order(["t", "c", "s", "x", "y", "str"])
 	var pts: Array = ops[0]["pts"]
 	var ts: Array = ops[0]["ts"]
 	assert_int(pts.size()).is_equal(4)  # flattened pairs
@@ -109,6 +117,58 @@ func test_from_dict_rejects_invalid_input() -> void:
 	assert_object(DrawingDoc.from_dict(42)).is_null()
 	assert_object(DrawingDoc.from_dict("[]")).is_null()
 	assert_object(DrawingDoc.from_dict(null)).is_null()
+
+
+func test_from_dict_rejects_invalid_text_ops() -> void:
+	var base: Dictionary = _valid_doc().to_dict()
+	# Non-string str
+	var d: Dictionary = base.duplicate(true)
+	d["ops"][3]["str"] = 42
+	assert_object(DrawingDoc.from_dict(d)).is_null()
+	# Missing str
+	d = base.duplicate(true)
+	d["ops"][3].erase("str")
+	assert_object(DrawingDoc.from_dict(d)).is_null()
+	# Empty str
+	d = base.duplicate(true)
+	d["ops"][3]["str"] = ""
+	assert_object(DrawingDoc.from_dict(d)).is_null()
+	# Over the length cap
+	d = base.duplicate(true)
+	d["ops"][3]["str"] = "x".repeat(GameConstants.TEXT_MAX_CHARS + 1)
+	assert_object(DrawingDoc.from_dict(d)).is_null()
+	# Exactly at the cap is legal
+	d = base.duplicate(true)
+	d["ops"][3]["str"] = "x".repeat(GameConstants.TEXT_MAX_CHARS)
+	assert_object(DrawingDoc.from_dict(d)).is_not_null()
+	# Unsupported characters (non-ASCII, control)
+	d = base.duplicate(true)
+	d["ops"][3]["str"] = "café"
+	assert_object(DrawingDoc.from_dict(d)).is_null()
+	d = base.duplicate(true)
+	d["ops"][3]["str"] = "line\nbreak"
+	assert_object(DrawingDoc.from_dict(d)).is_null()
+	# Scale index out of range
+	d = base.duplicate(true)
+	d["ops"][3]["s"] = GameConstants.TEXT_SCALES.size()
+	assert_object(DrawingDoc.from_dict(d)).is_null()
+	d = base.duplicate(true)
+	d["ops"][3]["s"] = -1
+	assert_object(DrawingDoc.from_dict(d)).is_null()
+	# Color out of range
+	d = base.duplicate(true)
+	d["ops"][3]["c"] = Palette.COLORS.size()
+	assert_object(DrawingDoc.from_dict(d)).is_null()
+	# Anchor out of bounds / non-int
+	d = base.duplicate(true)
+	d["ops"][3]["x"] = GameConstants.CANVAS_LANDSCAPE.x
+	assert_object(DrawingDoc.from_dict(d)).is_null()
+	d = base.duplicate(true)
+	d["ops"][3]["y"] = -1
+	assert_object(DrawingDoc.from_dict(d)).is_null()
+	d = base.duplicate(true)
+	d["ops"][3]["x"] = 12.5
+	assert_object(DrawingDoc.from_dict(d)).is_null()
 
 
 func test_from_dict_accepts_json_float_ints() -> void:

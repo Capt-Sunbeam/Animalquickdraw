@@ -92,3 +92,12 @@ signal pool_setup_progress_changed(progress: Array)
 ## Emitted locally on a submitter when the host rejects a pool submission.
 ## reason: NetIds.WordRejectReason (never NONE or LOCKED).
 signal pool_words_rejected(pool_id: String, reason: int)
+
+# --- Slice 17: Ready-Up ---
+
+## Emitted on all peers when the phase's ready-up set changes. Resets
+## implicitly at every phase change (SessionClient clears its cache).
+signal ready_state_changed(ready_ids: PackedStringArray)
+## Emitted LOCALLY when this peer (as judge) sends a pick - enables the
+## judge's Ready button in the chat strip. Never networked.
+signal judge_pick_latched()

@@ -272,13 +272,18 @@ func test_round_count_and_share_unchanged_by_roster_changes_during_setup() -> vo
 # --- submissions ---
 
 
-func test_drawing_ends_early_when_all_drawers_submitted() -> void:
+func test_drawing_ends_early_when_all_drawers_ready_not_on_submit() -> void:
+	# Slice 17: submitting alone never ends the phase; the ready-up set does.
 	var rig: Rig = _make_rig()
 	_to_drawing(rig)
 	assert_bool(rig.session.submit_drawing("p1", _valid_payload())).is_true()
 	assert_bool(rig.session.submit_drawing("p2", _valid_payload())).is_true()
-	assert_int(rig.session.get_phase()).is_equal(NetIds.Phase.DRAWING)
 	assert_bool(rig.session.submit_drawing("p3", _valid_payload())).is_true()
+	assert_int(rig.session.get_phase()).is_equal(NetIds.Phase.DRAWING)
+	assert_bool(rig.session.set_ready("p1", true)).is_true()
+	assert_bool(rig.session.set_ready("p2", true)).is_true()
+	assert_int(rig.session.get_phase()).is_equal(NetIds.Phase.DRAWING)
+	assert_bool(rig.session.set_ready("p3", true)).is_true()
 	assert_int(rig.session.get_phase()).is_equal(NetIds.Phase.REVEAL)
 
 
@@ -348,14 +353,16 @@ func test_reveal_entries_contain_no_author_info_and_are_shuffled() -> void:
 	rig.session.submit_drawing("p2", _valid_payload(2))
 	rig.session.submit_drawing("p3", _valid_payload(3))
 	rig.session.submit_drawing("p4", _valid_payload(4))
+	for pid: String in ["p1", "p2", "p3", "p4"]:
+		rig.session.set_ready(pid, true)   # Slice 17: ready ends the phase
 	var entries: Array = rig.last_data(NetIds.Phase.REVEAL)["entries"]
 	assert_int(entries.size()).is_equal(4)
 	var ids: Dictionary = {}
 	var op_counts: Array[int] = []
 	for entry: Dictionary in entries:
-		# caption added by Slice 5 - anonymous and empty unless supplied.
+		# caption key removed by Slice 16 - text lives inside the doc.
 		assert_array(entry.keys()).contains_exactly_in_any_order(
-				["drawing_id", "doc", "caption"])
+				["drawing_id", "doc"])
 		assert_str(str(entry["drawing_id"])).is_not_empty()
 		ids[str(entry["drawing_id"])] = true
 		op_counts.append(((entry["doc"] as Dictionary)["ops"] as Array).size())
@@ -549,7 +556,10 @@ func test_sim_harness_full_8_round_game_with_scripted_picks() -> void:
 				for pid: String in ["p0", "p1", "p2", "p3"]:
 					if pid != judge:
 						assert_bool(rig.session.submit_drawing(pid, _valid_payload(1))).is_true()
-				# All submitted -> REVEAL entered automatically (early end).
+				for pid: String in ["p0", "p1", "p2", "p3"]:
+					if pid != judge:
+						assert_bool(rig.session.set_ready(pid, true)).is_true()
+				# All ready -> REVEAL entered automatically (Slice 17 early end).
 				assert_int(rig.session.get_phase()).is_equal(NetIds.Phase.REVEAL)
 				prompts[str(rig.last_data(NetIds.Phase.DRAWING)["prompt_text"])] = true
 			NetIds.Phase.REVEAL:

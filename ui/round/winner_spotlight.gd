@@ -1,10 +1,11 @@
 class_name WinnerSpotlight
 extends VBoxContainer
-## Victory-lap presentation (Slice 5 TDD §7): the winner's drawing large,
-## author revealed (authorship is public at resolution), caption WITH
-## attribution, and an optional stroke replay at the winner timescale.
-## Emits lap_finished + EventBus.winner_lap_finished when the presentation
-## settles (immediately for static presentations).
+## Victory-lap presentation (Slice 5 TDD §7; caption removed by Slice 16 -
+## text lives inside the drawing now): the winner's drawing large, author
+## revealed (authorship is public at resolution), and an optional stroke
+## replay at the winner timescale. Emits lap_finished +
+## EventBus.winner_lap_finished when the presentation settles (immediately
+## for static presentations).
 
 signal lap_finished()
 
@@ -14,15 +15,12 @@ var _texture: ImageTexture = null
 
 @onready var _rect: TextureRect = %SpotlightRect
 @onready var _author_label: Label = %AuthorLabel
-@onready var _caption_label: Label = %CaptionLabel
 
 
 func present(drawing_id: String, doc: Dictionary, author_name: String,
-		caption: String, timescale: float, animate: bool) -> void:
+		timescale: float, animate: bool) -> void:
 	_drawing_id = drawing_id
 	_author_label.text = "by %s" % author_name
-	_caption_label.text = "“%s”" % caption if not caption.is_empty() else ""
-	_caption_label.visible = not caption.is_empty()
 	var parsed: DrawingDoc = DrawingDoc.from_dict(doc)
 	if parsed == null:
 		parsed = DrawingDoc.new()

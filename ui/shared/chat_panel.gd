@@ -27,6 +27,9 @@ const COLLAPSED_GHOST_ALPHA: float = 0.6
 const SIDE_WIDTH: float = 260.0
 
 signal message_submitted(text: String)
+## Slice 17: the header's Ready button was pressed (owning screen forwards
+## to SessionClient - same decoupling as message_submitted).
+signal ready_toggled(ready: bool)
 
 @export var prominence: Prominence = Prominence.NORMAL: set = _set_prominence
 @export var placement: Placement = Placement.BOTTOM: set = _set_placement
@@ -34,6 +37,7 @@ signal message_submitted(text: String)
 var _messages: Array[Dictionary] = []  # {"name": String, "text": String}
 var _expanded: bool = true             # explicit toggle; defaulted by prominence
 var _unread: int = 0                   # messages arrived while collapsed
+var _ready_strip: ReadyStatusStrip = null  # Slice 17: judging ready-up (lazy)
 
 @onready var _title: Label = %ChatTitle
 @onready var _toggle_button: Button = %ToggleButton
@@ -60,6 +64,46 @@ func clear_history() -> void:
 	_messages.clear()
 	_unread = 0
 	_rebuild_history()
+
+
+# --- Slice 17: judging ready-up strip (header: Chat | Ready | chips) ---
+
+
+## Shows (and lazily builds) the ready strip: Ready button + one chip per
+## player, inline right of the "Chat" title (owner spec 2026-07-07).
+func show_ready_strip(players: Array[Dictionary]) -> void:
+	if _ready_strip == null:
+		_ready_strip = ReadyStatusStrip.new()
+		_ready_strip.setup(true, false, false)   # button, no names, horizontal
+		_ready_strip.ready_toggled.connect(func(ready: bool) -> void:
+			ready_toggled.emit(ready))
+		var header: HBoxContainer = _title.get_parent() as HBoxContainer
+		header.add_child(_ready_strip)
+		header.move_child(_ready_strip, _title.get_index() + 1)
+	_ready_strip.set_players(players)
+	_ready_strip.set_ready_ids(PackedStringArray())
+	_ready_strip.set_local_ready(false)
+	_ready_strip.visible = true
+
+
+func hide_ready_strip() -> void:
+	if _ready_strip != null:
+		_ready_strip.visible = false
+
+
+func update_ready_ids(ids: PackedStringArray) -> void:
+	if _ready_strip != null:
+		_ready_strip.set_ready_ids(ids)
+
+
+func set_ready_local(ready: bool) -> void:
+	if _ready_strip != null:
+		_ready_strip.set_local_ready(ready)
+
+
+func set_ready_button_enabled(enabled: bool) -> void:
+	if _ready_strip != null:
+		_ready_strip.set_button_enabled(enabled)
 
 
 func is_expanded() -> bool:

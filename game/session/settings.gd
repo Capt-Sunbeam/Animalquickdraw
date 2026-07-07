@@ -48,7 +48,8 @@ var reveal_style: RevealStyle = RevealStyle.ONE_AT_A_TIME
 var replay_mode: ReplayMode = ReplayMode.WINNER_ONLY
 var reveal_replay_secs: float = 5.0    # per-drawing reveal replay target duration
 var winner_replay_secs: float = 8.0    # victory-lap replay target duration
-var comments_enabled: bool = false     # captions off everywhere (owner, 2026-07-07)
+# comments_enabled removed by Slice 16 (captions retired for the in-image
+# text tool); stale profile dicts carrying the key are silently ignored.
 
 var _frozen: bool = false              # snapshots refuse mutation (Slice 6 §5)
 
@@ -154,7 +155,6 @@ func _assign(key: StringName, value: Variant) -> bool:
 		&"reveal_replay_secs": reveal_replay_secs = float(value)
 		&"winner_replay_secs": winner_replay_secs = float(value)
 		&"judging_window_sec": judging_window_sec = float(value)
-		&"comments_enabled": comments_enabled = bool(value)
 		&"kudos_allotment": kudos_allotment = int(value)
 		&"title_points_enabled": title_points_enabled = bool(value)
 		&"draw_time_sec": draw_time_sec = float(value)
@@ -182,7 +182,6 @@ func to_dict() -> Dictionary:
 		"replay_mode": replay_mode,
 		"reveal_replay_secs": reveal_replay_secs,
 		"winner_replay_secs": winner_replay_secs,
-		"comments_enabled": comments_enabled,
 	}
 
 
@@ -206,7 +205,6 @@ static func from_dict(d: Dictionary) -> GameSettings:
 	s.replay_mode = int(d.get("replay_mode", ReplayMode.WINNER_ONLY)) as ReplayMode
 	s.reveal_replay_secs = float(d.get("reveal_replay_secs", 5.0))
 	s.winner_replay_secs = float(d.get("winner_replay_secs", 8.0))
-	s.comments_enabled = bool(d.get("comments_enabled", false))
 	return s
 
 

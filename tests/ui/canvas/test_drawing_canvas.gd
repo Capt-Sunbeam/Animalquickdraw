@@ -137,6 +137,132 @@ func test_set_tools_enabled_false_blocks_actions() -> void:
 	assert_int(_canvas.get_doc().ops.size()).is_equal(0)
 
 
+# --- Slice 16: drag-to-place text (driven via the _commit_text_at seam) ---
+
+
+func test_text_commit_appends_op_and_stamps_raster() -> void:
+	var committed: Array[int] = []
+	_canvas.op_committed.connect(func(idx: int) -> void: committed.append(idx))
+	_canvas._text_input.text = "MOO"
+	_canvas._commit_text_at(Vector2i(100, 200))
+	var ops: Array[DrawingOp] = _canvas.get_doc().ops
+	assert_int(ops.size()).is_equal(1)
+	var op: TextOp = ops[0]
+	assert_str(op.text).is_equal("MOO")
+	assert_int(op.x).is_equal(100)
+	assert_int(op.y).is_equal(200)
+	assert_array(committed).is_equal([0])
+	# The raster matches a from-scratch rasterize of the doc (same blit path).
+	assert_str(DocRasterizer.image_hash(_canvas._raster)) \
+		.is_equal(DocRasterizer.image_hash(DocRasterizer.rasterize(_canvas.get_doc())))
+
+
+func test_text_commit_censors_like_the_host() -> void:
+	TextFilter.configure(PackedStringArray(["sock"]))
+	_canvas._text_input.text = "nice sock"
+	_canvas._commit_text_at(Vector2i(50, 50))
+	TextFilter.configure(PackedStringArray())
+	var op: TextOp = _canvas.get_doc().ops[0]
+	assert_str(op.text).is_equal("nice %s" % TextFilter.CENSOR_TEXT)
+
+
+func test_text_unsupported_chars_filtered_at_commit() -> void:
+	_canvas._text_input.text = "café ok"
+	_canvas._commit_text_at(Vector2i(50, 50))
+	var op: TextOp = _canvas.get_doc().ops[0]
+	assert_str(op.text).is_equal("caf ok")
+
+
+func test_empty_text_commit_is_a_noop() -> void:
+	_canvas._text_input.text = ""
+	_canvas._commit_text_at(Vector2i(50, 50))
+	assert_int(_canvas.get_doc().ops.size()).is_equal(0)
+
+
+func test_repeat_stamps_keep_text_in_box() -> void:
+	_canvas._text_input.text = "HA"
+	_canvas._commit_text_at(Vector2i(50, 50))
+	_canvas._commit_text_at(Vector2i(150, 50))
+	_canvas._commit_text_at(Vector2i(250, 50))
+	assert_int(_canvas.get_doc().ops.size()).is_equal(3)
+	assert_str(_canvas._text_input.text).is_equal("HA")
+
+
+func test_drop_anchor_centers_text_on_cursor_and_clamps() -> void:
+	# Internal-coordinate seam (display mapping needs a laid-out viewport).
+	var anchor: Vector2i = _canvas._anchor_for_internal(Vector2(400.0, 300.0), "HI")
+	var scale: int = GameConstants.TEXT_SCALES[_canvas._current_size_index]
+	@warning_ignore("integer_division")
+	var half_w: int = 2 * GameConstants.TEXT_GLYPH_PX * scale / 2
+	@warning_ignore("integer_division")
+	var half_h: int = GameConstants.TEXT_GLYPH_PX * scale / 2
+	assert_int(anchor.x).is_equal(400 - half_w)
+	assert_int(anchor.y).is_equal(300 - half_h)
+	# A corner drop clamps into canvas.
+	var corner: Vector2i = _canvas._anchor_for_internal(Vector2.ZERO, "HI")
+	assert_int(corner.x).is_equal(0)
+	assert_int(corner.y).is_equal(0)
+
+
+func test_undo_removes_committed_text_op() -> void:
+	var blank_hash: String = DocRasterizer.image_hash(_canvas._raster)
+	_canvas._text_input.text = "oops"
+	_canvas._commit_text_at(Vector2i(50, 50))
+	_canvas._press_undo()
+	assert_int(_canvas.get_doc().ops.size()).is_equal(0)
+	assert_str(DocRasterizer.image_hash(_canvas._raster)).is_equal(blank_hash)
+
+
+func test_text_round_trips_through_wire_format() -> void:
+	_canvas._text_input.text = "wire safe!"
+	_canvas._commit_text_at(Vector2i(300, 400))
+	var json_text: String = JSON.stringify(_canvas.get_doc().to_dict())
+	var parsed: DrawingDoc = DrawingDoc.from_dict(JSON.parse_string(json_text))
+	assert_object(parsed).is_not_null()
+	assert_str((parsed.ops[0] as TextOp).text).is_equal("wire safe!")
+
+
+func test_chip_appears_with_text_and_hides_when_locked() -> void:
+	assert_bool(_canvas._text_chip.visible).is_false()
+	_canvas._text_input.text = "chip"
+	_canvas._refresh_text_chip()
+	assert_bool(_canvas._text_chip.visible).is_true()
+	_canvas.set_tools_enabled(false)
+	assert_bool(_canvas._text_chip.visible).is_false()
+	assert_bool(_canvas._text_input.editable).is_false()
+
+
+# --- Slice 16: eraser (a background-color stroke) ---
+
+
+func test_eraser_strokes_paint_background_color_index() -> void:
+	_canvas._current_tool = CanvasToolbar.Tool.ERASER
+	_canvas._stroke_begin(Vector2(100.0, 100.0))
+	_canvas._stroke_end(Vector2(200.0, 200.0))
+	var stroke: Stroke = _canvas.get_doc().ops[0]
+	assert_int(stroke.color_index).is_equal(Palette.ERASE_COLOR_INDEX)
+	# The palette selection is untouched - switching back to brush paints
+	# the previously selected color.
+	_canvas._current_tool = CanvasToolbar.Tool.BRUSH
+	_canvas._stroke_begin(Vector2(300.0, 300.0))
+	_canvas._stroke_end(Vector2(310.0, 310.0))
+	var brush_stroke: Stroke = _canvas.get_doc().ops[1]
+	assert_int(brush_stroke.color_index).is_equal(Palette.DEFAULT_COLOR_INDEX)
+
+
+func test_eraser_over_stroke_restores_background_pixels() -> void:
+	_canvas._current_tool = CanvasToolbar.Tool.BRUSH
+	_canvas._stroke_begin(Vector2(400.0, 300.0))
+	_canvas._stroke_end(Vector2(400.0, 300.0))   # black dot
+	assert_str(_canvas._raster.get_pixel(400, 300).to_html()).is_equal(Color.BLACK.to_html())
+	_canvas._current_tool = CanvasToolbar.Tool.ERASER
+	_canvas._current_size_index = 2   # big eraser covers the dot
+	_canvas._stroke_begin(Vector2(400.0, 300.0))
+	_canvas._stroke_end(Vector2(400.0, 300.0))
+	assert_str(_canvas._raster.get_pixel(400, 300).to_html()) \
+		.is_equal(Palette.CANVAS_BACKGROUND.to_html())
+
+
 func test_max_points_cap_splits_stroke() -> void:
 	_canvas._stroke_begin(Vector2(0.0, 0.0))
 	# Feed points 3 px apart; wrap across rows so they stay in bounds.

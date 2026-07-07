@@ -14,8 +14,8 @@ var _cursor: int = -1                # index of the beat currently playing
 var _step: Step = Step.DONE
 
 
-## entries = the REVEAL wire entries ({drawing_id, doc, caption}), already
-## shuffled by GameSession. drawer_count feeds the shared replay budget.
+## entries = the REVEAL wire entries ({drawing_id, doc}), already shuffled
+## by GameSession. drawer_count feeds the shared replay budget.
 func _init(style: GameSettings.RevealStyle, entries: Array[Dictionary],
 		settings: GameSettings, drawer_count: int) -> void:
 	if style != GameSettings.RevealStyle.ONE_AT_A_TIME:
@@ -25,15 +25,15 @@ func _init(style: GameSettings.RevealStyle, entries: Array[Dictionary],
 		_beats.append({
 			"index": i,
 			"drawing_id": str(entry.get("drawing_id", "")),
-			"secs": compute_beat_secs(entry.get("doc", {}),
-					str(entry.get("caption", "")), settings, drawer_count),
+			"secs": compute_beat_secs(entry.get("doc", {}), settings, drawer_count),
 		})
 	_step = Step.BEATS if not _beats.is_empty() else Step.DONE
 
 
-## The beat timeline table (TDD 05 §5): card-in + content + caption + hold
-## + to-grid. Only FULL replay animates during reveal beats.
-static func compute_beat_secs(doc: Dictionary, caption: String,
+## The beat timeline table (TDD 05 §5, caption term removed by Slice 16):
+## card-in + content + hold + to-grid. Only FULL replay animates during
+## reveal beats.
+static func compute_beat_secs(doc: Dictionary,
 		settings: GameSettings, drawer_count: int) -> float:
 	var secs: float = GameConstants.REVEAL_CARD_IN_SECS
 	var replay: float = 0.0
@@ -41,8 +41,6 @@ static func compute_beat_secs(doc: Dictionary, caption: String,
 		replay = ReplayPlanner.replay_secs(doc,
 				ReplayPlanner.reveal_timescale(doc, settings.reveal_replay_secs, drawer_count))
 	secs += replay if replay > 0.0 else GameConstants.REVEAL_SHOW_FADE_SECS
-	if not caption.is_empty():
-		secs += GameConstants.REVEAL_CAPTION_SECS
 	secs += GameConstants.REVEAL_REACT_HOLD_SECS
 	secs += GameConstants.REVEAL_TO_GRID_SECS
 	return secs

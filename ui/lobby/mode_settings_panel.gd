@@ -19,7 +19,6 @@ var _replay_option: OptionButton
 var _reveal_secs: SpinBox
 var _winner_secs: SpinBox
 var _judging_spin: SpinBox
-var _captions_check: CheckBox
 var _title_points_check: CheckBox
 var _kudos_option: OptionButton
 var _kudos_hint: Label
@@ -45,7 +44,6 @@ func render(s: GameSettings) -> void:
 		_reveal_secs.value = s.reveal_replay_secs
 		_winner_secs.value = s.winner_replay_secs
 		_judging_spin.value = s.judging_window_sec
-		_captions_check.button_pressed = s.comments_enabled
 		_title_points_check.button_pressed = s.title_points_enabled
 		_kudos_option.select(_kudos_option.get_item_index(s.kudos_allotment + 1))
 		_kudos_hint.text = "Auto = %d for %d rounds" \
@@ -68,9 +66,8 @@ func _summary_text(s: GameSettings) -> String:
 			"full (%ds each, winner %ds)" % [int(s.reveal_replay_secs), int(s.winner_replay_secs)]][s.replay_mode]
 	var kudos: String = "auto (%d)" % KudosLedger.compute_allotment(s.round_count) \
 			if s.kudos_allotment == GameSettings.KUDOS_AUTO else str(s.kudos_allotment)
-	return "Reveal: %s  ·  Replay: %s\nJudging: %d s  ·  Captions: %s\nKudos: %s  ·  Title points: %s" % [
-		reveal, replay, int(s.judging_window_sec),
-		"on" if s.comments_enabled else "off", kudos,
+	return "Reveal: %s  ·  Replay: %s\nJudging: %d s  ·  Kudos: %s  ·  Title points: %s" % [
+		reveal, replay, int(s.judging_window_sec), kudos,
 		"on" if s.title_points_enabled else "off",
 	]
 
@@ -94,7 +91,6 @@ func _build_custom_grid() -> void:
 	_judging_spin = _add_spin("Judging window:", GameConstants.JUDGING_WINDOW_MIN_SEC,
 			GameConstants.JUDGING_WINDOW_MAX_SEC, GameConstants.SETTING_STEP_SEC, "s",
 			&"judging_window_sec")
-	_captions_check = _add_check("Captions:", &"comments_enabled")
 	_title_points_check = _add_check("Title points:", &"title_points_enabled")
 	# Kudos: item id = value + 1 so AUTO (-1) is a valid id (0).
 	var kudos_pairs: Array = [["Auto", GameSettings.KUDOS_AUTO]]

@@ -200,6 +200,8 @@ func test_react_toggle_roundtrip_updates_counts_and_stats() -> void:
 	rig.session.submit_drawing("p1", {"doc": {"v": 1, "orientation": "landscape", "ops": [{"t": "clear"}]}})
 	rig.session.submit_drawing("p2", {"doc": {"v": 1, "orientation": "landscape", "ops": [{"t": "clear"}, {"t": "clear"}]}})
 	rig.session.submit_drawing("p3", {"doc": {"v": 1, "orientation": "landscape", "ops": [{"t": "clear"}, {"t": "clear"}, {"t": "clear"}]}})
+	for ready_pid: String in ["p1", "p2", "p3"]:
+		rig.session.set_ready(ready_pid, true)   # Slice 17: ready ends DRAWING
 	rig.session.on_phase_deadline()  # REVEAL -> JUDGING
 	var target: String = ""
 	for entry: Dictionary in rig.entries():
@@ -276,6 +278,8 @@ func test_kudos_to_disconnected_author_scores() -> void:
 	rig.session.submit_drawing("p1", {"doc": {"v": 1, "orientation": "landscape", "ops": [{"t": "clear"}]}})
 	rig.session.submit_drawing("p2", {"doc": {"v": 1, "orientation": "landscape", "ops": [{"t": "clear"}, {"t": "clear"}]}})
 	rig.session.submit_drawing("p3", {"doc": {"v": 1, "orientation": "landscape", "ops": [{"t": "clear"}, {"t": "clear"}, {"t": "clear"}]}})
+	for ready_pid: String in ["p1", "p2", "p3"]:
+		rig.session.set_ready(ready_pid, true)   # Slice 17: ready ends DRAWING
 	rig.session.on_phase_deadline()  # REVEAL -> JUDGING
 	var p2_drawing: String = ""
 	for entry: Dictionary in rig.entries():

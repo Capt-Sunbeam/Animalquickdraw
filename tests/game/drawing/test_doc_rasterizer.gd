@@ -5,7 +5,8 @@ extends GdUnitTestSuite
 ## change that shifts pixels fails here loudly.
 
 ## name -> SHA-256 of the rasterized golden doc (see GoldenDocs).
-## Baked 2026-07-06 on macOS arm64, Godot 4.6.stable. To re-bake after an
+## Baked 2026-07-06 on macOS arm64, Godot 4.6.stable (text_mixed added
+## 2026-07-07, Slice 16). To re-bake after an
 ## INTENTIONAL raster change: temporarily print DocRasterizer.image_hash for
 ## each GoldenDocs fixture inside a test, run this suite, paste, remove.
 const EXPECTED_HASHES: Dictionary = {
@@ -15,6 +16,7 @@ const EXPECTED_HASHES: Dictionary = {
 	"stroke_fill": "cae9fae5eb6632e8b3f8f77ddaf7f7598ef3f2a9a4d2bdd5b983cc74c8a03912",
 	"fill_blank": "6bc2807ef8b81927860987f7b608cad235a48966a359081e769f3a279819b9ee",
 	"portrait_stroke": "18fe47fd01c0355506b1ea0ae38a833245d0e206ca56905d93fc8cc325506914",
+	"text_mixed": "9abe1b3d36b82723aca253c340846412fece9fc1b5f60a8a2b8b740c2fd2add1",
 }
 
 
@@ -130,6 +132,39 @@ func test_dot_stroke_single_point_stamps() -> void:
 	# Radius 14: pixel at distance 14 straight right is inside (14^2 <= 14^2).
 	assert_str(img.get_pixel(414, 300).to_html()).is_equal(Color.BLACK.to_html())
 	assert_str(img.get_pixel(415, 300).to_html()).is_equal(Palette.CANVAS_BACKGROUND.to_html())
+
+
+func test_text_blit_pixels_match_glyph_bitmap() -> void:
+	# 'I' rows: 0x1E,0x0C,0x0C,0x0C,0x0C,0x0C,0x1E,0x00 - row 0 sets bits 1-4.
+	var doc := DrawingDoc.new()
+	doc.ops.append(GoldenDocs.make_text(4, 0, 100, 100, "I"))  # scale 2 (index 0)
+	var img: Image = DocRasterizer.rasterize(doc)
+	# Bit 0 unset -> background at x 100..101; bits 1-4 set -> black 102..109.
+	assert_str(img.get_pixel(100, 100).to_html()).is_equal(Palette.CANVAS_BACKGROUND.to_html())
+	assert_str(img.get_pixel(102, 100).to_html()).is_equal(Color.BLACK.to_html())
+	assert_str(img.get_pixel(109, 101).to_html()).is_equal(Color.BLACK.to_html())
+	# Bit 5 unset -> background at x 110; scaled row 1 (y 102) has bits 2-3.
+	assert_str(img.get_pixel(110, 100).to_html()).is_equal(Palette.CANVAS_BACKGROUND.to_html())
+	assert_str(img.get_pixel(104, 102).to_html()).is_equal(Color.BLACK.to_html())
+	assert_str(img.get_pixel(102, 102).to_html()).is_equal(Palette.CANVAS_BACKGROUND.to_html())
+
+
+func test_text_blit_clips_at_canvas_edges_without_error() -> void:
+	var doc := DrawingDoc.new()
+	doc.ops.append(GoldenDocs.make_text(4, 2, 780, 590, "WW"))  # far past both edges
+	var h1: String = DocRasterizer.image_hash(DocRasterizer.rasterize(doc))
+	var h2: String = DocRasterizer.image_hash(DocRasterizer.rasterize(doc))
+	assert_str(h1).is_equal(h2)
+	# Something landed on-canvas ('W' row 0 sets bit 0 at the anchor).
+	var img: Image = DocRasterizer.rasterize(doc)
+	assert_str(img.get_pixel(780, 590).to_html()).is_equal(Color.BLACK.to_html())
+
+
+func test_text_space_blits_nothing() -> void:
+	var doc := DrawingDoc.new()
+	var blank_hash: String = DocRasterizer.image_hash(DocRasterizer.rasterize(doc))
+	doc.ops.append(GoldenDocs.make_text(4, 1, 300, 300, " "))
+	assert_str(DocRasterizer.image_hash(DocRasterizer.rasterize(doc))).is_equal(blank_hash)
 
 
 func test_stamps_clip_at_canvas_edges_without_error() -> void:

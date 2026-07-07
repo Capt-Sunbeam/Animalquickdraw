@@ -7,7 +7,7 @@
 - Owner: check items off whenever tested (any session); report failures as bugs.
 - ✅ AUTO = an automated test/gate covers the mechanics; the human check is for look/feel only.
 
-**Last Updated:** 2026-07-07 (session 5 close — Slice 7 + 8 items added; fix re-checks cleared)
+**Last Updated:** 2026-07-07 (session 6 — Slice 16 drag-rework + Eraser items; Slice 17 ready-up section added)
 
 ---
 
@@ -26,7 +26,7 @@ Two owner-directed fix batches this session (decision log 2026-07-06 "Judging = 
 - [x] **Prominent chat sizing (judge wait + reveals)** — PASS
 - [x] **Grid social row alignment** — PASS
 - [x] **Victory-lap replay (carried from session 4)** — PASS (all strokes + still hold confirmed)
-- [ ] **Caption entry box still visible on the owner's machine** — root cause: the host profile's restored lobby settings (`profile.json → last_lobby_settings`) predate the captions-off default and carry `comments_enabled: true`, which wins over the new default. **Owner deferred (2026-07-07).** Resolves permanently when the in-image text tool removes the caption pipeline; interim workaround: untick Captions in Custom once (re-saves the profile). If the text tool slips, consider force-clearing the key on profile restore.
+- [x] ~~**Caption entry box still visible on the owner's machine**~~ — RESOLVED 2026-07-07 (Slice 16): the `comments_enabled` field no longer exists, so the stale profile key is ignored on restore; the caption UI itself is deleted. No workaround needed.
 
 ### Session-4 deferred blocking checks — RESULTS (owner, 2026-07-06 session 5)
 
@@ -97,8 +97,8 @@ Two owner-directed fix batches this session (decision log 2026-07-06 "Judging = 
 - [ ] One-at-a-time beat rhythm feels theatrical but not draggy (3 s hold per card; tune constants if needed) ✅ AUTO (schedule mechanics)
 - [ ] Beat motion polish: card-in/to-grid are fades in v1 — real slide/shrink choreography + "grid strip" preview of settled cards deferred by design
 - [ ] Stage overlay sizing at large windows (card caps at 520×390) and with portrait drawings (letterboxing)
-- [ ] Caption entry ergonomics: chip → field expansion, Enter returns focus to canvas, 80-char counter
-- [ ] Caption presentation: under staged card, truncated line + tooltip on grid cells, attributed in winner spotlight; blocklisted word arrives censored ✅ AUTO (validation)
+- [ ] ~~Caption entry ergonomics: chip → field expansion, Enter returns focus to canvas, 80-char counter~~ (OBSOLETE 2026-07-07: captions removed by Slice 16 — text lives in the drawing now)
+- [ ] ~~Caption presentation: under staged card, truncated line + tooltip on grid cells, attributed in winner spotlight; blocklisted word arrives censored~~ (OBSOLETE 2026-07-07: same — see Slice 16 section below)
 - [ ] Victory lap: winner replay speed feels right (default 3×, 10 s cap); author reveal moment lands ✅ AUTO (cap math)
 - [ ] Full reveal replay (replay_mode FULL) — batch with Slice 6 Social preset testing (not reachable via UI until the settings surface lands)
 - [ ] GRID style still snappy: single 0.25 s fade, straight to judging ✅ AUTO
@@ -144,6 +144,36 @@ Two owner-directed fix batches this session (decision log 2026-07-06 "Judging = 
 - [ ] Missing-doc husk: delete a `<uuid>.json` by hand → card shows "(missing drawing)", viewer offers Delete only, deleting purges the entry cleanly ✅ AUTO (degrade logic)
 - [ ] Exported PNG survives a platform re-compress (drag into Discord — crisp edges hold)
 - [ ] Polish note (owner, 2026-07-07): Share = Export + reveal feels duplicative — "fine for now"; differentiate post-v1 (clipboard copy / native share sheet candidates)
+
+## Slice 16 (mini) — In-Image Text Tool (+ 2026-07-07 drag-to-place rework + Eraser)
+
+*First-build blocking checks CONFIRMED (owner, 2026-07-07): font legibility in the sandbox; in-round text flow. The drag rework + eraser re-check is in the owner checklist — not here. Batchable leftovers:*
+
+- [ ] ~~Entry box ergonomics near canvas edges / window resize~~ (OBSOLETE same day: floating box replaced by the toolbar Text row + drag chip)
+- [ ] ~~Click-elsewhere-commits flow under time pressure~~ (OBSOLETE same day: drag-to-place rework)
+- [ ] Unsupported characters (é, emoji, tabs) typed into the box are silently absent from the chip — clear enough, or does it need a hint? ✅ AUTO (filter logic)
+- [ ] Blocked word censors to *** live in the chip as you type — feels fair, not naggy? ✅ AUTO (censor logic)
+- [ ] Text at all 3 sizes over dark fills: palette color choice makes text readable (no outline in v1 — is one needed?)
+- [ ] Drag chip legibility at small sizes (chip caps at 28 px tall / 320 wide); drag preview scale matches the landing size at odd window sizes
+- [ ] Repeat-stamp flow (text stays in the box after a drop) — handy or surprising? Input's ⊗ clears it
+- [ ] Eraser feel: sizes S/M/L adequate? Erasing over fills leaves crisp edges (exact-match rule) ✅ AUTO (mechanics)
+- [ ] Replays show erasing as white strokes (by design — part of the show): reads fine, not confusing?
+- [ ] Text pops in as a beat during replays (like fills) — reads fine at high speed-ups? ✅ AUTO (schedule math)
+- [ ] Grid cells: the social row's center slot is now an empty spacer (was captions) — alignment still holds at 2–7 drawings
+- [ ] Exported PNG with text: crisp at 2× nearest-neighbor (should be by construction) ✅ AUTO (export path unchanged)
+
+## Slice 17 (mini) — Ready-Up
+
+*Blocking checks (Done/Unready flow; chat-header ready strip; both early advances) are in the owner checklist — not here. Batchable leftovers:*
+
+- [ ] Ready panel (left of canvas) at 1280×720 and window resizes; name truncation on long names
+- [ ] Initials-chip colors readable/distinct for similar names (placeholder until Slice 11 avatars)
+- [ ] Chat-header strip fit with 8 players (chips may crowd the header at min width)
+- [ ] "Waiting for the others..." vs "Sent! Keep tweaking..." status wording reads right
+- [ ] Pause → resume clears everyone's ready (by design; re-press Done) — acceptable? ✅ AUTO (reset logic)
+- [ ] Judge's Ready button disabled-until-pick: is the why obvious? (tooltip says "Pick a winner first")
+- [ ] Leaver while everyone else is ready: phase advances on the next ready toggle or deadline (not instantly on the leave) — acceptable until Slice 9? ✅ AUTO (connected-only set)
+- [ ] Judge-wait screen (judge's DRAWING view) has no ready panel — would the judge want to see drawers' progress there? (design nicety, not a bug)
 
 ## Design gaps / open items (not bugs — need decisions)
 

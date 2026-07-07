@@ -39,7 +39,6 @@ func test_streamlined_identity_grid_off_quick() -> void:
 	var s: GameSettings = _applied(SettingsDefaults.Mode.STREAMLINED)
 	assert_int(s.reveal_style).is_equal(GameSettings.RevealStyle.GRID)
 	assert_int(s.replay_mode).is_equal(GameSettings.ReplayMode.OFF)
-	assert_bool(s.comments_enabled).is_false()
 	assert_bool(s.judging_window_sec <= 20.0).is_true()
 	assert_bool(s.draw_time_sec <= 25.0).is_true()
 
@@ -49,7 +48,6 @@ func test_social_identity_one_at_a_time_full_long() -> void:
 	assert_int(s.reveal_style).is_equal(GameSettings.RevealStyle.ONE_AT_A_TIME)
 	assert_int(s.replay_mode).is_equal(GameSettings.ReplayMode.FULL)
 	# Captions off in every preset (owner, 2026-07-07 - in-image text planned).
-	assert_bool(s.comments_enabled).is_false()
 	assert_bool(s.judging_window_sec >= 35.0).is_true()
 	assert_bool(s.draw_time_sec >= 40.0).is_true()
 
@@ -59,5 +57,4 @@ func test_default_identity_one_at_a_time_winner_only() -> void:
 	assert_int(s.reveal_style).is_equal(GameSettings.RevealStyle.ONE_AT_A_TIME)
 	assert_int(s.replay_mode).is_equal(GameSettings.ReplayMode.WINNER_ONLY)
 	# Captions off in every preset (owner, 2026-07-07 - in-image text planned).
-	assert_bool(s.comments_enabled).is_false()
 	assert_int(s.kudos_allotment).is_equal(GameSettings.KUDOS_AUTO)

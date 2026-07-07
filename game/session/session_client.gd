@@ -23,6 +23,7 @@ var _sim_started: bool = false
 # wire marks authorship - anonymity). All reset each ROUND_INTRO.
 var _prompt_text: String = ""
 var _my_submitted_doc: Dictionary = {}
+var _ready_ids_cache: PackedStringArray = PackedStringArray()  # Slice 17 replica
 
 # Slice 7 replica: POOL_SETUP phase data + the latest progress broadcast.
 var _pool_setup: Dictionary = {}
@@ -52,6 +53,7 @@ func _ready() -> void:
 		_session.reveal_gather_started.connect(_on_reveal_gather_started)
 		_session.pool_setup_progress_changed.connect(_on_pool_setup_progress_changed)
 		_session.pool_words_rejected.connect(_on_pool_words_rejected)
+		_session.ready_state_changed.connect(_on_ready_state_changed)
 		_ready_peers[1] = true
 		# Clients navigate into RoundRoot a beat after the host; start when
 		# every connected peer reports ready, or on the failsafe - a broken
@@ -90,6 +92,12 @@ func judge_player_id() -> String:
 
 func round_index() -> int:
 	return _round_index
+
+
+## Slice 17: the current phase's ready-up set (player ids). Cleared on
+## every phase change.
+func ready_ids() -> PackedStringArray:
+	return _ready_ids_cache
 
 
 func round_count() -> int:
@@ -183,6 +191,19 @@ func request_pick_winner(drawing_id: String) -> void:
 			_session.pick_winner(me.platform_id, drawing_id)
 	else:
 		rpc_request_pick_winner.rpc_id(1, drawing_id)
+	# Slice 17: local-only - the judge's Ready button unlocks once a pick
+	# has been latched (the host still validates the ready itself).
+	EventBus.judge_pick_latched.emit()
+
+
+## Slice 17: toggle this player's ready-up flag for the current phase.
+func request_set_ready(ready: bool) -> void:
+	if multiplayer.is_server():
+		var me: Roster.PlayerState = Session.local_player()
+		if _session != null and me != null:
+			_session.set_ready(me.platform_id, ready)
+	else:
+		rpc_request_set_ready.rpc_id(1, ready)
 
 
 ## Slice 7: submit one pool's complete share of words.
@@ -297,6 +318,11 @@ func _on_pool_setup_progress_changed(progress: Array) -> void:
 	rpc_sync_pool_setup_progress.rpc(progress)
 
 
+## Slice 17 host translator: ready-up set -> broadcast.
+func _on_ready_state_changed(ready_ids: PackedStringArray) -> void:
+	rpc_sync_ready_state.rpc(ready_ids)
+
+
 ## Slice 7 host translator: relays an honest rejection to the submitting
 ## peer alone. The host player's own rejection skips RPC (same-machine path).
 func _on_pool_words_rejected(player_id: String, pool_id: String, reason: int) -> void:
@@ -365,6 +391,10 @@ func rpc_sync_phase(phase_value: int, data: Dictionary) -> void:
 		return
 	_phase = phase_value as NetIds.Phase
 	_phase_data = data
+	# Slice 17: ready-up never carries across phases (PAUSED excepted - the
+	# stored phase resumes via a fresh _enter_phase, which also cleared it
+	# host-side, so the empty cache stays truthful).
+	_ready_ids_cache = PackedStringArray()
 	match _phase:
 		NetIds.Phase.POOL_SETUP:
 			_pool_setup = data.duplicate()
@@ -419,6 +449,25 @@ func rpc_request_pick_winner(drawing_id: String) -> void:
 	_session.pick_winner(player.platform_id, drawing_id)   # 3-5. shared path
 
 
+## any player -> host (Slice 17). Steps 3-5 live in GameSession.set_ready.
+@rpc("any_peer", "call_remote", "reliable")
+func rpc_request_set_ready(ready: bool) -> void:
+	if not multiplayer.is_server():
+		return                                             # 1. authority
+	var sender: int = multiplayer.get_remote_sender_id()
+	var player: Roster.PlayerState = Session.roster.get_by_peer(sender)
+	if player == null or _session == null:
+		return                                             # 2. resolve sender
+	_session.set_ready(player.platform_id, ready)          # 3-5. shared path
+
+
+## host -> all (Slice 17): the current phase's ready-up set.
+@rpc("authority", "call_local", "reliable")
+func rpc_sync_ready_state(ready_ids: PackedStringArray) -> void:
+	_ready_ids_cache = ready_ids
+	EventBus.ready_state_changed.emit(ready_ids)
+
+
 ## reactor client -> host (Slice 4). Steps 3-5 live in GameSession.react.
 @rpc("any_peer", "call_remote", "reliable")
 func rpc_request_react(drawing_id: String, reaction_value: int, active: bool) -> void:
@@ -444,7 +493,7 @@ func rpc_request_give_kudos(drawing_id: String) -> void:
 
 
 ## host -> all (Slice 5): a one-at-a-time reveal beat starts. Clients play
-## the beat locally (card-in -> content -> caption -> hold -> to-grid);
+## the beat locally (card-in -> content -> hold -> to-grid);
 ## slow clients hard-snap on the next beat - the host never waits.
 @rpc("authority", "call_local", "reliable")
 func rpc_sync_reveal_beat(index: int, drawing_id: String, beat_secs: float) -> void:
