@@ -66,11 +66,68 @@ func test_chat_panel_prominence_setter_applies_all_three_states() -> void:
 	assert_bool(input_row.visible).is_false()
 	assert_bool(strip.visible).is_true()
 
+	# PROMINENT height adapts to the viewport (owner, 2026-07-06): the
+	# expanded chat must never crowd the grid's social rows.
 	chat.prominence = ChatPanel.Prominence.PROMINENT
 	assert_bool(history.visible).is_true()
-	assert_float(history.custom_minimum_size.y).is_equal(ChatPanel.HISTORY_HEIGHT_PROMINENT)
+	assert_float(history.custom_minimum_size.y).is_equal(
+			ChatPanel.prominent_history_height(chat.get_viewport_rect().size.y))
 	assert_int(history.get_theme_font_size("normal_font_size"))\
 			.is_equal(ChatPanel.PROMINENT_FONT_SIZE)
+
+
+func test_chat_panel_prominent_height_clamps_to_viewport() -> void:
+	# The sizing rule itself, pinned across window extremes.
+	assert_float(ChatPanel.prominent_history_height(400.0))\
+			.is_equal(ChatPanel.HISTORY_HEIGHT_MIN)           # tiny window -> floor
+	assert_float(ChatPanel.prominent_history_height(720.0))\
+			.is_equal(720.0 * ChatPanel.PROMINENT_HEIGHT_RATIO)  # ~158 px at 720p
+	assert_float(ChatPanel.prominent_history_height(2160.0))\
+			.is_equal(ChatPanel.HISTORY_HEIGHT_PROMINENT_MAX)  # huge window -> cap
+
+
+func test_chat_panel_toggle_button_expands_and_collapses_never_hover() -> void:
+	var chat: ChatPanel = _instantiate(CHAT_PANEL)
+	var history: RichTextLabel = chat.find_child("History", true, false)
+	var toggle: Button = chat.find_child("ToggleButton", true, false)
+	chat.prominence = ChatPanel.Prominence.COLLAPSED
+	assert_bool(history.visible).is_false()
+	# Hover must NOT expand (owner, 2026-07-06: it kept firing mid-stroke).
+	chat.mouse_entered.emit()
+	assert_bool(history.visible).is_false()
+	# The explicit button does.
+	toggle.pressed.emit()
+	assert_bool(history.visible).is_true()
+	assert_bool(chat.is_expanded()).is_true()
+	toggle.pressed.emit()
+	assert_bool(history.visible).is_false()
+
+
+func test_chat_panel_unread_badge_counts_while_collapsed_and_clears() -> void:
+	var chat: ChatPanel = _instantiate(CHAT_PANEL)
+	var toggle: Button = chat.find_child("ToggleButton", true, false)
+	chat.prominence = ChatPanel.Prominence.COLLAPSED
+	EventBus.chat_message_received.emit(2, "Alice", "one")
+	EventBus.chat_message_received.emit(3, "Bob", "two")
+	assert_str(toggle.text).contains("2")
+	toggle.pressed.emit()   # expanding clears the badge
+	assert_str(toggle.text).is_equal("Hide")
+	toggle.pressed.emit()
+	assert_str(toggle.text).is_equal("Show")   # re-collapse, nothing new
+
+
+func test_chat_panel_side_placement_sizes_column() -> void:
+	var chat: ChatPanel = _instantiate(CHAT_PANEL)
+	var strip: Label = chat.find_child("CollapsedStrip", true, false)
+	chat.placement = ChatPanel.Placement.SIDE
+	chat.prominence = ChatPanel.Prominence.COLLAPSED
+	# Collapsed side column shrinks to the toggle; no preview strip.
+	assert_bool(strip.visible).is_false()
+	assert_float(chat.custom_minimum_size.x).is_equal(0.0)
+	var toggle: Button = chat.find_child("ToggleButton", true, false)
+	toggle.pressed.emit()
+	assert_float(chat.custom_minimum_size.x).is_equal(ChatPanel.SIDE_WIDTH)
+	assert_int(chat.size_flags_vertical).is_equal(Control.SIZE_EXPAND_FILL)
 
 
 func test_chat_panel_renders_messages_from_event_bus() -> void:

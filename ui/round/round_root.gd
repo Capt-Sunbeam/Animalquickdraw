@@ -18,6 +18,8 @@ const PHASE_SCREENS: Dictionary = {
 var _current_screen: Control = null
 var _current_phase: NetIds.Phase = NetIds.Phase.LOBBY
 
+@onready var _body: HBoxContainer = %Body
+@onready var _main: VBoxContainer = %Main
 @onready var _phase_area: Control = %PhaseArea
 @onready var _chat: ChatPanel = %Chat
 @onready var _session_client: SessionClient = %SessionClient
@@ -52,14 +54,14 @@ func _on_phase_changed(phase: NetIds.Phase, data: Dictionary) -> void:
 	if phase == _current_phase and _current_screen != null \
 			and _current_screen.has_method("refresh_deadline"):
 		_current_screen.refresh_deadline(data)
-		_apply_chat_prominence(_current_screen)
+		_apply_chat_layout(_current_screen)
 		return
 	# REVEAL -> JUDGING keeps the same screen alive (one grid, two phases).
 	if phase == NetIds.Phase.JUDGING and _current_screen != null \
 			and _current_screen.has_method("enter_judging"):
 		_current_phase = phase
 		_current_screen.enter_judging(data)
-		_apply_chat_prominence(_current_screen)
+		_apply_chat_layout(_current_screen)
 		return
 	_current_phase = phase
 	_swap_screen(phase, data)
@@ -78,7 +80,7 @@ func _swap_screen(phase: NetIds.Phase, data: Dictionary) -> void:
 	_current_screen = screen
 	if screen.has_method("setup"):
 		screen.setup(data, _session_client)
-	_apply_chat_prominence(screen)
+	_apply_chat_layout(screen)
 
 
 func _screen_path_for(phase: NetIds.Phase) -> String:
@@ -88,8 +90,18 @@ func _screen_path_for(phase: NetIds.Phase) -> String:
 	return str(PHASE_SCREENS.get(phase, ""))
 
 
-## Prominence is a property of the phase screen, never a global toggle (cg §8).
-func _apply_chat_prominence(screen: Control) -> void:
+## Prominence AND placement are properties of the phase screen, never a
+## global toggle (cg §8). BOTTOM chat lives under the phase area (Main);
+## SIDE chat is reparented beside it (Body) - the drawer's drawing view puts
+## chat to the right of the canvas (owner feedback 2026-07-06).
+func _apply_chat_layout(screen: Control) -> void:
+	var placement: ChatPanel.Placement = ChatPanel.Placement.BOTTOM
+	if screen != null and screen.has_method("chat_placement"):
+		placement = screen.chat_placement()
+	var target: Container = _body if placement == ChatPanel.Placement.SIDE else _main
+	if _chat.get_parent() != target:
+		_chat.reparent(target, false)
+	_chat.placement = placement
 	if screen != null and screen.has_method("chat_prominence"):
 		_chat.prominence = screen.chat_prominence()
 	else:

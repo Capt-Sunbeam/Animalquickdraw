@@ -203,6 +203,7 @@ func test_resolution_sized_to_fit_winner_replay_plus_still_hold() -> void:
 		if not ((entry["doc"] as Dictionary)["ops"] as Array).is_empty():
 			long_drawing = str(entry["drawing_id"])
 	assert_bool(rig.session.pick_winner("p0", long_drawing)).is_true()
+	rig.session.on_phase_deadline()   # latched pick crowns at deadline
 	var data: Dictionary = rig.last_data(NetIds.Phase.RESOLUTION)
 	# duration = replay (8 s) + still hold (2 s) + 1 s margin = 11 s > base 6 s.
 	assert_int(int(data["deadline_ms"])).is_equal(rig.clock.ms + 11_000)

@@ -48,7 +48,7 @@ var reveal_style: RevealStyle = RevealStyle.ONE_AT_A_TIME
 var replay_mode: ReplayMode = ReplayMode.WINNER_ONLY
 var reveal_replay_secs: float = 5.0    # per-drawing reveal replay target duration
 var winner_replay_secs: float = 8.0    # victory-lap replay target duration
-var comments_enabled: bool = true
+var comments_enabled: bool = false     # captions off everywhere (owner, 2026-07-07)
 
 var _frozen: bool = false              # snapshots refuse mutation (Slice 6 §5)
 
@@ -206,7 +206,7 @@ static func from_dict(d: Dictionary) -> GameSettings:
 	s.replay_mode = int(d.get("replay_mode", ReplayMode.WINNER_ONLY)) as ReplayMode
 	s.reveal_replay_secs = float(d.get("reveal_replay_secs", 5.0))
 	s.winner_replay_secs = float(d.get("winner_replay_secs", 8.0))
-	s.comments_enabled = bool(d.get("comments_enabled", true))
+	s.comments_enabled = bool(d.get("comments_enabled", false))
 	return s
 
 

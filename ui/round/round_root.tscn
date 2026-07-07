@@ -31,16 +31,23 @@ theme_override_constants/margin_top = 12
 theme_override_constants/margin_right = 16
 theme_override_constants/margin_bottom = 12
 
-[node name="Root" type="VBoxContainer" parent="Margin"]
+[node name="Body" type="HBoxContainer" parent="Margin"]
+unique_name_in_owner = true
 layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="Main" type="VBoxContainer" parent="Margin/Body"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
 theme_override_constants/separation = 8
 
-[node name="PhaseArea" type="Control" parent="Margin/Root"]
+[node name="PhaseArea" type="Control" parent="Margin/Body/Main"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_vertical = 3
 
-[node name="WaitingLabel" type="Label" parent="Margin/Root/PhaseArea"]
+[node name="WaitingLabel" type="Label" parent="Margin/Body/Main/PhaseArea"]
 unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 8
@@ -58,7 +65,7 @@ theme_override_font_sizes/font_size = 20
 text = "Get ready..."
 horizontal_alignment = 1
 
-[node name="Chat" parent="Margin/Root" instance=ExtResource("3_chat")]
+[node name="Chat" parent="Margin/Body/Main" instance=ExtResource("3_chat")]
 unique_name_in_owner = true
 layout_mode = 2
 

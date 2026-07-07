@@ -29,7 +29,8 @@ var _pending_timer: Timer
 
 func _ready() -> void:
 	focus_mode = Control.FOCUS_NONE
-	custom_minimum_size = Vector2(0, 36)
+	if custom_minimum_size == Vector2.ZERO:
+		custom_minimum_size = Vector2(0, 36)   # floor only; owners may pre-size
 	add_theme_font_size_override("font_size", 15)
 	_pending_timer = Timer.new()
 	_pending_timer.one_shot = true

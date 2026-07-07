@@ -26,7 +26,8 @@ func test_settings_defaults_match_slice5_contract() -> void:
 	assert_int(s.replay_mode).is_equal(GameSettings.ReplayMode.WINNER_ONLY)
 	assert_float(s.reveal_replay_secs).is_equal(5.0)
 	assert_float(s.winner_replay_secs).is_equal(8.0)
-	assert_bool(s.comments_enabled).is_true()
+	# Captions default off since 2026-07-07 (owner; in-image text tool planned).
+	assert_bool(s.comments_enabled).is_false()
 	# Round-trip preserves the Slice 5 keys (wire/mirror safety).
 	var copy: GameSettings = GameSettings.from_dict(s.to_dict())
 	assert_int(copy.reveal_style).is_equal(s.reveal_style)

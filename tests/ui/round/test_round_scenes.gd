@@ -53,6 +53,39 @@ func test_phase_timer_clamps_to_zero_for_past_deadlines() -> void:
 	assert_str(timer.text).is_equal("0:00")
 
 
+func test_phase_timer_freezes_while_paused_and_rearms_on_start() -> void:
+	# Owner 2026-07-07: pausing must freeze the visible countdown, not just
+	# the host's phase progression.
+	var timer: PhaseTimer = _instantiate(PHASE_TIMER)
+	timer.start(_now_ms() + 30_000)
+	EventBus.phase_changed.emit(NetIds.Phase.PAUSED, {})
+	timer.text = "frozen-sentinel"
+	timer._process(0.016)
+	assert_str(timer.text).is_equal("frozen-sentinel")   # no refresh while paused
+	# Resume path: refresh_deadline -> start() with a fresh deadline re-arms.
+	timer.start(_now_ms() + 5_000)
+	timer._process(0.016)
+	assert_str(timer.text).is_equal("0:05")
+
+
+func test_draw_screen_never_auto_submits_while_paused() -> void:
+	# Owner 2026-07-07: the local deadline passing DURING a pause must not
+	# fire the auto-submit and lock the canvas out from under the drawer.
+	var screen: Control = _instantiate(DRAW)
+	screen.setup({"prompt_text": "sleepy aardvark",
+			"deadline_ms": _now_ms() + 30_000}, null)
+	EventBus.phase_changed.emit(NetIds.Phase.PAUSED, {})
+	screen._deadline_ms = _now_ms() - 1_000   # deadline lapses mid-pause
+	screen._process(0.016)
+	assert_bool(screen._locked).is_false()
+	# Resume with the host's refreshed deadline: countdown live again, and
+	# a genuinely lapsed deadline locks as designed.
+	EventBus.phase_changed.emit(NetIds.Phase.DRAWING, {})
+	screen.refresh_deadline({"deadline_ms": _now_ms() - 1})
+	screen._process(0.016)
+	assert_bool(screen._locked).is_true()
+
+
 func test_round_intro_screen_smoke() -> void:
 	var screen: Control = _instantiate(INTRO)
 	screen.setup({"round_index": 0, "round_count": 8, "judge_player_id": "nobody",
@@ -71,7 +104,9 @@ func test_draw_screen_smoke_embeds_canvas() -> void:
 	var prompt: Label = screen.find_child("PromptLabel", true, false)
 	assert_str(prompt.text).is_equal("sleepy aardvark")
 	assert_object(screen.find_child("Canvas", true, false)).is_not_null()
-	assert_int(screen.chat_prominence()).is_equal(ChatPanel.Prominence.COLLAPSED)
+	# Side chat, expanded by default (owner 2026-07-07); 💬 toggle collapses.
+	assert_int(screen.chat_prominence()).is_equal(ChatPanel.Prominence.NORMAL)
+	assert_int(screen.chat_placement()).is_equal(ChatPanel.Placement.SIDE)
 
 
 func test_judge_wait_screen_smoke_has_no_canvas() -> void:
@@ -92,10 +127,11 @@ func test_reveal_judging_screen_renders_grid_with_blank_and_portrait_entries() -
 	screen.setup({"entries": entries, "deadline_ms": _now_ms() + 5000}, client)
 	var grid: GridContainer = screen.find_child("Grid", true, false)
 	assert_int(grid.get_child_count()).is_equal(2)
-	# Non-judge at JUDGING: no pick affordance.
+	# Non-judge at JUDGING: cells stay unpickable (click-to-pick is
+	# judge-only; the crown button is gone - latched-pick, 2026-07-06).
 	screen.enter_judging({"deadline_ms": _now_ms() + 30_000})
-	var pick: Button = screen.find_child("PickButton", true, false)
-	assert_bool(pick.visible).is_false()
+	for cell: Node in grid.get_children():
+		assert_bool((cell as Button).disabled).is_true()
 
 
 func test_resolution_screen_smoke_picked_and_no_pick_variants() -> void:

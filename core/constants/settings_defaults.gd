@@ -25,7 +25,7 @@ const PRESET_DEFAULT: Dictionary = {
 	"reveal_replay_secs": 5.0,
 	"winner_replay_secs": 8.0,
 	"judging_window_sec": 25.0,
-	"comments_enabled": true,
+	"comments_enabled": false,   # captions off (owner 2026-07-07; in-image text tool planned)
 	"kudos_allotment": -1,       # AUTO (round_count/4, .5 up - Slice 4)
 	"title_points_enabled": true,
 	"draw_time_sec": 30.0,
@@ -51,7 +51,7 @@ const PRESET_SOCIAL: Dictionary = {
 	"reveal_replay_secs": 8.0,   # longer replays = more theater (budget-capped)
 	"winner_replay_secs": 12.0,
 	"judging_window_sec": 40.0,
-	"comments_enabled": true,
+	"comments_enabled": false,   # captions off (owner 2026-07-07; in-image text tool planned)
 	"kudos_allotment": -1,
 	"title_points_enabled": true,
 	"draw_time_sec": 45.0,

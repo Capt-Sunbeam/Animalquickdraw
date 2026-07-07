@@ -57,10 +57,3 @@ size_flags_vertical = 3
 columns = 3
 theme_override_constants/h_separation = 10
 theme_override_constants/v_separation = 10
-
-[node name="PickButton" type="Button" parent="Root"]
-unique_name_in_owner = true
-visible = false
-layout_mode = 2
-custom_minimum_size = Vector2(0, 44)
-text = "Crown this drawing"

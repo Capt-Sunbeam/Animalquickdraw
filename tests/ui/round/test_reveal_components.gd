@@ -110,10 +110,14 @@ func test_grid_cells_show_caption_line_with_tooltip() -> void:
 func test_draw_screen_caption_rides_submission_payload() -> void:
 	var client: SessionClient = auto_free(SESSION_CLIENT_SCRIPT.new())
 	add_child(client)
+	# Captions default OFF since 2026-07-07 - this covers the dormant opt-in
+	# plumbing until the in-image text tool replaces it.
+	Session.game_settings.comments_enabled = true
 	var screen: Control = _instantiate(DRAW)
 	screen.setup({"prompt_text": "sleepy aardvark", "deadline_ms": _now_ms() + 30000}, client)
 	var caption_input: CaptionInput = screen.find_child("Caption", true, false)
-	assert_bool(caption_input.visible).is_true()   # comments_enabled default
+	assert_bool(caption_input.visible).is_true()   # visible when opted in
+	Session.game_settings.comments_enabled = false
 	(caption_input.find_child("CaptionEdit", true, false) as LineEdit).text = "wow"
 	screen._send_current_doc()
 	# The client cached the doc; the caption went out beside it (host strips

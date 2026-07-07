@@ -124,6 +124,32 @@ func test_reveal_cells_gain_social_row_that_enables_at_judging() -> void:
 		assert_bool(kb.gate_open).is_true()
 
 
+func test_sim_start_rebroadcasts_fresh_kudos_budgets() -> void:
+	# Rematch staleness (owner, 2026-07-07): GameSession.start_game() resets
+	# the kudos economy on the HOST roster only. Without a roster re-broadcast
+	# right after, client wallets keep the PREVIOUS game's spent counts and
+	# their kudos buttons wrongly disable.
+	Session.roster.register(1, "uid-host", "Host")
+	Session.roster.register(2, "uid-two", "Two")
+	for p: Roster.PlayerState in Session.roster.players_in_join_order():
+		p.kudos_granted = 1
+		p.kudos_spent = 1   # wallet emptied in the "previous" game
+	var synced: Array = []
+	var handler: Callable = func(players: Array) -> void: synced.assign(players)
+	EventBus.roster_updated.connect(handler)
+	var client: SessionClient = auto_free(SESSION_CLIENT_SCRIPT.new())
+	add_child(client)
+	client._maybe_start_simulation(true)
+	EventBus.roster_updated.disconnect(handler)
+	assert_int(synced.size()).is_equal(2)
+	for entry: Variant in synced:
+		var d: Dictionary = entry
+		assert_int(int(d["kudos_granted"])).is_greater(0)   # fresh allotment
+		assert_int(int(d["kudos_spent"])).is_equal(0)       # fresh wallet
+	Session.roster.remove_by_peer(1)
+	Session.roster.remove_by_peer(2)
+
+
 func test_draw_screen_self_save_on_retire_when_toggle_active() -> void:
 	var client: SessionClient = auto_free(SESSION_CLIENT_SCRIPT.new())
 	add_child(client)

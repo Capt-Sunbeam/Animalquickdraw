@@ -9,6 +9,23 @@ script = ExtResource("1_chat")
 layout_mode = 2
 theme_override_constants/separation = 6
 
+[node name="HeaderRow" type="HBoxContainer" parent="VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="ChatTitle" type="Label" parent="VBox/HeaderRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "💬 Chat"
+
+[node name="ToggleButton" type="Button" parent="VBox/HeaderRow"]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(36, 28)
+focus_mode = 0
+text = "Hide"
+
 [node name="CollapsedStrip" type="Label" parent="VBox"]
 unique_name_in_owner = true
 visible = false

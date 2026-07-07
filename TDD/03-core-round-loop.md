@@ -184,7 +184,9 @@ All on `SessionClient` (`game/session/session_client.gd` — the node present at
 |-----|-----------|------|------------|--------|
 | `rpc_sync_phase(phase: int, data: Dictionary)` | host → all (`authority`, `call_local`, reliable) | `phase`: `NetIds.Phase` value; `data`: per-phase shape (table below) | Clients: sender is authority (enforced by decorator); unknown `phase` values dropped with `push_warning` | Client stores phase + data, emits `EventBus.phase_changed`; `RoundRoot` swaps the phase screen |
 | `rpc_request_submit_drawing(payload: Dictionary)` | drawer client → host (`any_peer`, reliable) | `payload = {"doc": Dictionary}` (future slices may add keys, e.g. `"caption"` in Slice 5 — host ignores unknown keys) | 5-step: (1) `multiplayer.is_server()` else return; (2) resolve sender via `roster.get_by_peer()`, unknown → drop; (3) phase is `DRAWING` **or** within `SUBMIT_GRACE_MS` after its deadline, sender is a drawer this round (not the judge), `doc` deserializes as a valid `DrawingDoc` and serialized size ≤ `MAX_DRAWING_BYTES`; (4) store/replace as that player's submission (latest wins); (5) no broadcast — submissions stay private until REVEAL. If all drawers have submitted, host ends DRAWING early | Host records the submission; may trigger early phase advance |
-| `rpc_request_pick_winner(drawing_id: String)` | judge client → host (`any_peer`, reliable) | 5-step: (1) server check; (2) sender resolves in roster; (3) phase == `JUDGING` **and** sender's `player_id` == current judge **and** `drawing_id` exists in the current round's reveal set; (4) record winner, apply +2 via `Scoring`; (5) broadcast by transitioning immediately to `RESOLUTION` via `rpc_sync_phase` | Ends the judging window at the moment of pick |
+| `rpc_request_pick_winner(drawing_id: String)` | judge client → host (`any_peer`, reliable) | 5-step: (1) server check; (2) sender resolves in roster; (3) phase == `JUDGING` **and** sender's `player_id` == current judge **and** `drawing_id` exists in the current round's reveal set; (4) **latch** the pick (`_pending_winner_id`; re-picks overwrite, last wins); (5) no broadcast — the judging **deadline** applies the latch, records the winner, applies +2, and transitions to `RESOLUTION` | Updates the judge's latched pick; the window always runs out |
+
+> **Update (2026-07-06):** picking no longer ends JUDGING early. The pick is latched and re-pickable; the deadline crowns the winner (empty latch = no-pick −1). The "Crown this drawing" confirm button was removed — clicking a cell is the pick. See decision log "Judging = latched click-to-pick".
 
 Notes:
 - The **host's own** submit/pick actions do not go through RPC: `SessionClient` on the host calls the same validated `GameSession` entry points directly (`submit_drawing(player_id, payload)`, `pick_winner(player_id, drawing_id)`), so validation logic is shared and unit-testable without a network.
@@ -248,7 +250,7 @@ stateDiagram-v2
     ROUND_INTRO --> DRAWING: intro_deadline
     DRAWING --> REVEAL: draw_deadline_plus_grace_or_all_submitted
     REVEAL --> JUDGING: reveal_deadline
-    JUDGING --> RESOLUTION: judge_picked_or_judging_deadline
+    JUDGING --> RESOLUTION: judging_deadline_applies_latched_pick
     RESOLUTION --> ROUND_INTRO: rounds_remain
     RESOLUTION --> WRAP_UP: final_round_complete
     WRAP_UP --> [*]
@@ -266,7 +268,7 @@ stateDiagram-v2
 | ROUND_INTRO | Round header: round n of N, judge name. Short fixed timer | No |
 | DRAWING | Drawers draw; judge heckles. Prompt public. Host collects submissions at end | No |
 | REVEAL | Anonymized entries broadcast; clients rasterize the grid. Short fixed timer | No |
-| JUDGING | Judging window; judge may pick at any moment (§4.6) | No |
+| JUDGING | Judging window; judge clicks to latch a pick, may re-pick freely; the deadline crowns (updated 2026-07-06) | No |
 | RESOLUTION | Winner (or no-pick) shown; scores broadcast. Short fixed timer | No |
 | WRAP_UP | Results bundle broadcast; standings screen (real sequence in Slice 10) | Yes |
 | PAUSED | Below-minimum freeze overlay (Slice 9). Never entered in this slice | No |
@@ -280,8 +282,9 @@ stateDiagram-v2
 | ROUND_INTRO | `intro_deadline` | DRAWING | Timer is host's own | Prompt drawn (`PromptPools.draw_prompt`), combo recorded; `DRAWING` broadcast with prompt + deadline |
 | DRAWING | Deadline + `SUBMIT_GRACE_MS` elapsed, **or** all drawers submitted | REVEAL | Host timer / submission count | Missing drawers get blank submissions; `drawing_id`s minted; author map kept host-private; shuffled entries broadcast |
 | REVEAL | `reveal_deadline` | JUDGING | Host timer | `JUDGING` broadcast with window deadline |
-| JUDGING | Valid `rpc_request_pick_winner` | RESOLUTION | 5-step validation (§3) | +2 to winner via `Scoring`; RESOLUTION broadcast immediately (early end) |
-| JUDGING | `judging_deadline`, no pick | RESOLUTION | Host timer | −1 to judge (`Scoring.apply_no_pick_penalty`); RESOLUTION broadcast with `picked=false` |
+| JUDGING | Valid `rpc_request_pick_winner` | JUDGING (unchanged) | 5-step validation (§3) | Pick latched (`_pending_winner_id`); re-picks overwrite. **Update (2026-07-06):** no early end — see decision log |
+| JUDGING | `judging_deadline`, latch set | RESOLUTION | Host timer | +2 to the latched winner via `Scoring`; RESOLUTION broadcast |
+| JUDGING | `judging_deadline`, empty latch | RESOLUTION | Host timer | −1 to judge (`Scoring.apply_no_pick_penalty`); RESOLUTION broadcast with `picked=false` |
 | RESOLUTION | `resolution_deadline`, `round_index + 1 < round_count` | ROUND_INTRO | Host timer | `RoundRecord` archived; next judge = `judge_order[(round_index + 1) % judge_order.size()]` |
 | RESOLUTION | `resolution_deadline`, final round done | WRAP_UP | Host timer | Results bundle built + broadcast; `session_results_ready` |
 | any in-round | `pause()` / `resume()` | PAUSED / previous | Slice 9 defines triggers | Hooks exist now: `PAUSED` stores `resume_phase` + remaining deadline time; broadcast on resume re-issues a fresh `deadline_ms` |

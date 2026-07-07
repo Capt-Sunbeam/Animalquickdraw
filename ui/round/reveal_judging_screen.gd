@@ -7,7 +7,9 @@ extends Control
 ## Extension points: Slice 4 hangs reactions/kudos off cells by drawing_id;
 ## Slice 5 swaps the entry animation per settings.reveal_style.
 
-const CELL_MIN_SIZE: Vector2 = Vector2(320, 300)   # roomy social row (owner feedback)
+const CELL_MIN_SIZE: Vector2 = Vector2(340, 310)   # roomy social row (owner feedback)
+const SOCIAL_HINT_WIDTH: float = 64.0              # "🔒 yours" slot, reserved in every cell
+const KUDOS_BUTTON_SIZE: Vector2 = Vector2(116, 36)
 const SELECTED_COLOR: Color = Color(1.0, 0.85, 0.3)
 const REACTION_BAR_SCENE: PackedScene = preload("res://ui/round/reaction_bar.tscn")
 const KUDOS_BUTTON_SCENE: PackedScene = preload("res://ui/round/kudos_button.tscn")
@@ -15,7 +17,6 @@ const KUDOS_BUTTON_SCENE: PackedScene = preload("res://ui/round/kudos_button.tsc
 var _client: SessionClient = null
 var _judging: bool = false
 var _selected_id: String = ""
-var _pick_sent: bool = false
 var _cells: Dictionary = {}          # drawing_id -> Button
 var _reaction_bars: Dictionary = {}  # drawing_id -> ReactionBar (Slice 4)
 var _kudos_buttons: Dictionary = {}  # drawing_id -> KudosButton (Slice 4)
@@ -36,13 +37,10 @@ var _stage_social: HBoxContainer = null
 @onready var _header_label: Label = %HeaderLabel
 @onready var _timer: PhaseTimer = %Timer
 @onready var _grid: GridContainer = %Grid
-@onready var _pick_button: Button = %PickButton
 @onready var _toast: Toast = %Toast
 
 
 func _ready() -> void:
-	_pick_button.pressed.connect(_on_pick_confirmed)
-	_pick_button.visible = false
 	# Slice 4: local save feedback (kudos-save from SessionClient, self-save
 	# from the retiring draw screen - both land while this screen is up).
 	EventBus.collection_item_added.connect(_on_collection_item_added)
@@ -78,9 +76,7 @@ func enter_judging(data: Dictionary) -> void:
 		_timer.start(int(data["deadline_ms"]))
 	_set_social_open(true)   # Slice 4: gate opens with JUDGING (§5)
 	if _client != null and _client.is_local_player_judge():
-		_header_label.text = "♛ Pick your favorite!"
-		_pick_button.visible = true
-		_pick_button.disabled = true
+		_header_label.text = "♛ Click a drawing to crown it!"
 		for cell: Button in _cells.values():
 			cell.disabled = false
 	else:
@@ -135,40 +131,45 @@ func _build_cell(drawing_id: String, doc_dict: Variant, caption: String = "") ->
 	rect.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	layout.add_child(rect)
-	# Slice 4 social row: reaction bar + kudos button per cell. Own-cell
+	# Slice 4 social block. FIXED shape in every cell so the grid lines up
+	# (owner feedback 2026-07-06: rows aligned terribly): row 1 = centered
+	# reactions, row 2 = yours-hint | caption | kudos. Empty slots keep
+	# their space - caption or ownership never reflows a cell. Own-cell
 	# state is LOCAL knowledge only - nothing on the wire marks authorship.
 	var own: bool = _client != null and _client.is_own_drawing(drawing_id)
-	var row := HBoxContainer.new()
-	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	layout.add_child(row)
 	var bar: ReactionBar = REACTION_BAR_SCENE.instantiate()
 	bar.drawing_id = drawing_id
 	bar.interactive = false   # gate opens with JUDGING
+	bar.alignment = BoxContainer.ALIGNMENT_CENTER
 	bar.reaction_toggled.connect(_on_reaction_toggled.bind(drawing_id))
-	row.add_child(bar)
-	if own:
-		var yours := Label.new()
-		yours.text = "🔒 yours"
-		yours.add_theme_font_size_override("font_size", 12)
-		yours.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		yours.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-		row.add_child(yours)
+	layout.add_child(bar)
+	var info_row := HBoxContainer.new()
+	info_row.custom_minimum_size = Vector2(0, KUDOS_BUTTON_SIZE.y)
+	layout.add_child(info_row)
+	var yours := Label.new()
+	yours.text = "🔒 yours" if own else ""
+	yours.custom_minimum_size = Vector2(SOCIAL_HINT_WIDTH, 0)
+	yours.add_theme_font_size_override("font_size", 12)
+	yours.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	info_row.add_child(yours)
+	# Slice 5: anonymous caption, one truncated line + full-text tooltip.
+	var caption_label := Label.new()
+	caption_label.text = "“%s”" % caption if not caption.is_empty() else ""
+	caption_label.tooltip_text = caption
+	caption_label.clip_text = true
+	caption_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	caption_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	caption_label.mouse_filter = Control.MOUSE_FILTER_STOP \
+			if not caption.is_empty() else Control.MOUSE_FILTER_IGNORE
+	caption_label.add_theme_font_size_override("font_size", 12)
+	info_row.add_child(caption_label)
 	var kudos: KudosButton = KUDOS_BUTTON_SCENE.instantiate()
 	kudos.drawing_id = drawing_id
 	kudos.own_drawing = own
 	kudos.gate_open = false
-	kudos.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	kudos.custom_minimum_size = KUDOS_BUTTON_SIZE
 	kudos.kudos_requested.connect(_on_kudos_requested.bind(drawing_id))
-	layout.add_child(kudos)
-	if not caption.is_empty():
-		# Slice 5: anonymous caption, one truncated line + full-text tooltip.
-		var caption_label := Label.new()
-		caption_label.text = "“%s”" % caption
-		caption_label.tooltip_text = caption
-		caption_label.clip_text = true
-		caption_label.mouse_filter = Control.MOUSE_FILTER_STOP  # hover tooltip
-		caption_label.add_theme_font_size_override("font_size", 12)
-		layout.add_child(caption_label)
+	info_row.add_child(kudos)
 	_reaction_bars[drawing_id] = bar
 	_kudos_buttons[drawing_id] = kudos
 	return cell
@@ -250,7 +251,7 @@ func _build_stage_social(drawing_id: String) -> void:
 	bar.interactive = not own
 	var kudos: KudosButton = KUDOS_BUTTON_SCENE.instantiate()
 	kudos.drawing_id = drawing_id
-	kudos.custom_minimum_size = Vector2(120, 32)
+	kudos.custom_minimum_size = KUDOS_BUTTON_SIZE
 	kudos.kudos_requested.connect(_on_kudos_requested.bind(drawing_id))
 	_stage_social.add_child(kudos)
 	kudos.own_drawing = own
@@ -333,20 +334,15 @@ static func _rasterize(doc_dict: Variant) -> ImageTexture:
 	return ImageTexture.create_from_image(DocRasterizer.rasterize(doc))
 
 
+## Click = pick (owner feedback 2026-07-06): the pick is sent immediately
+## and latched host-side; the highlight persists and the judge may re-click
+## another cell to change it any time before the timer crowns the winner.
 func _on_cell_pressed(drawing_id: String) -> void:
-	if not _judging or _pick_sent:
+	if not _judging or _client == null:
 		return
 	_selected_id = drawing_id
-	_pick_button.disabled = false
+	_client.request_pick_winner(drawing_id)
+	_header_label.text = "♛ Crowned when the timer ends — click another to change"
 	for id: String in _cells.keys():
 		var cell: Button = _cells[id]
 		cell.modulate = SELECTED_COLOR if id == drawing_id else Color.WHITE
-
-
-func _on_pick_confirmed() -> void:
-	if _selected_id.is_empty() or _pick_sent or _client == null:
-		return
-	_pick_sent = true   # one pick; the host drops duplicates anyway
-	_pick_button.disabled = true
-	_pick_button.text = "Crowned!"
-	_client.request_pick_winner(_selected_id)

@@ -38,6 +38,7 @@ var _round_index: int = -1
 var _round: RoundRecord = null
 var _records: Array[RoundRecord] = []
 var _authors: Dictionary = {}              # drawing_id -> player_id (PRIVATE)
+var _pending_winner_id: String = ""        # judge's latched pick; applied at deadline
 var _submissions: Dictionary = {}          # player_id -> Submission (current round)
 var _entries: Array[Dictionary] = []       # current reveal entries (id + doc only)
 var _phase_deadline_ms: int = 0            # 0 = no deadline armed (WRAP_UP)
@@ -124,7 +125,7 @@ func on_phase_deadline() -> void:
 					and not _reveal_director.is_done():
 				push_warning("GameSession: reveal beat chain stalled; failsafe -> JUDGING")
 			_open_judging()
-		NetIds.Phase.JUDGING:     _finish_judging("")   # window lapsed, no pick
+		NetIds.Phase.JUDGING:     _finish_judging(_pending_winner_id)
 		NetIds.Phase.RESOLUTION:  _advance_round()
 		_: push_error("GameSession: deadline fired in phase %d" % _phase)
 
@@ -168,15 +169,18 @@ func submit_drawing(player_id: String, payload: Dictionary) -> bool:
 
 ## Judge's pick. Valid only in JUDGING, only from the current judge, only
 ## for a drawing_id in the current reveal set. Blanks are pickable - the
-## judge may reward comedy.
+## judge may reward comedy. The pick is LATCHED, not applied: the judge may
+## change it freely until the judging window lapses, and the deadline is
+## what crowns the winner (owner feedback 2026-07-06 - no confirm button,
+## no early phase end). An empty latch at deadline = no-pick penalty.
 func pick_winner(player_id: String, drawing_id: String) -> bool:
 	if _phase != NetIds.Phase.JUDGING:
-		return false        # incl. duplicate/late picks after RESOLUTION began
+		return false        # incl. late picks after RESOLUTION began
 	if player_id != current_judge_id():
 		return false
 	if not _authors.has(drawing_id):
 		return false
-	_finish_judging(drawing_id)
+	_pending_winner_id = drawing_id
 	return true
 
 
@@ -362,6 +366,7 @@ func _clean_caption(payload: Dictionary) -> String:
 
 
 func _open_judging() -> void:
+	_pending_winner_id = ""   # fresh latch; a stale pick must never carry over
 	# Slice 4: the whole reveal set accepts reactions/kudos during JUDGING
 	# (Slice 5 additionally opens per-drawing beats during REVEAL).
 	var ids := PackedStringArray()

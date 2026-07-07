@@ -241,12 +241,16 @@ func test_reveal_entries_contain_no_author_info_and_are_shuffled() -> void:
 # --- judging / scoring ---
 
 
-func test_pick_winner_valid_applies_plus_two_and_enters_resolution() -> void:
+## Latched-pick semantics (owner, 2026-07-06): a valid pick does NOT end the
+## phase - the judging window runs out and the deadline crowns the latch.
+func test_pick_winner_latches_and_deadline_applies_plus_two() -> void:
 	var rig: Rig = _make_rig()
 	_to_judging(rig)
 	var entries: Array = rig.last_data(NetIds.Phase.REVEAL)["entries"]
 	var target: String = str((entries[0] as Dictionary)["drawing_id"])
 	assert_bool(rig.session.pick_winner("p0", target)).is_true()
+	assert_int(rig.session.get_phase()).is_equal(NetIds.Phase.JUDGING)  # no early end
+	rig.session.on_phase_deadline()   # the timer is what crowns
 	assert_int(rig.session.get_phase()).is_equal(NetIds.Phase.RESOLUTION)
 	var data: Dictionary = rig.last_data(NetIds.Phase.RESOLUTION)
 	assert_bool(bool(data["picked"])).is_true()
@@ -255,6 +259,26 @@ func test_pick_winner_valid_applies_plus_two_and_enters_resolution() -> void:
 	assert_str(str(data["winner_display_name"])).is_not_empty()
 	var scores: Dictionary = data["scores"]
 	assert_int(int(scores[str(data["winner_player_id"])])).is_equal(GameConstants.WINNER_POINTS)
+
+
+## The judge may change the latched pick any number of times before the
+## deadline; the last latch wins and earlier ones leave no score trace.
+func test_repick_overwrites_latch_last_pick_wins() -> void:
+	var rig: Rig = _make_rig()
+	_to_judging(rig)
+	var entries: Array = rig.last_data(NetIds.Phase.REVEAL)["entries"]
+	var first: String = str((entries[0] as Dictionary)["drawing_id"])
+	var second: String = str((entries[1] as Dictionary)["drawing_id"])
+	assert_bool(rig.session.pick_winner("p0", first)).is_true()
+	assert_bool(rig.session.pick_winner("p0", second)).is_true()
+	rig.session.on_phase_deadline()
+	var data: Dictionary = rig.last_data(NetIds.Phase.RESOLUTION)
+	assert_str(str(data["winner_drawing_id"])).is_equal(second)
+	var scores: Dictionary = data["scores"]
+	var total: int = 0
+	for pid: Variant in scores:
+		total += int(scores[pid])
+	assert_int(total).is_equal(GameConstants.WINNER_POINTS)  # exactly one award
 
 
 func test_pick_winner_rejected_when_not_judge_or_wrong_phase_or_unknown_id() -> void:
@@ -268,6 +292,25 @@ func test_pick_winner_rejected_when_not_judge_or_wrong_phase_or_unknown_id() -> 
 	assert_bool(rig.session.pick_winner("p1", target)).is_false()   # not the judge
 	assert_bool(rig.session.pick_winner("p0", "bogus-id")).is_false()
 	assert_bool(rig.session.pick_winner("p0", target)).is_true()
+
+
+## A crowned latch must not leak into the next round: round 2's window
+## lapsing with no pick is a no-pick, not a re-crown of round 1's winner.
+func test_latch_resets_between_rounds() -> void:
+	var rig: Rig = _make_rig()
+	_to_judging(rig)
+	var entries: Array = rig.last_data(NetIds.Phase.REVEAL)["entries"]
+	rig.session.pick_winner("p0", str((entries[0] as Dictionary)["drawing_id"]))
+	rig.session.on_phase_deadline()  # JUDGING -> RESOLUTION (round 1 crowned)
+	rig.session.on_phase_deadline()  # RESOLUTION -> ROUND_INTRO (round 2)
+	rig.session.on_phase_deadline()  # -> DRAWING
+	rig.session.on_phase_deadline()  # -> REVEAL
+	rig.session.on_phase_deadline()  # -> JUDGING
+	rig.session.on_phase_deadline()  # window lapses, judge p1 never picked
+	var data: Dictionary = rig.last_data(NetIds.Phase.RESOLUTION)
+	assert_bool(bool(data["picked"])).is_false()
+	assert_int(int((data["scores"] as Dictionary)["p1"]))\
+			.is_equal(GameConstants.JUDGE_NO_PICK_POINTS)
 
 
 func test_no_pick_applies_minus_one_to_judge() -> void:
@@ -389,6 +432,7 @@ func test_sim_harness_full_8_round_game_with_scripted_picks() -> void:
 				var target: String = str((entries[0] as Dictionary)["drawing_id"])
 				assert_bool(rig.session.pick_winner(rig.session.current_judge_id(), target)).is_true()
 				picks += 1
+				rig.session.on_phase_deadline()  # latched pick crowns at deadline
 			NetIds.Phase.RESOLUTION:
 				rig.session.on_phase_deadline()
 			_:

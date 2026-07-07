@@ -48,7 +48,8 @@ func test_social_identity_one_at_a_time_full_long() -> void:
 	var s: GameSettings = _applied(SettingsDefaults.Mode.SOCIAL)
 	assert_int(s.reveal_style).is_equal(GameSettings.RevealStyle.ONE_AT_A_TIME)
 	assert_int(s.replay_mode).is_equal(GameSettings.ReplayMode.FULL)
-	assert_bool(s.comments_enabled).is_true()
+	# Captions off in every preset (owner, 2026-07-07 - in-image text planned).
+	assert_bool(s.comments_enabled).is_false()
 	assert_bool(s.judging_window_sec >= 35.0).is_true()
 	assert_bool(s.draw_time_sec >= 40.0).is_true()
 
@@ -57,5 +58,6 @@ func test_default_identity_one_at_a_time_winner_only() -> void:
 	var s: GameSettings = _applied(SettingsDefaults.Mode.DEFAULT)
 	assert_int(s.reveal_style).is_equal(GameSettings.RevealStyle.ONE_AT_A_TIME)
 	assert_int(s.replay_mode).is_equal(GameSettings.ReplayMode.WINNER_ONLY)
-	assert_bool(s.comments_enabled).is_true()
+	# Captions off in every preset (owner, 2026-07-07 - in-image text planned).
+	assert_bool(s.comments_enabled).is_false()
 	assert_int(s.kudos_allotment).is_equal(GameSettings.KUDOS_AUTO)

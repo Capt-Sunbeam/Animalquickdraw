@@ -7,20 +7,31 @@
 - Owner: check items off whenever tested (any session); report failures as bugs.
 - ✅ AUTO = an automated test/gate covers the mechanics; the human check is for look/feel only.
 
-**Last Updated:** 2026-07-06 (session 4 — Slice 4 + 5 + 6 items added)
+**Last Updated:** 2026-07-07 (session 5 — two fix batches; second re-check list queued)
 
 ---
 
-## ⚠️ Deferred blocking checks — DO THESE FIRST next session (owner deferred at session-4 close)
+## Session-5 fix re-checks — CLEARED (owner, 2026-07-07)
 
-These were each slice's *blocking* owner checkpoints; the mechanics are all machine-verified (unit tests + `verify_round.sh`), so what's deferred is the human look/feel/correctness confirmation. **Slice 7 builds on the Slice 6 settings surface — check those two before starting it.**
+Two owner-directed fix batches this session (decision log 2026-07-06 "Judging = latched click-to-pick" and 2026-07-07 "Kudos rematch-staleness fix…"); all machine-verified (296/296 tests + `verify_round.sh` PASS) and owner-confirmed 2026-07-07, one deferral noted below. **No blocking checks remain — Slice 7 is clear to start.**
 
-- [ ] **Slice 6 preset lock behavior:** on Streamlined only draw time/rounds/pool editable; Custom unlocks everything incl. title points; switching back re-locks ✅ AUTO (lock-rule tests)
-- [ ] **Slice 6 client read-only sync:** second instance mirrors every host edit read-only, incl. a join-in-progress full sync ✅ AUTO (sync logic)
-- [ ] **Slice 6 Esc menu + pause:** host pauses mid-drawing → clients locked on "Host paused"; resume keeps canvas strokes + remaining time ✅ AUTO (refresh-in-place logic)
-- [ ] **Slice 4 kudos end-to-end (human):** give a kudos → wallet pip spends, toast, `user://collection/` gains index+doc+thumb, +1 visible at resolution ✅ AUTO (CI-verified incl. collection files)
-- [ ] **Slice 4 reaction round-trip (human):** react/un-react propagates to all peers within ~1 s ✅ AUTO (CI-verified convergence)
-- [ ] **Slice 5 re-check after owner-directed fixes:** emoji areas now roomy/legible; victory-lap replay plays ALL strokes then holds the still 2 s (owner saw the broken versions; the fixes are untested)
+- [x] **Kudos after rematch (BUG FIX)** — PASS
+- [x] **Pause freezes timers (BUG FIX)** — PASS
+- [x] **Judging click-to-pick** — PASS
+- [x] **Chat beside canvas while drawing (expanded default, button toggle)** — PASS
+- [x] **Prominent chat sizing (judge wait + reveals)** — PASS
+- [x] **Grid social row alignment** — PASS
+- [x] **Victory-lap replay (carried from session 4)** — PASS (all strokes + still hold confirmed)
+- [ ] **Caption entry box still visible on the owner's machine** — root cause: the host profile's restored lobby settings (`profile.json → last_lobby_settings`) predate the captions-off default and carry `comments_enabled: true`, which wins over the new default. **Owner deferred (2026-07-07).** Resolves permanently when the in-image text tool removes the caption pipeline; interim workaround: untick Captions in Custom once (re-saves the profile). If the text tool slips, consider force-clearing the key on profile restore.
+
+### Session-4 deferred blocking checks — RESULTS (owner, 2026-07-06 session 5)
+
+- [x] **Slice 6 preset lock behavior** — PASS
+- [x] **Slice 6 client read-only sync** — PASS (host settings mirror to clients)
+- [x] **Slice 6 Esc menu + pause** — PASS
+- [x] **Slice 4 kudos end-to-end (human)** — PASS ("kudos points do seem to work")
+- [x] **Slice 4 reaction round-trip (human)** — PASS
+- [ ] ~~**Slice 5 re-check after owner-directed fixes**~~ — SUPERSEDED: emoji legibility ok but grid alignment failed → fixed again this session (see re-check list above); victory-lap replay still unverified (carried above)
 
 ## Confirmed core flows (for context — not backlog)
 
@@ -52,7 +63,7 @@ These were each slice's *blocking* owner checkpoints; the mechanics are all mach
 ## Slice 3 — Core Round Loop
 
 - [ ] Judge no-pick: let the 30 s window lapse → "The judge couldn't decide… (Judge −1)"; negative score renders correctly in resolution AND standings ✅ AUTO (scoring + display values)
-- [ ] Judge heckling view details: prompt huge, chat prominent with auto-focused input, heckles arrive in drawers' collapsed strip, strip expands on hover
+- [ ] Judge heckling view details: prompt huge, chat prominent with auto-focused input, heckles arrive in drawers' collapsed side column ~~strip expands on hover~~ (hover-expand removed 2026-07-06 — explicit 💬 toggle + unread badge instead; see decision log)
 - [ ] Blank submission (drawer never draws/disconnects): blank card appears in grid, is pickable, looks intentional not broken ✅ AUTO (mechanics)
 - [ ] Early-submit then keep drawing: the final canvas at deadline is what appears at reveal ✅ AUTO (latest-wins)
 - [ ] All drawers submit early → drawing phase ends early on every peer ✅ AUTO
@@ -102,7 +113,7 @@ These were each slice's *blocking* owner checkpoints; the mechanics are all mach
 - [ ] Esc menu feel: open/close, two-click leave confirm wording
 - [ ] Pause during DRAWING: canvas strokes survive resume; countdown resumes with remaining time ✅ AUTO (refresh-in-place logic)
 - [ ] Pause during REVEAL beats: overlay on, beats resume where they left off (cosmetic tween may settle under the overlay — known v1 limitation)
-- [ ] PhaseTimer shows a stale countdown while paused (corrects on resume) — acceptable? (known v1 limitation)
+- [ ] ~~PhaseTimer shows a stale countdown while paused (corrects on resume) — acceptable? (known v1 limitation)~~ RESOLVED 2026-07-07: owner ruled not acceptable; timers now freeze on pause (decision log) — re-check in the blocking list above
 - [ ] Client sees "Host paused the game" and cannot dismiss it; host sees Resume game ✅ AUTO (menu state logic)
 
 ## Design gaps / open items (not bugs — need decisions)

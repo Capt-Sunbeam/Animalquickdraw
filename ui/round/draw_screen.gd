@@ -8,6 +8,7 @@ extends Control
 var _client: SessionClient = null
 var _deadline_ms: int = 0
 var _locked: bool = false
+var _paused: bool = false                  # host pause freezes the local deadline
 var _prompt_text: String = ""
 var _last_submitted_doc: Dictionary = {}   # Slice 4 self-save source
 
@@ -29,6 +30,11 @@ func _ready() -> void:
 	# the toggle saves the last SUBMITTED doc - exactly what reveal shows,
 	# not unsent tweaks. Local only, never networked, never points (§6).
 	tree_exiting.connect(_on_retire)
+	# Host pause must freeze the LOCAL deadline too, or the auto-submit
+	# fires mid-pause and locks the canvas out from under the drawer
+	# (owner, 2026-07-07). Resume refreshes _deadline_ms in place.
+	EventBus.phase_changed.connect(func(phase: NetIds.Phase, _data: Dictionary) -> void:
+		_paused = phase == NetIds.Phase.PAUSED)
 
 
 func setup(data: Dictionary, client: SessionClient) -> void:
@@ -40,8 +46,16 @@ func setup(data: Dictionary, client: SessionClient) -> void:
 		_timer.start(_deadline_ms)
 
 
+## NORMAL = the side column starts expanded (owner, 2026-07-07); the 💬
+## toggle still collapses it to a thin strip on demand.
 func chat_prominence() -> ChatPanel.Prominence:
-	return ChatPanel.Prominence.COLLAPSED
+	return ChatPanel.Prominence.NORMAL
+
+
+## Chat sits beside the canvas while drawing, never under it (owner,
+## 2026-07-06) - expanding it must not cover or reflow the drawing surface.
+func chat_placement() -> ChatPanel.Placement:
+	return ChatPanel.Placement.SIDE
 
 
 ## Slice 6 pause: fresh deadline after a host resume - same screen, canvas
@@ -53,7 +67,7 @@ func refresh_deadline(data: Dictionary) -> void:
 
 
 func _process(_delta: float) -> void:
-	if _locked or _deadline_ms <= 0:
+	if _locked or _paused or _deadline_ms <= 0:
 		return
 	if PhaseTimer._local_now_ms() >= _deadline_ms:
 		_auto_submit()

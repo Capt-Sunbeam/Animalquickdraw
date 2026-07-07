@@ -335,6 +335,7 @@ func test_stats_register_drawings_and_winner() -> void:
 	assert_int(stats.drawings.size()).is_equal(3)   # blanks registered too
 	var target: String = rig.entry_ids()[0]
 	rig.session.pick_winner("p0", target)
+	rig.session.on_phase_deadline()   # latched pick crowns at deadline
 	assert_bool((stats.drawings[target] as SessionStats.DrawingStats).won_round).is_true()
 	for stat: SessionStats.DrawingStats in stats.drawings.values():
 		assert_str(stat.prompt_text).is_not_empty()

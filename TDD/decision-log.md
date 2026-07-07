@@ -2,13 +2,55 @@
 
 **Purpose:** Track design decisions made during development. New entries are added at the top of the Decisions section.
 
-**Last Updated:** 2026-07-04
+**Last Updated:** 2026-07-06
 
 ---
 
 ## Decisions
 
 *New entries go here, at the top of this section.*
+
+---
+
+### Kudos rematch-staleness fix; pause freezes local timers; side chat defaults expanded; captions retired in favor of a planned in-image text tool
+**Date:** 2026-07-07 | **Slice:** 3/4/5/6 surfaces (session-5 second playtest round) | **Decided by:** Owner
+
+**Context:** Owner re-tested the first fix batch. New findings: (1) kudos buttons wrongly disabled for some clients — owner correctly suspected state "sticking around from another test game"; (2) pausing froze phase progression but not the visible countdowns, and a drawer paused past the deadline would get auto-submitted and locked out; (3) the side chat should start expanded; (4) captions are unwanted — replace with text placed inside the drawing itself.
+
+**Decision:**
+- **Bug fix (kudos):** `GameSession.start_game()` resets every player's kudos economy on the **host roster only**; nothing re-broadcast it, so client wallets kept the previous game's granted/spent (first game: granted=0 until the first kudos forced a sync; rematch: spent counts persisted — exactly the owner's "one can, one can't"). Fix: `SessionClient` broadcasts the roster immediately after starting the simulation. `Session.broadcast_roster()`'s guard switched from `Net.is_host()` to `multiplayer.is_server()` so headless tests exercise the same path. Regression test + `verify_round.sh` PASS.
+- **Bug fix (pause):** `PhaseTimer` freezes its rendered countdown on `PAUSED` (re-arms on the resume `start()`), and the draw screen's local auto-submit is suppressed while paused — the host's refreshed deadline is the only clock that matters on resume.
+- **Side chat defaults expanded:** the drawer's drawing view declares NORMAL prominence (expanded) in the SIDE placement; the 💬 toggle still collapses it.
+- **Captions retired:** `comments_enabled` now defaults false everywhere (field default + every preset); the Custom toggle remains as dormant opt-in plumbing. Replacement direction: a **text tool in the drawing canvas** (place text into the image like a paint editor). Not yet scheduled — needs a deterministic text-raster design (bitmap-font glyph blitting keeps CPU raster determinism; host-side TextFilter on text ops) and touches Slice 1 (doc/ops/rasterizer/canvas UI), Slice 3 (submission validation), Slice 5 (caption pipeline removal).
+
+**Impact:**
+- Affects: `session_client.gd`/`session_manager.gd` (roster sync), `phase_timer.gd`/`draw_screen.gd` (pause), `settings.gd`/`settings_defaults.gd` (caption defaults — preset identity tests updated), chat defaults. The qa-backlog "PhaseTimer shows a stale countdown while paused" known-limitation item is resolved.
+- The text tool is **scheduled after Slices 7+8** (owner, 2026-07-07): built this session if the context budget allows, else first item next session.
+- Migration needed: No. Breaking change: No.
+
+**Status:** [x] Code implemented [x] Tests green (296/296) [x] verify_round gate PASS [x] Owner re-test (2026-07-07 — all pass; caption-box leftover deferred, see qa-backlog) [x] Text-tool scheduled (after Slices 7+8)
+
+---
+
+### Judging = latched click-to-pick; chat gets explicit toggle + per-phase placement; fixed-shape social rows
+**Date:** 2026-07-06 | **Slice:** 3/4/5 surfaces (session-5 deferred-check playtest) | **Decided by:** Owner
+
+**Context:** Session-5 opened with the deferred blocking checks from session 4. All five machine-verified flows passed (preset lock, client mirror, Esc/pause, kudos, reactions), but the playtest surfaced four UX problems: chat hover-expand fired constantly mid-drawing; chat sat under the canvas instead of beside it; the prominent chat crowded the reveal grid's social controls; the grid's kudos/emoji rows misaligned across cells; and the judge's confirm-button pick flow felt wrong.
+
+**Decision:**
+- **Judging is click-to-pick with a LATCHED selection:** clicking a drawing sends the pick immediately; the host latches it (re-picks overwrite, last one wins) and the **judging deadline is what crowns the winner** — the "Crown this drawing" confirm button is gone and a pick no longer ends the phase early. Empty latch at deadline keeps the −1 no-pick penalty. State-machine change to Slice 3: `JUDGING → RESOLUTION` now fires **only** on the deadline.
+- **Chat expansion is an explicit toggle button, never hover.** Collapsed chat shows an unread badge; expanding clears it. A user toggle survives same-phase refreshes (pause/resume); phase changes reset to the phase's default.
+- **Chat placement is per-phase, like prominence:** the drawer's drawing view puts chat in a SIDE column right of the canvas (collapsed by default); judge-wait and reveal/judging keep BOTTOM expanded. `RoundRoot` reparents its persistent panel between the two slots.
+- **PROMINENT chat height adapts to the viewport** (`clampf(22% of height, 120, 300)` px) so the expanded chat never covers grid cells' emoji/kudos controls.
+- **Grid social rows have a fixed shape in every cell** (row 1: centered reactions; row 2: yours-hint | caption | kudos with reserved slots) so cells align regardless of caption/ownership; cell min size 340×310.
+
+**Rationale:** Owner-directed after live play. Latching keeps the riffing window at full length (the judge can change their mind as reactions land) at the cost of never ending judging early — flagged for pacing review; if full-window judging drags, shorten `judging_window_sec` or add "timer accelerates once picked" later.
+
+**Impact:**
+- Affects: Slice 3 (judging state machine + RPC semantics — TDD updated in place), Slice 5 (reveal-screen cells), Slice 2/6 (chat panel component; lobby chat just gains the toggle header). Slice 7's `POOL_SETUP` screen inherits the new chat defaults automatically (bottom/normal).
+- Migration needed: No. Breaking change: No (RPC signature unchanged; only host handling).
+
+**Status:** [x] Code implemented [x] Tests updated (293/293 green) [x] Slice 3 TDD updated [x] Owner re-test of the four fixes (2026-07-07 — all confirmed)
 
 ---
 

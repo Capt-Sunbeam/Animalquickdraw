@@ -191,6 +191,11 @@ func _maybe_start_simulation(force: bool = false) -> void:
 	if force or _all_roster_peers_ready():
 		_sim_started = true
 		_session.start_game()
+		# start_game() just reset every player's kudos economy on the HOST
+		# roster objects. Re-broadcast, or client wallets keep the previous
+		# game's granted/spent and their kudos buttons wrongly disable
+		# (rematch staleness, owner-reported 2026-07-07).
+		Session.broadcast_roster()
 
 
 func _all_roster_peers_ready() -> bool:

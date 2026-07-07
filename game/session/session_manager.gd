@@ -141,8 +141,10 @@ func is_host() -> bool:
 
 ## Host-only (Slice 4): mid-game roster re-broadcast after PlayerState
 ## economy fields (kudos_granted/kudos_spent) change on the host.
+## Guarded by multiplayer authority (not Net.is_host) so headless tests -
+## which have no active ENet peer - exercise the same broadcast path.
 func broadcast_roster() -> void:
-	if not Net.is_host():
+	if not multiplayer.is_server():
 		return
 	rpc_sync_roster.rpc(roster.to_dicts())
 
