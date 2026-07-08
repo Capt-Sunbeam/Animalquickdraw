@@ -12,6 +12,53 @@
 
 ---
 
+### Late joiners get the FULL standard kudos allotment (supersedes brief §11's half rule)
+**Date:** 2026-07-07 | **Slice:** 9 | **Decided by:** Owner (during the Slice 9 blocking playtest)
+
+**Decision:** A mid-game joiner receives the same kudos allotment every original player got at game start — not "half, floored, min 1." Rejoiners are unchanged (still exactly what they had left; never topped up).
+
+**Rationale (owner + review):** Kudos give +1 to the *recipient*, so a full wallet is pure gifting power — no personal scoring advantage to joining late. Reacting/kudosing is precisely what a late joiner does while spectating their arrival round, and "everyone gets the same" is simpler to explain. Accepted trade-off: a final-round joiner can dump a full wallet and mildly inflate scores — noise, per flow-over-fairness (§1). A kudos-off game (explicit allotment 0) stays off for late joiners.
+
+**Impact:** `admit_late_joiner` grants `_standard_allotment` directly; `late_join_allotment()` + its two constants deleted; brief §11 amended in place; tests updated. No wire/UI change.
+
+**Status:** [x] Code implemented [x] Tests updated [x] Brief §11 amended [x] Implementation notes updated
+
+---
+
+### Slice 9: connectivity built on the existing pause/results/rotation machinery — cursor rotation, reason-tagged pause, wrap-up folded into the results bundle, absent-judge penalty matrix
+**Date:** 2026-07-07 | **Slice:** 9 (state-machine changes to 3/17; extends 2/4/7 surfaces) | **Type:** Full
+
+#### Context
+The Slice 9 TDD (drafted 2026-07-04) assumed a cursor-based judge rotation, dedicated `rpc_sync_pause/resume` RPCs, and a standalone `get_wrapup_input()` payload. The code that actually shipped (Slices 3/6/17) has a modulo rotation, a full PAUSED-phase pipeline from the Esc menu, and a versioned results bundle. Consistency guide/code reality wins (WHERE_WE_ARE rule); the TDD's *behaviors* were kept, its *mechanisms* were adapted.
+
+#### Decision
+- **Rotation cursor replaces modulo:** `GameSession` now advances an explicit `_judge_cursor` each round (identical to the old `round % n` when nobody drops — pinned by the untouched Slice 3 sim harness). The cursor model is what makes late-join insertion, ghost-skip, and the OFF-mode forfeit possible. Late joiners insert immediately BEFORE the cursor entry (cursor +1), i.e. last in the cyclic order — they judge when the rotation wraps (§9), and rejoiners keep their original entry, so leave/rejoin can never move anyone's turn.
+- **Below-minimum pause rides the Slice 6 PAUSED pipeline** — no new pause RPCs. `pause(reason)` gained a real reason (`NetIds.PauseReason`: HOST_MENU / BELOW_MINIMUM) carried in the PAUSED phase data with `connected_count` + `time_left_ms`; RoundRoot picks the surface by reason (GameMenu vs the new waiting overlay). Pause now also covers deadline-less POOL_SETUP (freeze with 0 remaining). Ordering rule: **a departure checks pause BEFORE all-ready re-evaluation or pool-completion locking** — freezing wins; a game below minimum never advances. `resume()` refuses to lift a BELOW_MINIMUM pause while still below minimum; host-menu pauses are never auto-resumed.
+- **Wrap-up input contract folded into the results bundle** (no parallel `get_wrapup_input()` dict): `_build_results()` gained `ended_early / rounds_played / rounds_planned / players` (all roster entries incl. disconnected, with remembered scores). `end_game_early()` (host, only while PAUSED) emits the same bundle with `ended_early = true`; the partial round contributes nothing. Slice 10 reads ONE shape.
+- **Judge seat holds + penalty matrix:** JUDGING can never end early without the judge's pick-gated ready — a disconnected judge means the window runs to its deadline (this also fixes a latent Slice 17 gap where a vanished judge silently left the early-end quorum, letting unanimous drawers force an empty-latch −1). At window end with no pick: connected judge −1 (unchanged); absent judge forgiven — unless dodge-suspect under fluid OFF, where the −1 lands and **consumes the flag** (never a second forfeit for the same dodge).
+- **Mid-DRAWING rejoiner sits the round out, host-enforced:** their pre-drop submission is protected (resubmission dropped, card stays judgeable); no blank is synthesized for them; they neither block nor satisfy the DRAWING ready set; full participation resumes next round.
+- **Welcome snapshot replays through `rpc_sync_phase`:** `rpc_do_welcome_ingame` lives on the Session autoload (the joiner has no RoundRoot yet), stashes the payload across the Nav swap (close-reason pattern), and the fresh SessionClient replays it through the exact live-broadcast code path (PAUSED applied as a wrapper after the underlying phase). JUDGING snapshots piggyback the reveal entries (live JUDGING broadcasts never carry them); POOL_SETUP snapshots carry current progress.
+- **EventBus status signals are platform_id-keyed** (TDD draft mixed peer_id/platform_id): `player_dropped/rejoined/late_joined(platform_id, display_name)` + `judge_slot_forfeited`; `game_paused(reason, connected_count)`; `game_resumed(phase, time_left_ms)`.
+- **CI:** new `tools/verify_resilience.sh` (3 instances: drop mid-DRAWING → below-minimum pause → rejoin → auto-resume with restored timer → kept submission wins). Two CI lessons codified: (1) driver spawn must be **idempotent** — the leaver's deliberate quit reloads the menu, which re-runs `_handle_ci_args` and spawned a second fighting driver; (2) gates pollute each other through the shared `user://profile.json` (`last_lobby_settings`) — verify_round now pins reveal_style/replay/judging_window (it broke when verify_resilience's GRID/10 s profile leaked into it). **Every driver pins every setting its flow depends on — including ones another gate might save.**
+
+#### Alternatives Considered
+1. **TDD-literal `insert_after_cursor` + separate pause RPCs + standalone wrap-up dict:** parallel mechanisms for behaviors the shipped pipeline already handles; more wire surface, two results shapes for Slice 10.
+2. **True op-removing rotation (remove disconnected entries, re-insert on rejoin):** breaks the "leave+rejoin never moves your turn" invariant the retained-entry model gives for free.
+3. **Letting a rejoined drawer resume drawing mid-round:** clobbers their surviving submission with a blank canvas; rejected (TDD's own sit-out reasoning).
+
+#### Impact
+- **Affects:** GameSession/SessionClient/Session/Roster/GameSettings/SessionRules/CustomPoolCollector, RoundRoot + 2 new scenes, lobby settings panel, round + resilience CI drivers.
+- **Migration needed:** No — all payload keys additive with defaults; PlayerState/settings dicts tolerate old shapes.
+- **Breaking change:** No (wire enums appended only).
+
+#### Status
+- [x] Code implemented
+- [x] Tests updated (380 → 423 green, 0 orphans)
+- [x] Integration verified (verify_lobby + verify_round + verify_resilience all PASS)
+- [ ] Owner blocking checks (4-instance run — pending)
+
+---
+
 ### Session-6 playtest fix batch: side chat bottom-aligns to the canvas; text drop delivery (SubViewportContainer.mouse_target); eraser footprint cursor
 **Date:** 2026-07-07 | **Slice:** 16/17 surfaces | **Type:** Quick
 

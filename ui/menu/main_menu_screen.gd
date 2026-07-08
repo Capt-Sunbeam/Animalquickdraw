@@ -115,6 +115,8 @@ func _handle_ci_args() -> void:
 		_run_lobby_ci(args)
 	elif args.has("--ci-round-host") or args.has("--ci-round-join"):
 		_run_round_ci(args)
+	elif args.has("--ci-res-host") or args.has("--ci-res-stay") or args.has("--ci-res-leaver"):
+		_run_resilience_ci(args)
 
 
 ## Slice 2 automated gate (tools/verify_lobby.sh): the driver node lives on
@@ -136,6 +138,25 @@ func _run_lobby_ci(args: PackedStringArray) -> void:
 func _run_round_ci(args: PackedStringArray) -> void:
 	var driver: RoundCiDriver = RoundCiDriver.new()
 	driver.role = "host" if args.has("--ci-round-host") else "join"
+	driver.room_code = _room_code()
+	get_tree().root.add_child.call_deferred(driver)
+
+
+## Slice 9 automated gate (tools/verify_resilience.sh): drop/pause/rejoin.
+## Spawn is idempotent: the leaver's deliberate quit reloads this menu
+## mid-scenario, and a second driver would fight the first (found on the
+## gate's first run, 2026-07-07).
+func _run_resilience_ci(args: PackedStringArray) -> void:
+	if get_tree().root.get_node_or_null("ResilienceCiDriver") != null:
+		return
+	var driver: ResilienceCiDriver = ResilienceCiDriver.new()
+	driver.name = "ResilienceCiDriver"
+	if args.has("--ci-res-host"):
+		driver.role = "host"
+	elif args.has("--ci-res-leaver"):
+		driver.role = "leaver"
+	else:
+		driver.role = "stay"
 	driver.room_code = _room_code()
 	get_tree().root.add_child.call_deferred(driver)
 

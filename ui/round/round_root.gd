@@ -16,8 +16,12 @@ const PHASE_SCREENS: Dictionary = {
 	NetIds.Phase.WRAP_UP: "res://ui/round/standings_screen.tscn",
 }
 
+const TOAST_COALESCE_MSEC: int = 3000   # Slice 9: identical toasts within this window collapse
+
 var _current_screen: Control = null
 var _current_phase: NetIds.Phase = NetIds.Phase.LOBBY
+var _last_toast: String = ""
+var _last_toast_ms: int = 0
 
 @onready var _body: HBoxContainer = %Body
 @onready var _main: VBoxContainer = %Main
@@ -26,6 +30,9 @@ var _current_phase: NetIds.Phase = NetIds.Phase.LOBBY
 @onready var _session_client: SessionClient = %SessionClient
 @onready var _waiting_label: Label = %WaitingLabel
 @onready var _menu: GameMenu = %Menu
+@onready var _toast: Toast = %Toast
+@onready var _pause_overlay: PauseOverlay = %PauseOverlay
+@onready var _late_join_wait: LateJoinWaitBanner = %LateJoinWait
 
 
 func _ready() -> void:
@@ -40,6 +47,16 @@ func _ready() -> void:
 	EventBus.ready_state_changed.connect(_on_ready_state_changed)
 	EventBus.judge_pick_latched.connect(func() -> void:
 		_chat.set_ready_button_enabled(true))
+	# Slice 9: below-minimum pause overlay + join/drop/rejoin/forfeit toasts.
+	_pause_overlay.setup(_session_client)
+	EventBus.player_dropped.connect(func(_pid: String, display_name: String) -> void:
+		_toast_coalesced("%s disconnected" % display_name))
+	EventBus.player_rejoined.connect(func(_pid: String, display_name: String) -> void:
+		_toast_coalesced("%s is back!" % display_name))
+	EventBus.player_late_joined.connect(func(_pid: String, display_name: String) -> void:
+		_toast_coalesced("%s joined the game!" % display_name))
+	EventBus.judge_slot_forfeited.connect(func(_pid: String, display_name: String) -> void:
+		_toast_coalesced("%s dodged judging: -1" % display_name))
 
 
 ## Slice 6: Esc toggles the in-game menu (forced open while paused).
@@ -51,12 +68,20 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _on_phase_changed(phase: NetIds.Phase, data: Dictionary) -> void:
 	_waiting_label.visible = false
-	# Slice 6 pause: keep the live screen (canvas strokes, staged reveals)
-	# under the overlay; nothing is rebuilt.
+	# Pause keeps the live screen (canvas strokes, staged reveals) under the
+	# overlay; nothing is rebuilt. Slice 9 picks the surface by reason: the
+	# host's menu pause shows GameMenu, a below-minimum freeze shows the
+	# waiting overlay (chat stays usable beside it).
 	if phase == NetIds.Phase.PAUSED:
-		_menu.show_paused()
+		if int(data.get("reason", NetIds.PauseReason.HOST_MENU)) \
+				== NetIds.PauseReason.BELOW_MINIMUM:
+			_pause_overlay.open(int(data.get("connected_count", 0)))
+		else:
+			_menu.show_paused()
 		return
 	_menu.hide_paused()
+	_pause_overlay.close()
+	_refresh_spectator_banner(phase)
 	# Slice 17: the judging ready strip lives in the chat header. The judge's
 	# button unlocks once they latch a pick (EventBus.judge_pick_latched).
 	if phase == NetIds.Phase.JUDGING:
@@ -80,6 +105,11 @@ func _on_phase_changed(phase: NetIds.Phase, data: Dictionary) -> void:
 		return
 	_current_phase = phase
 	_swap_screen(phase, data)
+	# Slice 9: a welcomed late joiner / rejoiner can be born straight into
+	# JUDGING (no REVEAL came first) - enter judging mode on the fresh screen.
+	if phase == NetIds.Phase.JUDGING and _current_screen != null \
+			and _current_screen.has_method("enter_judging"):
+		_current_screen.enter_judging(data)
 
 
 func _swap_screen(phase: NetIds.Phase, data: Dictionary) -> void:
@@ -105,8 +135,35 @@ func _swap_screen(phase: NetIds.Phase, data: Dictionary) -> void:
 func _screen_path_for(phase: NetIds.Phase) -> String:
 	if phase == NetIds.Phase.DRAWING:
 		# Role views (§5): the judge never sees a canvas or live strokes.
-		return JUDGE_WAIT_SCREEN if _session_client.is_local_player_judge() else DRAW_SCREEN
+		# Slice 9: spectators (late joiner pre-activation / mid-DRAWING
+		# rejoiner) get the judge-wait view too - prompt + chat, no canvas.
+		if _session_client.is_local_player_judge() \
+				or _session_client.is_spectating_current_round():
+			return JUDGE_WAIT_SCREEN
+		return DRAW_SCREEN
 	return str(PHASE_SCREENS.get(phase, ""))
+
+
+## Slice 9: the spectator banner rides over every in-round phase screen
+## while this peer waits for its first (or next) drawing round.
+func _refresh_spectator_banner(phase: NetIds.Phase) -> void:
+	var in_round: bool = phase in [NetIds.Phase.ROUND_INTRO, NetIds.Phase.DRAWING,
+			NetIds.Phase.REVEAL, NetIds.Phase.JUDGING, NetIds.Phase.RESOLUTION]
+	if in_round and _session_client.is_spectating_current_round():
+		_late_join_wait.show_waiting("You're in! You'll draw starting next round."
+				if _session_client.is_waiting_for_activation()
+				else "You're back in! You'll draw again next round.")
+	else:
+		_late_join_wait.hide_waiting()
+
+
+func _toast_coalesced(message: String) -> void:
+	var now: int = Time.get_ticks_msec()
+	if message == _last_toast and now - _last_toast_ms < TOAST_COALESCE_MSEC:
+		return   # connection flapping stays calm (§10)
+	_last_toast = message
+	_last_toast_ms = now
+	_toast.show_message(message)
 
 
 func _on_ready_state_changed(ready_ids: PackedStringArray) -> void:

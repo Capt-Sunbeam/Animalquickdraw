@@ -92,3 +92,9 @@ func progress() -> Array:
 ## Their already-submitted words stay in the pot (they were valid).
 func mark_departed(player_id: String) -> void:
 	_departed[player_id] = true
+
+
+## Slice 9: a rejoiner gates completion again - departure only stopped them
+## from blocking while away; their share is still theirs to finish.
+func mark_returned(player_id: String) -> void:
+	_departed.erase(player_id)

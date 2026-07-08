@@ -98,3 +98,8 @@ const TEXT_GLYPH_PX: int = 8                         # PixelFont cell size; adva
 # --- Slice 8: Collection Browser & Export ---
 const EXPORT_SCALE: int = 2                          # nearest-neighbor upscale for exported PNGs
 const THUMB_LOADS_PER_FRAME: int = 2                 # lazy thumb pump budget (collection grid)
+
+# --- Slice 9: Connectivity & Resilience ---
+# (Late joiners get the FULL standard allotment - owner decision 2026-07-07
+# superseding §11's half rule; no constant needed.)
+const JUDGE_DODGE_WINDOW_SEC: float = 30.0           # fluid OFF: leaving this close to your turn = suspect

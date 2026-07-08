@@ -93,6 +93,28 @@ signal pool_setup_progress_changed(progress: Array)
 ## reason: NetIds.WordRejectReason (never NONE or LOCKED).
 signal pool_words_rejected(pool_id: String, reason: int)
 
+# --- Slice 9: Connectivity & Resilience ---
+
+## Emitted on all peers when a new player joins mid-game (active from the
+## next round). Keyed by platform_id like every stable identity (deviation
+## from the TDD draft's peer_id - see implementation notes).
+signal player_late_joined(platform_id: String, display_name: String)
+## Emitted on all peers when a player loses connection mid-game (roster entry
+## retained, involvement paused).
+signal player_dropped(platform_id: String, display_name: String)
+## Emitted on all peers when a previously dropped player is back; score and
+## kudos restored from the retained entry.
+signal player_rejoined(platform_id: String, display_name: String)
+## Emitted on all peers when the game pauses. reason: NetIds.PauseReason;
+## connected_count drives the "waiting for players (n/3)" overlay counter.
+signal game_paused(reason: int, connected_count: int)
+## Emitted on all peers when the game resumes. time_left_ms is the restored
+## phase clock (0 for untimed phases such as POOL_SETUP).
+signal game_resumed(phase: int, time_left_ms: int)
+## Emitted on all peers when an absent judge's slot is forfeited under
+## fluid_rejoin OFF (the -1 is announced in the round intro as well).
+signal judge_slot_forfeited(platform_id: String, display_name: String)
+
 # --- Slice 17: Ready-Up ---
 
 ## Emitted on all peers when the phase's ready-up set changes. Resets

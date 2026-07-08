@@ -180,3 +180,60 @@ func test_round_root_swaps_screens_on_phase_changed() -> void:
 	await get_tree().process_frame  # queue_free of the old screen settles
 	assert_object(root.find_child("StandingsScreen", true, false)).is_not_null()
 	assert_object(area).is_not_null()
+
+
+# --- Slice 9: pause overlay, spectator banner, pause routing ---
+
+
+const PAUSE_OVERLAY: PackedScene = preload("res://ui/round/pause_overlay.tscn")
+const LATE_JOIN_WAIT: PackedScene = preload("res://ui/round/late_join_wait.tscn")
+
+
+func test_pause_overlay_smoke_counts_and_hides_end_for_non_host() -> void:
+	var overlay: PauseOverlay = _instantiate(PAUSE_OVERLAY)
+	overlay.setup(null)
+	assert_bool(overlay.visible).is_false()
+	overlay.open(2)
+	assert_bool(overlay.visible).is_true()
+	var count: Label = overlay.find_child("CountLabel", true, false)
+	assert_str(count.text).is_equal("Waiting for players... (2/3)")
+	# Not the host in the test env: End-game-now hidden (§7).
+	var end_button: Button = overlay.find_child("EndButton", true, false)
+	assert_bool(end_button.visible).is_false()
+	overlay.close()
+	assert_bool(overlay.visible).is_false()
+
+
+func test_late_join_wait_banner_smoke() -> void:
+	var banner: LateJoinWaitBanner = _instantiate(LATE_JOIN_WAIT)
+	assert_bool(banner.visible).is_false()
+	banner.show_waiting("You're in! You'll draw starting next round.")
+	assert_bool(banner.visible).is_true()
+	var label: Label = banner.find_child("BannerLabel", true, false)
+	assert_str(label.text).contains("You're in!")
+	banner.hide_waiting()
+	assert_bool(banner.visible).is_false()
+
+
+func test_round_root_routes_pause_by_reason() -> void:
+	var root: Control = _instantiate(ROUND_ROOT)
+	var overlay: PauseOverlay = root.find_child("PauseOverlay", true, false)
+	var menu: Control = root.find_child("Menu", true, false)
+	# Below-minimum: waiting overlay, not the menu.
+	EventBus.phase_changed.emit(NetIds.Phase.PAUSED, {
+		"reason": NetIds.PauseReason.BELOW_MINIMUM, "connected_count": 2,
+	})
+	assert_bool(overlay.visible).is_true()
+	assert_bool(menu.visible).is_false()
+	# Resume hides it again.
+	EventBus.phase_changed.emit(NetIds.Phase.ROUND_INTRO, {
+		"round_index": 0, "round_count": 6, "judge_player_id": "x",
+		"deadline_ms": _now_ms() + 4000,
+	})
+	assert_bool(overlay.visible).is_false()
+	# Host-menu pause: the Slice 6 menu overlay, not the waiting overlay.
+	EventBus.phase_changed.emit(NetIds.Phase.PAUSED, {
+		"reason": NetIds.PauseReason.HOST_MENU,
+	})
+	assert_bool(menu.visible).is_true()
+	assert_bool(overlay.visible).is_false()

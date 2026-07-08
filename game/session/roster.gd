@@ -19,6 +19,10 @@ class PlayerState extends RefCounted:
 	var kudos_spent: int = 0        # incremented by Slice 4
 	var is_connected: bool = true
 	var joined_order: int = 0       # monotonic; judge-rotation basis (Slice 3)
+	# --- Slice 9 additions ---
+	var joined_late: bool = false   # joined after game start (never submits pool words)
+	var disconnect_at_ms: int = -1  # host clock at drop; -1 = connected
+	var dodge_suspect: bool = false # fluid OFF: left near their judge turn
 
 	func to_dict() -> Dictionary:
 		return {
@@ -30,6 +34,9 @@ class PlayerState extends RefCounted:
 			"kudos_spent": kudos_spent,
 			"is_connected": is_connected,
 			"joined_order": joined_order,
+			"joined_late": joined_late,
+			"disconnect_at_ms": disconnect_at_ms,
+			"dodge_suspect": dodge_suspect,
 		}
 
 	static func from_dict(d: Dictionary) -> PlayerState:
@@ -42,6 +49,9 @@ class PlayerState extends RefCounted:
 		p.kudos_spent = int(d.get("kudos_spent", 0))
 		p.is_connected = bool(d.get("is_connected", true))
 		p.joined_order = int(d.get("joined_order", 0))
+		p.joined_late = bool(d.get("joined_late", false))
+		p.disconnect_at_ms = int(d.get("disconnect_at_ms", -1))
+		p.dodge_suspect = bool(d.get("dodge_suspect", false))
 		return p
 
 
@@ -67,6 +77,36 @@ func remove_by_peer(peer_id: int) -> void:
 		if _players[i].peer_id == peer_id:
 			_players.remove_at(i)
 			return
+
+
+## Slice 9 in-game disconnect: the entry - score, kudos ledger, rotation
+## slot, reaction stats - is the "memory" §9/§11 require. peer_id resets to
+## 0 so a stale transport id can never match a future peer. Returns the
+## entry (null for unknown peers). now_ms uses the caller's clock (the
+## GameSession-injectable one in practice) so the dodge bookkeeping is
+## testable without wall time.
+func mark_disconnected(peer_id: int, now_ms: int) -> PlayerState:
+	var p: PlayerState = get_by_peer(peer_id)
+	if p == null:
+		return null
+	p.is_connected = false
+	p.peer_id = 0
+	p.disconnect_at_ms = now_ms
+	return p
+
+
+## Slice 9 rejoin: rebind a retained entry to a fresh transport peer. Score,
+## kudos granted/spent, and joined_order are deliberately untouched - that
+## IS the restore (§9, §11). Clears all disconnect bookkeeping.
+func rebind_peer(platform_id: String, peer_id: int) -> PlayerState:
+	var p: PlayerState = get_by_platform_id(platform_id)
+	if p == null:
+		return null
+	p.peer_id = peer_id
+	p.is_connected = true
+	p.disconnect_at_ms = -1
+	p.dodge_suspect = false
+	return p
 
 
 func get_by_peer(peer_id: int) -> PlayerState:

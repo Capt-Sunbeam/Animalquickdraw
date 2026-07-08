@@ -49,15 +49,34 @@ static func sanitize_name(raw: String, fallback_number: int) -> String:
 
 ## Registration gate (steps 3 of the 5-step pattern). Returns "" when the
 ## registration is acceptable, else the rpc_do_reject_join reason key.
+## Since Slice 9 the register handler routes phase != LOBBY registrations
+## through ingame_register_action below; the "in_progress" branch here only
+## fires in the STARTING gap when no GameSession exists yet.
 static func register_reject_reason(phase: NetIds.Phase, connected_count: int,
 		platform_id: String) -> String:
 	if phase != NetIds.Phase.LOBBY:
-		return "in_progress"  # Slice 9 replaces this branch with late-join/rejoin
+		return "in_progress"
 	if connected_count >= GameConstants.MAX_PLAYERS:
 		return "full"
 	if platform_id.is_empty() or platform_id.length() > GameConstants.MAX_PLATFORM_ID_LEN:
 		return "bad_identity"
 	return ""
+
+
+## Slice 9 in-game registration routing (§9): a known platform_id that is
+## disconnected rejoins; a known one still connected is an identity clone
+## (never evict a live player - §13); an unknown one late-joins while a
+## CONNECTED seat is free (memory entries never block real players - ghost
+## capacity rule, §10). Returns "rejoin", "late_join", or a reject reason.
+static func ingame_register_action(has_entry: bool, entry_connected: bool,
+		connected_count: int, platform_id: String) -> String:
+	if platform_id.is_empty() or platform_id.length() > GameConstants.MAX_PLATFORM_ID_LEN:
+		return "bad_identity"
+	if has_entry:
+		return "bad_identity" if entry_connected else "rejoin"
+	if connected_count >= GameConstants.MAX_PLAYERS:
+		return "full"
+	return "late_join"
 
 
 ## Content validation for chat (rate limit is checked separately).

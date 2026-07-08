@@ -16,6 +16,8 @@ var _updating_ui: bool = false  # guards value_changed while applying syncs
 @onready var _draw_time_value: Label = %DrawTimeValue
 @onready var _pool_option: OptionButton = %PoolOption
 @onready var _mode_option: OptionButton = %ModeOption
+@onready var _public_check: CheckBox = %PublicCheck
+@onready var _fluid_check: CheckBox = %FluidCheck
 @onready var _mode_panel: ModeSettingsPanel = %ModePanel
 @onready var _chat: ChatPanel = %Chat
 @onready var _start_button: Button = %StartButton
@@ -73,6 +75,13 @@ func _setup_settings_controls() -> void:
 	if host:
 		_mode_option.item_selected.connect(_on_mode_selected)
 	_mode_panel.setting_edited.connect(_on_panel_setting_edited)
+	# Slice 9: connectivity toggles - host-tunable regardless of mode preset
+	# (§9; they sit outside the Slice 6 lock set).
+	_public_check.disabled = not host
+	_fluid_check.disabled = not host
+	if host:
+		_public_check.toggled.connect(_on_connectivity_toggled.bind(&"is_public"))
+		_fluid_check.toggled.connect(_on_connectivity_toggled.bind(&"fluid_rejoin"))
 
 
 func _on_rounds_edited(value: float) -> void:
@@ -120,6 +129,17 @@ func _on_panel_setting_edited(key: StringName, value: Variant) -> void:
 		Session.set_settings(s)
 
 
+## Slice 9: is_public re-derives the fluid default (unless the host has
+## overridden it); touching fluid_rejoin marks the override - both inside
+## set_value, so mirrors and persistence get it for free.
+func _on_connectivity_toggled(pressed: bool, key: StringName) -> void:
+	if _updating_ui:
+		return
+	var s: GameSettings = Session.settings.duplicate_settings()
+	if s.set_value(key, pressed):
+		Session.set_settings(s)
+
+
 func _on_settings_changed(settings_dict: Dictionary) -> void:
 	_apply_settings_dict(settings_dict)
 
@@ -134,6 +154,8 @@ func _apply_settings_dict(d: Dictionary) -> void:
 	_draw_time_value.text = "%d s" % int(s.draw_time_sec)
 	_pool_option.select(_pool_option.get_item_index(s.pool_source))
 	_mode_option.select(_mode_option.get_item_index(s.mode))
+	_public_check.button_pressed = s.is_public
+	_fluid_check.button_pressed = s.fluid_rejoin
 	_mode_panel.render(s)   # Slice 6: summary chips vs Custom surface
 	_updating_ui = false
 

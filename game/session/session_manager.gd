@@ -25,10 +25,15 @@ var settings: GameSettings = GameSettings.new()
 var game_settings: GameSettings = GameSettings.new()
 var room_code: String = ""                 # display value from welcome/host call
 
+## Slice 9: the live SessionClient (host: owns the GameSession the in-game
+## register/disconnect paths need; set/cleared by SessionClient itself).
+var round_client: SessionClient = null
+
 var _local_state: LocalState = LocalState.MENU
 var _rate_limiter: SessionRules.ChatRateLimiter = SessionRules.ChatRateLimiter.new()
 var _last_close_reason: String = ""        # menu consumes on _ready (survives scene swap)
 var _epoch: int = 0                        # bumped every reset; invalidates stale watchdogs
+var _pending_welcome: Dictionary = {}      # Slice 9: mid-game welcome, consumed by SessionClient
 
 
 func _ready() -> void:
@@ -161,6 +166,15 @@ func consume_close_reason() -> String:
 	return reason
 
 
+## Slice 9: the mid-game welcome payload survives the Nav swap the same way
+## the close reason does; the client-side SessionClient consumes it in
+## _ready to reconstruct the round state.
+func consume_pending_welcome() -> Dictionary:
+	var welcome: Dictionary = _pending_welcome
+	_pending_welcome = {}
+	return welcome
+
+
 # --- Internal session logic (host-side unless noted) ---
 
 
@@ -222,6 +236,7 @@ func _reset_session_state() -> void:
 	room_code = ""
 	phase = NetIds.Phase.LOBBY
 	_rate_limiter.reset()
+	_pending_welcome = {}
 	_epoch += 1
 
 
@@ -290,10 +305,17 @@ func _on_peer_disconnected(peer_id: int) -> void:
 		return  # never registered - nothing to clean up
 	if phase == NetIds.Phase.LOBBY:
 		roster.remove_by_peer(peer_id)  # lobby-phase removal (Slice 2 scope)
-	else:
-		player.is_connected = false     # in-game: keep the entry (Slice 9 rejoin)
-	_refresh_suggested_rounds()
-	_broadcast_lobby_state()
+		_refresh_suggested_rounds()
+		_broadcast_lobby_state()
+		return
+	# Slice 9 in-game drop (§9 - quit and connection loss are identical):
+	# entry retained as the rejoin memory, involvement paused.
+	roster.mark_disconnected(peer_id, _unix_now_ms())
+	broadcast_roster()
+	rpc_sync_player_status.rpc(player.platform_id,
+			NetIds.PlayerStatus.DROPPED, player.display_name)
+	if round_client != null and round_client.game_session() != null:
+		round_client.game_session().handle_departure(player)
 
 
 func _on_connection_failed() -> void:
@@ -310,7 +332,9 @@ func _on_server_disconnected() -> void:
 # --- RPC methods (grouped last per consistency guide §3) ---
 
 
-## client -> host. 5-step validation per consistency guide §4.
+## client -> host. 5-step validation per consistency guide §4. Slice 9
+## replaced the flat "in_progress" reject: phase != LOBBY now routes through
+## the rejoin/late-join branches.
 @rpc("any_peer", "call_remote", "reliable")
 func rpc_request_register(platform_id: String, display_name: String) -> void:
 	if not multiplayer.is_server():
@@ -318,6 +342,9 @@ func rpc_request_register(platform_id: String, display_name: String) -> void:
 	var sender: int = multiplayer.get_remote_sender_id()
 	if roster.get_by_peer(sender) != null:
 		return                                             # 2. sender must be NEW
+	if phase != NetIds.Phase.LOBBY:
+		_handle_ingame_register(sender, platform_id, display_name)
+		return
 	var reject: String = SessionRules.register_reject_reason(
 			phase, roster.connected_count(), platform_id)  # 3. validate vs phase/state
 	if not reject.is_empty():
@@ -331,6 +358,55 @@ func rpc_request_register(platform_id: String, display_name: String) -> void:
 		"room_code": room_code,
 	})
 	_broadcast_lobby_state()
+
+
+## Slice 9 (§6): steps 3-5 of registration once the game is running. A known
+## disconnected platform_id rebinds to its retained entry (rejoin); an
+## unknown one is admitted mid-game (late join) while a connected seat is
+## free. Both get the full mid-game welcome snapshot; everyone else gets the
+## roster and a status broadcast. Either admission may end a pause.
+func _handle_ingame_register(sender: int, platform_id: String, display_name: String) -> void:
+	var game: GameSession = round_client.game_session() if round_client != null else null
+	if game == null:
+		# STARTING gap / teardown: not joinable yet - the Slice 2 reject.
+		rpc_do_reject_join.rpc_id(sender, "in_progress")
+		_disconnect_peer_later(sender)
+		return
+	var existing: Roster.PlayerState = roster.get_by_platform_id(platform_id)
+	var action: String = SessionRules.ingame_register_action(
+			existing != null, existing != null and existing.is_connected,
+			roster.connected_count(), platform_id)
+	match action:
+		"rejoin":
+			roster.rebind_peer(platform_id, sender)
+			game.admit_rejoiner(existing)   # may resume a below-minimum pause
+			rpc_do_welcome_ingame.rpc_id(sender, _build_ingame_welcome(game, existing))
+			broadcast_roster()
+			rpc_sync_player_status.rpc(platform_id,
+					NetIds.PlayerStatus.REJOINED, existing.display_name)
+		"late_join":
+			var p: Roster.PlayerState = _apply_register(sender, platform_id, display_name)
+			game.admit_late_joiner(p)
+			rpc_do_welcome_ingame.rpc_id(sender, _build_ingame_welcome(game, p))
+			broadcast_roster()
+			rpc_sync_player_status.rpc(platform_id,
+					NetIds.PlayerStatus.LATE_JOINED, p.display_name)
+		_:
+			rpc_do_reject_join.rpc_id(sender, action)
+			_disconnect_peer_later(sender)
+
+
+func _build_ingame_welcome(game: GameSession, p: Roster.PlayerState) -> Dictionary:
+	return {
+		"roster": roster.to_dicts(),
+		"settings": game_settings.to_dict(),   # the frozen in-game snapshot
+		"room_code": room_code,
+		"game": game.build_welcome_snapshot(p),
+	}
+
+
+static func _unix_now_ms() -> int:
+	return int(Time.get_unix_time_from_system() * 1000.0)
 
 
 ## host -> new peer: full state for the freshly registered client.
@@ -353,6 +429,39 @@ func rpc_do_reject_join(reason: String) -> void:
 		return
 	Net.leave()
 	_close_to_menu(reason)
+
+
+## host -> new/returning peer (Slice 9): the mid-game welcome. The payload
+## is stashed for the SessionClient this peer is about to construct - the
+## RoundRoot scene does not exist yet, so nothing can be applied here beyond
+## the session-level mirrors.
+@rpc("authority", "call_remote", "reliable")
+func rpc_do_welcome_ingame(state: Dictionary) -> void:
+	if _local_state != LocalState.REGISTERING:
+		return  # stale/duplicate welcome - ignore
+	roster.apply_dicts(state.get("roster", []))
+	game_settings = GameSettings.from_dict(state.get("settings", {}))
+	game_settings.freeze()
+	room_code = str(state.get("room_code", ""))
+	var game: Dictionary = state.get("game", {})
+	phase = int(game.get("phase", NetIds.Phase.ROUND_INTRO)) as NetIds.Phase  # coarse marker
+	_local_state = LocalState.STARTING
+	_pending_welcome = state
+	Nav.goto(Routes.ROUND)
+
+
+## host -> all (Slice 9): a player dropped / rejoined / late-joined.
+## kind: NetIds.PlayerStatus. Pure event vehicle (toasts + UI) - roster
+## mirrors are updated by the rpc_sync_roster broadcast that precedes it.
+@rpc("authority", "call_local", "reliable")
+func rpc_sync_player_status(platform_id: String, kind: int, display_name: String) -> void:
+	match kind:
+		NetIds.PlayerStatus.DROPPED:
+			EventBus.player_dropped.emit(platform_id, display_name)
+		NetIds.PlayerStatus.REJOINED:
+			EventBus.player_rejoined.emit(platform_id, display_name)
+		NetIds.PlayerStatus.LATE_JOINED:
+			EventBus.player_late_joined.emit(platform_id, display_name)
 
 
 ## host -> all: roster mirror replace.

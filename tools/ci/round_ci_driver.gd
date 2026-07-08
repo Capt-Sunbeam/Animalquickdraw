@@ -67,6 +67,14 @@ func _ready() -> void:
 		# pool_source=PLAYER_SUBMITTED parks the game in deadline-less
 		# POOL_SETUP and the gate times out (found 2026-07-07, Slice 16 run).
 		s.pool_source = GameSettings.PoolSource.BUILT_IN
+		# The choreography checks count ONE_AT_A_TIME beats, and the round-2
+		# lapse waits out the judging window - a profile left behind by
+		# another gate (verify_resilience pins GRID/10 s) must never reroute
+		# this one (found 2026-07-07, Slice 9 run).
+		s.reveal_style = GameSettings.RevealStyle.ONE_AT_A_TIME
+		s.replay_mode = GameSettings.ReplayMode.WINNER_ONLY
+		s.reveal_replay_secs = 5.0
+		s.judging_window_sec = 30.0
 		Session.set_settings(s)
 	else:
 		var err: Error = await Session.join_session(room_code)

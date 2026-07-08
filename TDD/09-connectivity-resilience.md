@@ -597,3 +597,22 @@ Multi-instance scenario script (add to `tools/` docs): see §7 blocking + batcha
 ---
 
 **End of Slice 9: Connectivity & Resilience**
+
+---
+
+## Implementation Status
+
+**Status:** COMPLETE (core-confirmed)
+**Completed:** 2026-07-07 (session 7; owner blocking checks confirmed same day — "seems to be working!")
+**Implementation Notes:** [09-connectivity-resilience-implementation-notes.md](09-connectivity-resilience-implementation-notes.md)
+
+### Summary of Deviations
+- Judge rotation is an explicit cursor on `GameSession` (Slice 3 shipped modulo, not the cursor this TDD assumed); late joiners insert before the cursor entry (= judge when the rotation wraps)
+- Below-minimum pause rides the Slice 6 PAUSED pipeline with `NetIds.PauseReason` — the §3 `rpc_sync_pause/resume` RPCs were never needed
+- `get_wrapup_input()` folded into the existing SessionResults bundle (`ended_early/rounds_played/rounds_planned/players` keys) — one shape for Slice 10
+- Departure ordering rule added: pause check BEFORE all-ready re-evaluation / pool-completion locking (a below-minimum game never advances)
+- Absent-judge window-end penalty consumes the dodge flag (never a double −1); judge seat holds against early JUDGING end (also fixes a latent Slice 17 gap)
+- Mid-DRAWING rejoiners sit the round out host-enforced; `CustomPoolCollector.mark_returned` added for rejoiners during POOL_SETUP
+- **Late joiners get the FULL standard kudos allotment** (owner decision 2026-07-07, supersedes §2/§6 and brief §11's half rule)
+- EventBus status signals platform_id-keyed throughout; welcome snapshot replayed through `rpc_sync_phase` client-side
+- New automated gate: `tools/verify_resilience.sh` (drop → pause → rejoin → resume → kept submission wins)

@@ -28,6 +28,11 @@ var _ready_ids_cache: PackedStringArray = PackedStringArray()  # Slice 17 replic
 # Slice 7 replica: POOL_SETUP phase data + the latest progress broadcast.
 var _pool_setup: Dictionary = {}
 
+# Slice 9 replica: this peer's spectator state (late joiner waiting for
+# their activation round / mid-DRAWING rejoiner sitting the round out).
+var _active_from_round: int = 0
+var _sit_out_round: int = -1
+
 var _phase_timer: Timer = null             # host-only authoritative deadline
 var _beat_timer: Timer = null              # host-only Slice 5 reveal metronome
 
@@ -63,8 +68,21 @@ func _ready() -> void:
 		# Deferred: children _ready before parents, so an immediate start
 		# would broadcast ROUND_INTRO before RoundRoot has connected.
 		_maybe_start_simulation.call_deferred()
+		# Slice 9: the Session autoload's register/disconnect paths need the
+		# live GameSession; hand it this node (cleared on teardown).
+		Session.round_client = self
+		tree_exiting.connect(func() -> void:
+			if Session.round_client == self:
+				Session.round_client = null)
 	else:
 		rpc_request_round_ready.rpc_id(1)
+		# Slice 9: a late joiner / rejoiner reconstructs mid-game state from
+		# the welcome stashed by Session.rpc_do_welcome_ingame. Deferred so
+		# RoundRoot (our parent) is _ready and listening before the replayed
+		# phase signals fire (children _ready before parents).
+		var welcome: Dictionary = Session.consume_pending_welcome()
+		if not welcome.is_empty():
+			_apply_welcome.call_deferred(welcome.get("game", {}))
 
 
 # --- Public replica accessors (phase screens read these) ---
@@ -114,6 +132,25 @@ func is_local_player_judge() -> bool:
 ## broadcast - every peer receives it, judge included).
 func prompt_text() -> String:
 	return _prompt_text
+
+
+## Slice 9: host-only access for the Session autoload's register and
+## disconnect paths (null on clients / before the simulation exists).
+func game_session() -> GameSession:
+	return _session
+
+
+## Slice 9: true while this peer watches rather than draws - a late joiner
+## before their activation round, or a mid-DRAWING rejoiner sitting the
+## round out. Drives the spectator banner and DRAWING screen routing.
+func is_spectating_current_round() -> bool:
+	return _active_from_round > _round_index or _sit_out_round == _round_index
+
+
+## Slice 9: distinguishes the late joiner (never drew yet) from the
+## sitting-out rejoiner - banner copy only.
+func is_waiting_for_activation() -> bool:
+	return _active_from_round > _round_index
 
 
 ## Slice 4: doc bytes for a revealed drawing ({} if unknown). Every peer
@@ -166,12 +203,19 @@ func request_react(drawing_id: String, reaction: NetIds.Reaction, active: bool) 
 ## have no pause path - there is nothing to validate inbound).
 func request_pause() -> void:
 	if multiplayer.is_server() and _session != null:
-		_session.pause(0)
+		_session.pause(NetIds.PauseReason.HOST_MENU)
 
 
 func request_resume() -> void:
 	if multiplayer.is_server() and _session != null:
 		_session.resume()
+
+
+## Slice 9: host-only, from the below-minimum pause overlay. NOT an RPC -
+## only the host can end early and the host IS the server.
+func request_end_game_early() -> void:
+	if multiplayer.is_server() and _session != null:
+		_session.end_game_early()
 
 
 ## Slice 4: spend a kudos on a revealed drawing.
@@ -367,6 +411,48 @@ static func _local_now_ms() -> int:
 	return int(Time.get_unix_time_from_system() * 1000.0)
 
 
+# --- Slice 9: mid-game welcome reconstruction (client side) ---
+
+
+## Replays the welcome snapshot through the same rpc_sync_phase machinery a
+## live broadcast uses, so every replica, EventBus contract, and screen-swap
+## path behaves exactly as if this peer had been here all along. PAUSED is
+## applied as a wrapper AFTER the underlying phase - matching the order a
+## live peer experienced.
+func _apply_welcome(game: Dictionary) -> void:
+	if game.is_empty():
+		return
+	var you: Dictionary = game.get("you", {})
+	_active_from_round = int(you.get("active_from_round", 0))
+	_sit_out_round = int(game.get("round_index", 0)) \
+			if bool(you.get("sit_out_current_round", false)) else -1
+	var phase_value: int = int(game.get("phase", int(NetIds.Phase.ROUND_INTRO)))
+	var data: Dictionary = game.get("phase_data", {})
+	rpc_sync_phase(phase_value, data)
+	if phase_value == int(NetIds.Phase.POOL_SETUP):
+		# The progress broadcast that preceded this peer's arrival never
+		# reached it - the snapshot carries the current state instead.
+		_pool_setup["progress"] = game.get("pool_progress", [])
+		EventBus.pool_setup_progress_changed.emit(_pool_setup["progress"])
+	# ROUND_INTRO data is authoritative for round bookkeeping; other phases
+	# rely on the snapshot's top-level copies.
+	_round_index = int(game.get("round_index", _round_index))
+	_round_count = int(game.get("rounds_total", _round_count))
+	_judge_player_id = str(game.get("current_judge_platform_id", _judge_player_id))
+	var ready_ids: PackedStringArray = PackedStringArray(game.get("ready_ids", []))
+	if not ready_ids.is_empty():
+		_ready_ids_cache = ready_ids
+		EventBus.ready_state_changed.emit(ready_ids)
+	if bool(game.get("paused", false)):
+		rpc_sync_phase(int(NetIds.Phase.PAUSED), {
+			"resume_phase": phase_value,
+			"reason": int(game.get("pause_reason", NetIds.PauseReason.BELOW_MINIMUM)),
+			"connected_count": int(game.get("connected_count", 0)),
+			"time_left_ms": int(game.get("time_left_ms", 0)),
+		})
+	EventBus.kudos_wallet_changed.emit(int(you.get("kudos_remaining", 0)))
+
+
 # --- RPC methods (grouped last per consistency guide §3) ---
 
 
@@ -389,6 +475,7 @@ func rpc_sync_phase(phase_value: int, data: Dictionary) -> void:
 	if phase_value < 0 or phase_value >= NetIds.Phase.size():
 		push_warning("SessionClient: unknown phase %d dropped" % phase_value)
 		return
+	var was_paused: bool = _phase == NetIds.Phase.PAUSED
 	_phase = phase_value as NetIds.Phase
 	_phase_data = data
 	# Slice 17: ready-up never carries across phases (PAUSED excepted - the
@@ -406,6 +493,11 @@ func rpc_sync_phase(phase_value: int, data: Dictionary) -> void:
 			_round_index = int(data.get("round_index", 0))
 			_round_count = int(data.get("round_count", 0))
 			_judge_player_id = str(data.get("judge_player_id", ""))
+			# Slice 9: dodge forfeits are announced with the intro (§6).
+			for raw: Variant in data.get("forfeits", []):
+				if raw is Dictionary:
+					EventBus.judge_slot_forfeited.emit(
+							str(raw.get("player_id", "")), str(raw.get("display_name", "")))
 			EventBus.round_started.emit(_round_index, _round_count, _judge_player_id)
 		NetIds.Phase.DRAWING:
 			_prompt_text = str(data.get("prompt_text", ""))
@@ -415,12 +507,28 @@ func rpc_sync_phase(phase_value: int, data: Dictionary) -> void:
 				if raw is Dictionary:
 					_reveal_entries.append(raw)
 			EventBus.reveal_entries_received.emit(_reveal_entries)
+		NetIds.Phase.JUDGING:
+			# Slice 9 welcome path only: a peer that never saw REVEAL gets
+			# the entry set with the JUDGING data (live broadcasts carry none).
+			if data.has("entries"):
+				_reveal_entries = []
+				for raw: Variant in data.get("entries", []):
+					if raw is Dictionary:
+						_reveal_entries.append(raw)
+				EventBus.reveal_entries_received.emit(_reveal_entries)
 		NetIds.Phase.RESOLUTION:
 			_scores = data.get("scores", {})
 			EventBus.round_resolved.emit(data)
 			EventBus.scores_updated.emit(_scores)
 		NetIds.Phase.WRAP_UP:
 			EventBus.session_results_ready.emit(data.get("results", {}))
+		NetIds.Phase.PAUSED:
+			EventBus.game_paused.emit(int(data.get("reason", NetIds.PauseReason.HOST_MENU)),
+					int(data.get("connected_count", 0)))
+	if was_paused and _phase != NetIds.Phase.PAUSED:
+		var time_left_ms: int = maxi(0, int(data.get("deadline_ms", 0)) - _local_now_ms()) \
+				if data.has("deadline_ms") else 0
+		EventBus.game_resumed.emit(int(_phase), time_left_ms)
 	EventBus.phase_changed.emit(_phase, data)
 
 

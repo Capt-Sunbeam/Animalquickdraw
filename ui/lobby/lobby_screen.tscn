@@ -158,6 +158,29 @@ layout_mode = 2
 [node name="ModeSpacer" type="Control" parent="Margin/Root/Main/SettingsPanel/SettingsMargin/SettingsBox/Grid"]
 layout_mode = 2
 
+[node name="ConnectivityLabel" type="Label" parent="Margin/Root/Main/SettingsPanel/SettingsMargin/SettingsBox/Grid"]
+layout_mode = 2
+text = "Connectivity:"
+
+[node name="ConnectivityBox" type="HBoxContainer" parent="Margin/Root/Main/SettingsPanel/SettingsMargin/SettingsBox/Grid"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="PublicCheck" type="CheckBox" parent="Margin/Root/Main/SettingsPanel/SettingsMargin/SettingsBox/Grid/ConnectivityBox"]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Listed publicly - coming with the lobby browser"
+text = "Public lobby"
+
+[node name="FluidCheck" type="CheckBox" parent="Margin/Root/Main/SettingsPanel/SettingsMargin/SettingsBox/Grid/ConnectivityBox"]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "ON: drop-in/drop-out friendly. OFF: leaving near your judge turn forfeits it (-1)"
+text = "Fluid rejoin"
+
+[node name="ConnectivitySpacer" type="Control" parent="Margin/Root/Main/SettingsPanel/SettingsMargin/SettingsBox/Grid"]
+layout_mode = 2
+
 [node name="ModeScroll" type="ScrollContainer" parent="Margin/Root/Main/SettingsPanel/SettingsMargin/SettingsBox"]
 layout_mode = 2
 size_flags_vertical = 3

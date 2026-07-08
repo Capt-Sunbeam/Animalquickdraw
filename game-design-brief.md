@@ -172,7 +172,8 @@ Three preset modes plus **Custom**. Selecting a preset locks all settings **exce
 - Kudos are for **other players' drawings only** — you cannot kudos your own.
 - Giving a kudos **also saves that drawing to your collection** (kudos and save-to-collection are the same action). This naturally limits collection bloat and keeps kudos from being spent frivolously.
 - **Default allotment:** 1 kudo per player per 4 rounds, computed at game start and rounded to nearest (**.5 rounds up**). Examples: 4–5 rounds → 1; 6–8 rounds → 2; 10 rounds → 3 (10÷4=2.5→3). Host can change the allotment in lobby settings.
-- **Late joiners** get **half** the standard allotment, floored at a minimum of **1**. Re-joiners are **not** topped up again — the game remembers what each player was granted and spent, so leaving and rejoining never nets extra kudos.
+- **Late joiners** get the **full standard allotment** the match started with. Re-joiners are **not** topped up again — the game remembers what each player was granted and spent, so leaving and rejoining never nets extra kudos.
+  > **Update (2026-07-07):** was "half the standard allotment, floored at a minimum of 1" — owner simplified during the Slice 9 playtest: kudos benefit the recipient, not the giver, so a full wallet gives no scoring advantage, and gifting is the late joiner's main verb while they spectate. See decision log.
 
 ### Reaction emojis
 - Available during reveal and on the grid.

@@ -95,6 +95,30 @@ func test_can_start_requires_3_to_8_connected_and_lobby_phase() -> void:
 	assert_bool(SessionRules.can_start(true, NetIds.Phase.ROUND_INTRO, 4)).is_false()
 
 
+# --- Slice 9: in-game registration routing ---
+
+
+func test_ingame_register_action_matrix() -> void:
+	# Known + disconnected -> rejoin; known + connected -> identity clone.
+	assert_str(SessionRules.ingame_register_action(true, false, 4, "id-a"))\
+			.is_equal("rejoin")
+	assert_str(SessionRules.ingame_register_action(true, true, 4, "id-a"))\
+			.is_equal("bad_identity")
+	# Unknown -> late join while a CONNECTED seat is free (ghost entries
+	# never block real players - capacity is connected_count).
+	assert_str(SessionRules.ingame_register_action(false, false, 4, "id-x"))\
+			.is_equal("late_join")
+	assert_str(SessionRules.ingame_register_action(
+			false, false, GameConstants.MAX_PLAYERS, "id-x")).is_equal("full")
+	# A known disconnected player rejoins even into a FULL-by-entries game
+	# (their seat is their own).
+	assert_str(SessionRules.ingame_register_action(
+			true, false, GameConstants.MAX_PLAYERS - 1, "id-a")).is_equal("rejoin")
+	# Identity sanity outranks everything (§13 untrusted input).
+	assert_str(SessionRules.ingame_register_action(false, false, 4, ""))\
+			.is_equal("bad_identity")
+
+
 # --- shared registration path (host self-registration == client shape) ---
 
 
@@ -113,6 +137,7 @@ func test_host_self_registration_produces_same_roster_shape_as_client() -> void:
 		assert_array(d.keys()).contains_exactly_in_any_order([
 			"peer_id", "platform_id", "display_name", "score",
 			"kudos_granted", "kudos_spent", "is_connected", "joined_order",
+			"joined_late", "disconnect_at_ms", "dodge_suspect",   # Slice 9
 		])
 	assert_int(host.joined_order).is_equal(0)
 	assert_int(client.joined_order).is_equal(1)

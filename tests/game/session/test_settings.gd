@@ -174,3 +174,51 @@ func test_restore_for_lobby_reseeds_round_count() -> void:
 
 func test_validate_for_start_passes_today() -> void:
 	assert_int(GameSettings.new().validate_for_start(4).size()).is_equal(0)
+
+
+# --- Slice 9: connectivity settings ---
+
+
+func test_fluid_default_on_private_off_public_host_override_wins() -> void:
+	var s := GameSettings.new()
+	assert_bool(s.fluid_rejoin).is_true()            # private default: ON
+	s.set_value(&"is_public", true)
+	assert_bool(s.fluid_rejoin).is_false()           # public default: OFF (derived)
+	s.set_value(&"is_public", false)
+	assert_bool(s.fluid_rejoin).is_true()            # derivation follows the flag
+	# Host touches the toggle: the derivation stops for good.
+	s.set_value(&"fluid_rejoin", false)
+	assert_bool(s.fluid_rejoin_overridden).is_true()
+	s.set_value(&"is_public", true)
+	s.set_value(&"is_public", false)
+	assert_bool(s.fluid_rejoin).is_false()           # override wins over derivation
+
+
+func test_connectivity_keys_never_preset_locked() -> void:
+	for mode: int in [SettingsDefaults.Mode.DEFAULT, SettingsDefaults.Mode.STREAMLINED,
+			SettingsDefaults.Mode.SOCIAL, SettingsDefaults.Mode.CUSTOM]:
+		var s := GameSettings.new()
+		s.apply_preset(mode)
+		assert_bool(s.is_locked(&"is_public")).is_false()
+		assert_bool(s.is_locked(&"fluid_rejoin")).is_false()
+		assert_bool(s.set_value(&"is_public", true)).is_true()
+		assert_bool(s.set_value(&"fluid_rejoin", true)).is_true()
+
+
+func test_slice9_keys_round_trip_and_default() -> void:
+	var s := GameSettings.new()
+	s.set_value(&"is_public", true)
+	s.set_value(&"fluid_rejoin", true)               # override while public
+	var back: GameSettings = GameSettings.from_dict(s.to_dict())
+	assert_bool(back.is_public).is_true()
+	assert_bool(back.fluid_rejoin).is_true()
+	assert_bool(back.fluid_rejoin_overridden).is_true()
+	# A preset switch never resets connectivity (keys absent from presets).
+	back.apply_preset(SettingsDefaults.Mode.SOCIAL)
+	assert_bool(back.is_public).is_true()
+	assert_bool(back.fluid_rejoin).is_true()
+	# Pre-Slice-9 payloads default cleanly.
+	var old: GameSettings = GameSettings.from_dict({})
+	assert_bool(old.is_public).is_false()
+	assert_bool(old.fluid_rejoin).is_true()
+	assert_bool(old.fluid_rejoin_overridden).is_false()

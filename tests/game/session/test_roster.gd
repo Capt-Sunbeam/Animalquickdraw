@@ -104,3 +104,60 @@ func test_players_in_join_order_sorts_by_joined_order() -> void:
 	assert_int(ordered[0].peer_id).is_equal(5)
 	assert_int(ordered[1].peer_id).is_equal(2)
 	assert_int(ordered[2].peer_id).is_equal(9)
+
+
+# --- Slice 9: disconnect memory + rejoin rebind ---
+
+
+func test_mark_disconnected_keeps_entry_and_zeroes_peer_id() -> void:
+	var roster := Roster.new()
+	roster.register(1, "id-a", "Alice")
+	roster.register(7, "id-b", "Bob")
+	var p: Roster.PlayerState = roster.mark_disconnected(7, 12345)
+	assert_object(p).is_not_null()
+	assert_int(roster.size()).is_equal(2)            # entry retained (the memory)
+	assert_int(roster.connected_count()).is_equal(1)
+	assert_bool(p.is_connected).is_false()
+	assert_int(p.peer_id).is_equal(0)                # stale transport id never matches
+	assert_int(p.disconnect_at_ms).is_equal(12345)
+	assert_object(roster.mark_disconnected(42, 0)).is_null()   # unknown peer no-op
+
+
+func test_rebind_peer_restores_connection_and_preserves_memory() -> void:
+	var roster := Roster.new()
+	var p: Roster.PlayerState = roster.register(3, "id-a", "Alice")
+	p.score = -2                                     # negative survives (§11 no floor)
+	p.kudos_granted = 2
+	p.kudos_spent = 1
+	roster.mark_disconnected(3, 999)
+	p.dodge_suspect = true
+	var back: Roster.PlayerState = roster.rebind_peer("id-a", 9)
+	assert_object(back).is_same(p)
+	assert_int(back.peer_id).is_equal(9)
+	assert_bool(back.is_connected).is_true()
+	assert_int(back.disconnect_at_ms).is_equal(-1)
+	assert_bool(back.dodge_suspect).is_false()       # flag clears on return
+	assert_int(back.score).is_equal(-2)              # memory untouched
+	assert_int(back.kudos_granted).is_equal(2)
+	assert_int(back.kudos_spent).is_equal(1)
+	assert_int(back.joined_order).is_equal(0)        # original rotation slot
+	assert_object(roster.rebind_peer("nope", 5)).is_null()
+
+
+func test_slice9_fields_round_trip_and_default() -> void:
+	var roster := Roster.new()
+	var p: Roster.PlayerState = roster.register(1, "id-a", "Alice")
+	p.joined_late = true
+	roster.mark_disconnected(1, 777)
+	p.dodge_suspect = true
+	var mirror := Roster.new()
+	mirror.apply_dicts(roster.to_dicts())
+	var m: Roster.PlayerState = mirror.get_by_platform_id("id-a")
+	assert_bool(m.joined_late).is_true()
+	assert_int(m.disconnect_at_ms).is_equal(777)
+	assert_bool(m.dodge_suspect).is_true()
+	# Pre-Slice-9 payloads default cleanly.
+	var old: Roster.PlayerState = Roster.PlayerState.from_dict({"peer_id": 2})
+	assert_bool(old.joined_late).is_false()
+	assert_int(old.disconnect_at_ms).is_equal(-1)
+	assert_bool(old.dodge_suspect).is_false()

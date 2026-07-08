@@ -28,6 +28,11 @@ const SETTINGS_VERSION: int = 1
 ## (design brief §10). Everything else is locked to the preset's values.
 const ALWAYS_TUNABLE: Array[StringName] = [&"draw_time_sec", &"round_count", &"pool_source"]
 
+## Slice 9: connectivity settings sit OUTSIDE the preset lock set - presets
+## lock game-feel values; §9 declares these host-facing regardless of mode.
+## Presets never carry them, so a mode switch never resets them.
+const CONNECTIVITY_TUNABLE: Array[StringName] = [&"is_public", &"fluid_rejoin"]
+
 ## Sentinel: resolve kudos allotment from round_count at game start via
 ## KudosLedger.compute_allotment (Slice 4 §6). Slice 6 adds the host-facing
 ## setting; until then every game runs AUTO.
@@ -48,6 +53,10 @@ var reveal_style: RevealStyle = RevealStyle.ONE_AT_A_TIME
 var replay_mode: ReplayMode = ReplayMode.WINNER_ONLY
 var reveal_replay_secs: float = 5.0    # per-drawing reveal replay target duration
 var winner_replay_secs: float = 8.0    # victory-lap replay target duration
+# Slice 9 additions:
+var is_public: bool = false            # flag only; real public lobbies land in Slice 13
+var fluid_rejoin: bool = true          # §9 anti-gaming toggle (ON = drop-in friendly)
+var fluid_rejoin_overridden: bool = false  # host touched the toggle; stop deriving
 # comments_enabled removed by Slice 16 (captions retired for the in-image
 # text tool); stale profile dicts carrying the key are silently ignored.
 
@@ -87,10 +96,18 @@ func freeze() -> void:
 
 ## Drives UI enable/disable: everything but the always-three is locked
 ## unless the mode is Custom. title_points_enabled is Custom-only (§11).
+## Connectivity keys (Slice 9) are never preset-locked.
 func is_locked(key: StringName) -> bool:
 	if mode == SettingsDefaults.Mode.CUSTOM:
 		return false
-	return not ALWAYS_TUNABLE.has(key)
+	return not ALWAYS_TUNABLE.has(key) and not CONNECTIVITY_TUNABLE.has(key)
+
+
+## Slice 9 (§9): fluid rejoin defaults ON for private lobbies, OFF for
+## public. A host who touched the toggle wins over the derivation.
+func apply_public_default() -> void:
+	if not fluid_rejoin_overridden:
+		fluid_rejoin = not is_public
 
 
 ## Applies a preset over the current values. Custom applies nothing (seeds
@@ -124,6 +141,10 @@ func set_value(key: StringName, value: Variant) -> bool:
 		return false
 	if key == &"round_count":
 		rounds_overridden = true
+	elif key == &"fluid_rejoin":
+		fluid_rejoin_overridden = true   # Slice 9: host touched it; derivation stops
+	elif key == &"is_public":
+		apply_public_default()           # Slice 9: re-derive unless overridden
 	clamp_to_limits()
 	return true
 
@@ -161,6 +182,8 @@ func _assign(key: StringName, value: Variant) -> bool:
 		&"round_count": round_count = int(value)
 		&"pool_source": pool_source = int(value) as PoolSource
 		&"pool_type_id": pool_type_id = str(value)
+		&"is_public": is_public = bool(value)
+		&"fluid_rejoin": fluid_rejoin = bool(value)
 		_:
 			return false
 	return true
@@ -182,6 +205,9 @@ func to_dict() -> Dictionary:
 		"replay_mode": replay_mode,
 		"reveal_replay_secs": reveal_replay_secs,
 		"winner_replay_secs": winner_replay_secs,
+		"is_public": is_public,
+		"fluid_rejoin": fluid_rejoin,
+		"fluid_rejoin_overridden": fluid_rejoin_overridden,
 	}
 
 
@@ -205,6 +231,9 @@ static func from_dict(d: Dictionary) -> GameSettings:
 	s.replay_mode = int(d.get("replay_mode", ReplayMode.WINNER_ONLY)) as ReplayMode
 	s.reveal_replay_secs = float(d.get("reveal_replay_secs", 5.0))
 	s.winner_replay_secs = float(d.get("winner_replay_secs", 8.0))
+	s.is_public = bool(d.get("is_public", false))
+	s.fluid_rejoin = bool(d.get("fluid_rejoin", true))
+	s.fluid_rejoin_overridden = bool(d.get("fluid_rejoin_overridden", false))
 	return s
 
 

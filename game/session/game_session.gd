@@ -44,7 +44,14 @@ var _roster: Roster
 var _scoring: Scoring = Scoring.new()
 var _pools: PromptPools = PromptPools.new()
 var _pool_type: PoolType = null
-var _judge_order: Array[String] = []       # player_ids, fixed at start
+## Judge rotation (Slice 3, cursor model since Slice 9). Fixed order at
+## start; late joiners are inserted immediately behind the current judge
+## (they judge when the rotation wraps). Entries are NEVER removed on
+## disconnect - the cursor skips (or forfeits, §6) absent players instead.
+## Rejoiners keep their original slot, so leave+rejoin can never move a
+## player closer to (or further from) their next judge turn.
+var _judge_order: Array[String] = []
+var _judge_cursor: int = -1                # index into _judge_order; -1 = pre-round-0
 var _round_index: int = -1
 var _round: RoundRecord = null
 var _records: Array[RoundRecord] = []
@@ -58,6 +65,13 @@ var _last_phase_data: Dictionary = {}      # pre-deadline copy, for pause/resume
 var _now_ms: Callable
 var _paused_remaining_ms: int = 0
 var _resume_phase: NetIds.Phase = NetIds.Phase.LOBBY
+
+# Slice 9: connectivity/resilience state (host-only).
+var _pause_reason: int = NetIds.PauseReason.HOST_MENU
+var _active_from_round: Dictionary = {}    # platform_id -> first active round (late joiners)
+var _sit_out_drawers: Dictionary = {}      # platform_id set: rejoined mid-DRAWING, sits this round out
+var _round_forfeits: Array[Dictionary] = []  # this round's dodge forfeits (intro payload)
+var _standard_allotment: int = 0           # cached at start; late joiners get half (§11)
 
 # Slice 4: host-only social state (all keyed by stable platform ids).
 var _reaction_ledger: ReactionLedger = ReactionLedger.new()
@@ -90,11 +104,12 @@ func start_game() -> void:
 	for pid: String in _judge_order:
 		_scoring.ensure_player(pid)
 	# Slice 4: kudos allotment computed once, from the settings snapshot (§6).
-	# A fresh game = a fresh economy; Slice 9 handles rejoin/late-join budgets.
-	var allotment: int = KudosLedger.resolve_allotment(
+	# Cached (Slice 9): every late joiner gets half of the SAME figure every
+	# original player got, no matter when they arrive.
+	_standard_allotment = KudosLedger.resolve_allotment(
 			_settings.kudos_allotment, _settings.round_count)
 	for player: Roster.PlayerState in _roster.players_in_join_order():
-		player.kudos_granted = allotment
+		player.kudos_granted = _standard_allotment
 		player.kudos_spent = 0
 	if not _pools.is_ready():
 		_pools.load_builtin()
@@ -114,9 +129,10 @@ func get_deadline_ms() -> int:
 
 
 func current_judge_id() -> String:
-	if _judge_order.is_empty() or _round_index < 0:
+	if _judge_order.is_empty() or _judge_cursor < 0 \
+			or _judge_cursor >= _judge_order.size():
 		return ""
-	return _judge_order[_round_index % _judge_order.size()]
+	return _judge_order[_judge_cursor]
 
 
 func scores() -> Dictionary:
@@ -174,6 +190,9 @@ func submit_drawing(player_id: String, payload: Dictionary) -> bool:
 		return false                                    # malformed - drop
 	if _ready_ids.has(player_id):
 		return false                                    # ready locks you in (Slice 17)
+	if _sit_out_drawers.has(player_id):
+		return false   # Slice 9: mid-DRAWING rejoiner sits out (protects any
+		               # drawing they submitted before dropping)
 	var sub := Submission.new()
 	sub.author_player_id = player_id
 	sub.doc = _censor_text_ops(doc)                     # Slice 16 (§6 rules)
@@ -225,11 +244,19 @@ func set_ready(player_id: String, ready: bool) -> bool:
 	else:
 		_ready_ids.erase(player_id)
 	ready_state_changed.emit(ready_snapshot())
-	if ready and _all_ready():
-		match _phase:
-			NetIds.Phase.DRAWING: _collect_and_reveal()
-			NetIds.Phase.JUDGING: _finish_judging(_pending_winner_id)
+	if ready:
+		_advance_if_all_ready()
 	return true
+
+
+## Slice 17 (shared with Slice 9's departure path): advance the phase when
+## every participant is ready.
+func _advance_if_all_ready() -> void:
+	if not _all_ready():
+		return
+	match _phase:
+		NetIds.Phase.DRAWING: _collect_and_reveal()
+		NetIds.Phase.JUDGING: _finish_judging(_pending_winner_id)
 
 
 func ready_snapshot() -> PackedStringArray:
@@ -343,21 +370,219 @@ func session_stats() -> SessionStats:
 ## Slice 6 (host Esc menu) + Slice 9 (below-minimum): freezes the phase
 ## clock and broadcasts PAUSED; resume() re-enters the stored phase with
 ## the remaining time. Deliberately NOT via _enter_phase - that would
-## clobber _last_phase_data, which resume needs intact.
-func pause(_reason: int) -> void:
-	if _phase == NetIds.Phase.PAUSED or _phase_deadline_ms == 0:
+## clobber _last_phase_data, which resume needs intact. Slice 9 extends
+## coverage to deadline-less POOL_SETUP (nothing to freeze; the overlay
+## still gates play) and excludes only LOBBY and WRAP_UP (§5 non-triggers).
+## Pause is idempotent - a further drop just updates the overlay counter
+## client-side from the roster broadcast.
+func pause(reason: int) -> void:
+	if _phase in [NetIds.Phase.PAUSED, NetIds.Phase.LOBBY, NetIds.Phase.WRAP_UP]:
 		return
 	_resume_phase = _phase
-	_paused_remaining_ms = maxi(0, _phase_deadline_ms - int(_now_ms.call()))
+	_paused_remaining_ms = maxi(0, _phase_deadline_ms - int(_now_ms.call())) \
+			if _phase_deadline_ms > 0 else 0
+	_phase_deadline_ms = 0   # nothing is due while paused (dodge eval reads this)
 	_phase = NetIds.Phase.PAUSED
-	phase_entered.emit(NetIds.Phase.PAUSED, {"resume_phase": int(_resume_phase)})
+	_pause_reason = reason
+	phase_entered.emit(NetIds.Phase.PAUSED, {
+		"resume_phase": int(_resume_phase),
+		"reason": reason,
+		"connected_count": _roster.connected_count(),
+		"time_left_ms": _paused_remaining_ms,
+	})
 
 
 func resume() -> void:
 	if _phase != NetIds.Phase.PAUSED:
 		return
+	# Slice 9: a below-minimum pause only lifts when the roster recovers -
+	# the host's menu Resume must not unfreeze a game that cannot run.
+	if _pause_reason == NetIds.PauseReason.BELOW_MINIMUM \
+			and _roster.connected_count() < GameConstants.MIN_PLAYERS:
+		return
 	# Re-enter the stored phase with a fresh deadline for the remaining time.
 	_enter_phase(_resume_phase, _paused_remaining_ms / 1000.0, _last_phase_data.duplicate(true))
+	# POOL_SETUP re-entry resets every client's progress replica - re-send
+	# it, and settle a completion that became satisfied during the freeze
+	# (e.g. the last gating player departed while the game was paused).
+	if _phase == NetIds.Phase.POOL_SETUP and _collector != null:
+		pool_setup_progress_changed.emit(pool_setup_progress())
+		if not _collector.locked and _collector.is_complete():
+			_lock_pools_and_start()
+
+
+## Slice 9 (§5): host-only, from the below-minimum pause overlay. Jumps to
+## wrap-up with results so far; the partially-played round contributes
+## nothing (it was never appended to _records).
+func end_game_early() -> void:
+	if _phase != NetIds.Phase.PAUSED:
+		return
+	var results: Dictionary = _build_results()
+	results["ended_early"] = true
+	_enter_phase(NetIds.Phase.WRAP_UP, 0.0, {"results": results})
+	session_finished.emit(results)
+
+
+func is_paused() -> bool:
+	return _phase == NetIds.Phase.PAUSED
+
+
+func pause_reason() -> int:
+	return _pause_reason
+
+
+# --- Slice 9: late join / rejoin / departure (called via SessionClient) ---
+
+
+## Mid-game joiner (§9): 0 points, the FULL standard kudos allotment every
+## original player got (owner decision 2026-07-07, superseding §11's half
+## rule - kudos benefit the recipient, so a full wallet is pure gifting
+## power), inserted immediately behind the current judge (judges when the
+## rotation wraps), active as a drawer from the NEXT round - but may
+## react/kudos immediately (§11). The caller (Session) has already
+## registered the roster entry.
+func admit_late_joiner(p: Roster.PlayerState) -> void:
+	p.joined_late = true
+	p.kudos_granted = _standard_allotment
+	p.kudos_spent = 0
+	_scoring.ensure_player(p.platform_id)   # starts at 0 (§9: no compensation)
+	if _judge_cursor >= 0:
+		# Insert BEFORE the cursor entry = last in the cyclic order = judges
+		# when the rotation comes all the way back around (§9).
+		_judge_order.insert(_judge_cursor, p.platform_id)
+		_judge_cursor += 1
+	else:
+		_judge_order.append(p.platform_id)   # pre-round-0 (POOL_SETUP)
+	_active_from_round[p.platform_id] = _round_index + 1
+	_check_resume()
+
+
+## Rejoiner (§9/§11): the caller already rebound the roster entry (score,
+## kudos ledger, joined_order untouched - that IS the memory). Their
+## original rotation entry still exists, so nothing rotational changes. A
+## rejoin during DRAWING sits the round out (no canvas state; protects any
+## drawing submitted before the drop).
+func admit_rejoiner(p: Roster.PlayerState) -> void:
+	if _phase == NetIds.Phase.DRAWING \
+			or (_phase == NetIds.Phase.PAUSED and _resume_phase == NetIds.Phase.DRAWING):
+		_sit_out_drawers[p.platform_id] = true
+	# A returning player gates pool completion again (their share is theirs
+	# to finish - departure only stopped them from blocking while away).
+	if _collector != null and not _collector.locked:
+		_collector.mark_returned(p.platform_id)
+	_check_resume()
+
+
+## Host drop handling (§5 table). Universal steps: dodge evaluation (OFF
+## mode, at disconnect time), ready-set cleanup, then the pause check
+## BEFORE any advancement - when a departure takes the roster below
+## minimum, freezing wins; the remaining group's unanimity (or a completed
+## pool setup) must never advance a game that cannot run. Phase-specific
+## consequences (card hidden, submission stays, judge seat holds) fall out
+## of the existing machinery.
+func handle_departure(p: Roster.PlayerState) -> void:
+	if not _settings.fluid_rejoin:
+		p.dodge_suspect = _is_dodge(p.platform_id)
+	if _ready_ids.has(p.platform_id):
+		_ready_ids.erase(p.platform_id)
+		ready_state_changed.emit(ready_snapshot())
+	if _phase == NetIds.Phase.POOL_SETUP and _collector != null and not _collector.locked:
+		_collector.mark_departed(p.platform_id)   # Slice 7 extension point
+	_check_pause()
+	if _phase == NetIds.Phase.PAUSED:
+		return
+	_advance_if_all_ready()   # the remaining group may now be unanimous
+	if _phase == NetIds.Phase.POOL_SETUP and _collector != null \
+			and not _collector.locked and _collector.is_complete():
+		_lock_pools_and_start()
+
+
+## OFF-mode dodge test, evaluated AT disconnect time (§6): suspect if the
+## player is the current judge, or is next up with their turn due within
+## JUDGE_DODGE_WINDOW_SEC. No armed phase clock (POOL_SETUP, PAUSED) means
+## nothing is imminently due - only the current-judge test applies.
+func _is_dodge(player_id: String) -> bool:
+	if current_judge_id() == player_id:
+		return true
+	if _phase_deadline_ms == 0:
+		return false
+	if _next_judge_id_counting(player_id) == player_id \
+			and _phase_time_left_sec() <= GameConstants.JUDGE_DODGE_WINDOW_SEC:
+		return true
+	return false
+
+
+## Who judges next if the rotation advanced now - counting `player_id` as
+## present (the caller evaluates a player who was JUST marked disconnected;
+## the question is whether they WOULD have been next).
+func _next_judge_id_counting(player_id: String) -> String:
+	var n: int = _judge_order.size()
+	if n == 0:
+		return ""
+	for step: int in range(1, n + 1):
+		var pid: String = _judge_order[(maxi(_judge_cursor, 0) + step) % n]
+		var player: Roster.PlayerState = _roster.get_by_platform_id(pid)
+		if pid == player_id or (player != null and player.is_connected):
+			return pid
+	return ""
+
+
+func _phase_time_left_sec() -> float:
+	if _phase_deadline_ms == 0:
+		return 0.0
+	return maxf(0.0, float(_phase_deadline_ms - int(_now_ms.call())) / 1000.0)
+
+
+## Below GameConstants.MIN_PLAYERS connected -> freeze (§5). LOBBY has its
+## own gate and WRAP_UP just plays out; pause() enforces both exclusions.
+func _check_pause() -> void:
+	if _roster.connected_count() < GameConstants.MIN_PLAYERS:
+		pause(NetIds.PauseReason.BELOW_MINIMUM)
+
+
+## Any successful rejoin/late-join may end a below-minimum pause. Host-menu
+## pauses are never auto-resumed - that is the host's own call.
+func _check_resume() -> void:
+	if _phase != NetIds.Phase.PAUSED \
+			or _pause_reason != NetIds.PauseReason.BELOW_MINIMUM:
+		return
+	if _roster.connected_count() >= GameConstants.MIN_PLAYERS:
+		resume()
+
+
+## The mid-game welcome payload (§3): everything a late joiner or rejoiner
+## needs to reconstruct the current state. PAUSED is delivered as
+## paused=true + the underlying phase. REVEAL/JUDGING carry the entry set
+## (JUDGING phase data is otherwise empty - the entries arrived with REVEAL,
+## which this peer never saw).
+func build_welcome_snapshot(p: Roster.PlayerState) -> Dictionary:
+	var paused: bool = _phase == NetIds.Phase.PAUSED
+	var phase: NetIds.Phase = _resume_phase if paused else _phase
+	var data: Dictionary = _last_phase_data.duplicate(true)
+	if not paused and _phase_deadline_ms > 0:
+		data["deadline_ms"] = _phase_deadline_ms
+	if phase in [NetIds.Phase.REVEAL, NetIds.Phase.JUDGING]:
+		data["entries"] = _entries.duplicate(true)
+		data["reveal_style"] = int(_settings.reveal_style)
+	return {
+		"v": 1,
+		"pool_progress": pool_setup_progress() if phase == NetIds.Phase.POOL_SETUP else [],
+		"phase": int(phase),
+		"paused": paused,
+		"pause_reason": int(_pause_reason),
+		"connected_count": _roster.connected_count(),
+		"time_left_ms": _paused_remaining_ms if paused else int(_phase_time_left_sec() * 1000.0),
+		"phase_data": data,
+		"round_index": _round_index,
+		"rounds_total": _settings.round_count,
+		"current_judge_platform_id": current_judge_id(),
+		"ready_ids": ready_snapshot(),
+		"you": {
+			"active_from_round": int(_active_from_round.get(p.platform_id, 0)),
+			"sit_out_current_round": _sit_out_drawers.has(p.platform_id),
+			"kudos_remaining": p.kudos_granted - p.kudos_spent,
+		},
+	}
 
 
 # --- Internal transitions (host timer / early triggers) ---
@@ -408,6 +633,8 @@ func _begin_round(index: int) -> void:
 	_submissions.clear()
 	_authors.clear()
 	_entries.clear()
+	_sit_out_drawers.clear()   # Slice 9: mid-DRAWING rejoiners resume fully next round
+	_advance_judge_cursor()    # Slice 9: cursor model - skips ghosts, forfeits suspects
 	_round = RoundRecord.new()
 	_round.round_index = index
 	_round.judge_player_id = current_judge_id()
@@ -415,7 +642,39 @@ func _begin_round(index: int) -> void:
 		"round_index": index,
 		"round_count": _settings.round_count,
 		"judge_player_id": _round.judge_player_id,
+		"forfeits": _round_forfeits.duplicate(true),   # Slice 9: dodge announcements
 	})
+
+
+## Slice 9: moves the judge cursor to the next entry whose player is
+## connected. Absent players are skipped silently - except a dodge suspect
+## under fluid_rejoin OFF, whose slot is FORFEITED, not skipped: the standard
+## no-pick -1 applies (§11 - no new scoring rule), the forfeit is announced
+## in the round intro, and the next connected player judges instead. Without
+## disconnects or late joins this advances by exactly one, byte-identical to
+## the Slice 3 modulo rotation.
+func _advance_judge_cursor() -> void:
+	_round_forfeits.clear()
+	var n: int = _judge_order.size()
+	if n == 0:
+		return
+	for step: int in range(1, n + 1):
+		var i: int = (_judge_cursor + step + n) % n
+		var pid: String = _judge_order[i]
+		var player: Roster.PlayerState = _roster.get_by_platform_id(pid)
+		if player != null and player.is_connected:
+			_judge_cursor = i
+			return
+		if player != null and player.dodge_suspect and not _settings.fluid_rejoin:
+			_scoring.apply_no_pick_penalty(pid)
+			player.dodge_suspect = false   # the armed slot is consumed by the forfeit
+			_round_forfeits.append({
+				"player_id": pid,
+				"display_name": player.display_name,
+			})
+	# Nobody connected in the whole rotation - unreachable in-round (the
+	# below-minimum pause fires long before), but never spin forever.
+	_judge_cursor = (_judge_cursor + 1 + n) % n
 
 
 func _start_drawing() -> void:
@@ -427,19 +686,29 @@ func _start_drawing() -> void:
 	})
 
 
-## Ends DRAWING: blanks for missing drawers (still judgeable - §4), private
-## author map, host-RNG shuffle, REVEAL broadcast with anonymized entries.
+## Ends DRAWING: blanks for missing CONNECTED drawers (still judgeable - §4),
+## private author map, host-RNG shuffle, REVEAL broadcast with anonymized
+## entries. Slice 9 (§9 "card hidden"): a disconnected drawer who never
+## submitted gets NO card - but a drawing already submitted stays fully in
+## play (judgeable, kudos-able, creditable to the remembered score). A
+## mid-DRAWING rejoiner sitting the round out likewise synthesizes no blank.
 func _collect_and_reveal() -> void:
 	for pid: String in _drawers_this_round():
-		if not _submissions.has(pid):
-			var blank := Submission.new()
-			blank.author_player_id = pid
-			blank.doc = Submission.blank_doc()
-			blank.is_blank = true
-			_submissions[pid] = blank
+		if _submissions.has(pid):
+			continue
+		var player: Roster.PlayerState = _roster.get_by_platform_id(pid)
+		if player == null or not player.is_connected or _sit_out_drawers.has(pid):
+			continue   # no card for the absent/sitting-out (§9)
+		var blank := Submission.new()
+		blank.author_player_id = pid
+		blank.doc = Submission.blank_doc()
+		blank.is_blank = true
+		_submissions[pid] = blank
 	_entries.clear()
 	_round.submissions.clear()
 	for pid: String in _drawers_this_round():
+		if not _submissions.has(pid):
+			continue   # dropped drawer with nothing in - card hidden (§9)
 		var sub: Submission = _submissions[pid]
 		sub.drawing_id = UuidV4.generate()
 		_authors[sub.drawing_id] = pid
@@ -530,7 +799,18 @@ func _finish_judging(winner_drawing_id: String) -> void:
 	var data: Dictionary = {"picked": false, "winner_drawing_id": "",
 			"winner_player_id": "", "winner_display_name": ""}
 	if winner_drawing_id.is_empty():
-		_scoring.apply_no_pick_penalty(current_judge_id())
+		# Slice 9 penalty matrix (§5): a CONNECTED judge who never picks takes
+		# the -1 as always. An ABSENT judge is forgiven (flow over fairness,
+		# fluid ON or an innocent drop) - unless they are a dodge suspect
+		# under fluid OFF, where the -1 lands and consumes the flag (never a
+		# second forfeit for the same dodge).
+		var judge: Roster.PlayerState = _roster.get_by_platform_id(current_judge_id())
+		var forgiven: bool = judge != null and not judge.is_connected \
+				and (_settings.fluid_rejoin or not judge.dodge_suspect)
+		if not forgiven:
+			_scoring.apply_no_pick_penalty(current_judge_id())
+			if judge != null and not judge.is_connected:
+				judge.dodge_suspect = false   # penalty applied; dodge settled
 	else:
 		var author: String = str(_authors[winner_drawing_id])
 		_scoring.apply_winner(author)
@@ -570,12 +850,31 @@ func _advance_round() -> void:
 
 ## SessionResults bundle (§2) - Slices 4/10 extend it; unknown keys must be
 ## tolerated by all readers. reaction_stats/kudos_stats reserved for Slice 4.
+## Slice 9 folds the TDD-09 §6 wrap-up input contract into this same bundle
+## (deviation: one results shape, not a parallel get_wrapup_input dict):
+## ended_early / rounds_played / rounds_planned / players. Disconnected
+## players APPEAR with their remembered scores; a partial round contributes
+## nothing (never appended to _records); negative scores sort normally.
 func _build_results() -> Dictionary:
 	var rounds: Array[Dictionary] = []
 	for record: RoundRecord in _records:
 		rounds.append(record.to_result_dict())
+	var players: Array[Dictionary] = []
+	for p: Roster.PlayerState in _roster.players_in_join_order():
+		players.append({
+			"platform_id": p.platform_id,
+			"display_name": p.display_name,
+			"score": _scoring.get_score(p.platform_id),
+			"is_connected": p.is_connected,
+			"joined_late": p.joined_late,
+			"kudos_spent": p.kudos_spent,
+		})
 	return {
 		"v": 1,
+		"ended_early": false,
+		"rounds_played": _records.size(),
+		"rounds_planned": _settings.round_count,
+		"players": players,
 		"rounds": rounds,
 		"final_scores": _scoring.snapshot(),
 		"standings": Scoring.standings(_scoring.snapshot(), _judge_order),
@@ -609,26 +908,35 @@ func _enter_phase(phase: NetIds.Phase, duration_sec: float, data: Dictionary) ->
 
 func _drawers_this_round() -> Array[String]:
 	var drawers: Array[String] = []
-	var judge: String = current_judge_id()
 	for pid: String in _judge_order:
-		if pid != judge:
+		if _is_drawer_this_round(pid):
 			drawers.append(pid)
 	return drawers
 
 
 func _is_drawer_this_round(player_id: String) -> bool:
-	return _judge_order.has(player_id) and player_id != current_judge_id()
+	if not _judge_order.has(player_id) or player_id == current_judge_id():
+		return false
+	# Slice 9: a late joiner spectates until their activation round.
+	if int(_active_from_round.get(player_id, 0)) > _round_index:
+		return false
+	return true
 
 
 ## Slice 17: who must ready for the current phase to advance early -
 ## connected drawers during DRAWING (the judge has nothing to finish);
 ## connected drawers + judge during JUDGING. Other phases have no ready-up.
-## Disconnected players never block (roster keeps their entry; Slice 9 owns
-## richer departure semantics).
+## Disconnected players never block (Slice 9 erases leavers from the ready
+## set and re-evaluates), and a mid-DRAWING rejoiner sitting the round out
+## neither blocks nor readies.
 func _ready_participants() -> Array[String]:
 	match _phase:
 		NetIds.Phase.DRAWING:
-			return _connected_of(_drawers_this_round())
+			var drawers: Array[String] = []
+			for pid: String in _connected_of(_drawers_this_round()):
+				if not _sit_out_drawers.has(pid):
+					drawers.append(pid)
+			return drawers
 		NetIds.Phase.JUDGING:
 			var all: Array[String] = _drawers_this_round()
 			all.append(current_judge_id())
@@ -649,6 +957,12 @@ func _connected_of(ids: Array[String]) -> Array[String]:
 func _all_ready() -> bool:
 	var participants: Array[String] = _ready_participants()
 	if participants.is_empty():
+		return false
+	# Slice 9: the judge seat HOLDS while its owner is away - JUDGING can
+	# never end early without the judge's pick-gated ready. A disconnected
+	# judge means the window runs to its normal deadline (§5 table); a
+	# latched pick still crowns the winner there.
+	if _phase == NetIds.Phase.JUDGING and not _ready_ids.has(current_judge_id()):
 		return false
 	for pid: String in participants:
 		if not _ready_ids.has(pid):

@@ -174,12 +174,28 @@ Two owner-directed fix batches this session (decision log 2026-07-06 "Judging = 
 - [ ] "Waiting for the others..." vs "Sent! Keep tweaking..." status wording reads right
 - [ ] Pause → resume clears everyone's ready (by design; re-press Done) — acceptable? ✅ AUTO (reset logic)
 - [ ] Judge's Ready button disabled-until-pick: is the why obvious? (tooltip says "Pick a winner first")
-- [ ] Leaver while everyone else is ready: phase advances on the next ready toggle or deadline (not instantly on the leave) — acceptable until Slice 9? ✅ AUTO (connected-only set)
+- [x] ~~Leaver while everyone else is ready: phase advances on the next ready toggle or deadline (not instantly on the leave)~~ — RESOLVED by Slice 9 (2026-07-07): departures re-evaluate all-ready immediately (below-minimum pause wins when both apply); regression-tested
 - [ ] Judge-wait screen (judge's DRAWING view) has no ready panel — would the judge want to see drawers' progress there? (design nicety, not a bug)
+
+## Slice 9 — Connectivity & Resilience
+
+*Machine coverage: 24-test resilience suite + `verify_resilience.sh` (drop → below-min pause → rejoin → resume → kept submission wins, per-role phase logs, wrap-up contract keys). Blocking owner checks listed in WHERE_WE_ARE. Batchables:*
+
+- [ ] Toasts for join/drop/rejoin read correctly and don't stack absurdly (3 s same-message coalescing implemented — flapping check) ✅ AUTO (coalescing logic; human feel check remains)
+- [ ] Judge drops during JUDGING: window completes, reactions/kudos still spendable, "couldn't decide" resolution shows; fluid ON → no −1 ✅ AUTO (penalty matrix + seat-hold tests; human look remains)
+- [ ] `fluid_rejoin` OFF: quit as next-judge inside the 30 s window, stay away → round intro announces "dodged judging: −1", next player judges ✅ AUTO (forfeit tests; toast/intro copy human check)
+- [ ] Host End-game-now → (placeholder until Slice 10) standings incl. the disconnected player's remembered score ✅ AUTO (contract keys; screen look human check)
+- [ ] Late joiner can react/kudos during the round they joined into (spectator banner doesn't block the grid)
+- [ ] Public checkbox flips the fluid-rejoin default; manual override sticks ✅ AUTO (settings tests; lobby UI feel check)
+- [ ] Pause overlay: chat usable while frozen; Esc still opens the menu over it for Leave; overlay count updates on further drops
+- [ ] Spectator banner copy ("You're in!…" / "You're back in!…") placement over each phase screen; judge-wait's "players are drawing…" text doubles as the spectator view — reads OK?
+- [ ] Late joiner / rejoiner landing mid-POOL_SETUP: the submission screen shows columns a late joiner can never submit (host drops them silently) and a rejoiner's re-submits show "already submitted" — polish wanted?
+- [ ] Rejoin mid-JUDGING: grid builds fully judgeable straight from the welcome snapshot (machine-verified state; human look check)
+- [ ] Ready state lost across pause/resume now also applies to below-minimum pauses (re-press Done) — same accepted limitation as Slice 17
 
 ## Design gaps / open items (not bugs — need decisions)
 
-- [ ] **No in-game pause/leave menu** (owner, 2026-07-06): once a game starts there is no way to reach settings or exit to the main menu except closing the window. Not covered by any planned slice — candidate homes: Slice 6 (settings surface) or Slice 9 (resilience; voluntary-leave flows). Tracked in WHERE_WE_ARE Active Decisions.
+- [x] ~~**No in-game pause/leave menu** (owner, 2026-07-06)~~ — RESOLVED: Slice 6 shipped the Esc menu (Resume/Leave + host pause); Slice 9 upgraded leave semantics (graceful leave = disconnect with rejoin memory, below-minimum pause, host End-game-now)
 
 ---
 
