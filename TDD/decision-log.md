@@ -2,13 +2,26 @@
 
 **Purpose:** Track design decisions made during development. New entries are added at the top of the Decisions section.
 
-**Last Updated:** 2026-07-06
+**Last Updated:** 2026-07-07
 
 ---
 
 ## Decisions
 
 *New entries go here, at the top of this section.*
+
+---
+
+### Session-6 playtest fix batch: side chat bottom-aligns to the canvas; text drop delivery (SubViewportContainer.mouse_target); eraser footprint cursor
+**Date:** 2026-07-07 | **Slice:** 16/17 surfaces | **Type:** Quick
+
+**Decision (owner playtest findings, all fixed same session):**
+- **Side chat height:** the drawing view's side chat ran to the window bottom past the Done row. Screens can now host the side chat in their own slot — new optional `chat_side_slot()` screen method (DrawScreen returns a slot inside its canvas row, so the chat's bottom == canvas bottom); `RoundRoot` rescues the chat out of a retiring screen before freeing it.
+- **Text drag-drop never landed — TRUE root cause found on the second report:** since Godot 4.5, the drag system only offers drops to `gui.target_control`, and a `SubViewportContainer` becomes `target_control` ONLY when its `mouse_target` property is true (default FALSE — verified in 4.6 `viewport.cpp _update_mouse_over`). With it false the canvas container is structurally invisible to every drop, no errors anywhere. Fix: `CanvasDropTarget._ready()` sets `mouse_target = true` (+ regression test pinning it — unsetting it would break drops with zero test failures otherwise). Along the way the handlers moved to scripted virtuals (`CanvasDropTarget`/`TextChipDrag`) and drag previews became mouse-transparent — good hygiene, but neither was the cause. Headless CANNOT verify real drop delivery (the WM mouse-over pipeline needs `windowmanager_window_over`; null headless) — the new suite drives the real drag-source path + the exact handler chain the engine invokes, and the final delivery is owner-verified windowed.
+- **Eraser footprint cursor:** `EraserCursor` overlay circle at the mouse, sized to the brush radius at display scale, shown while the eraser is active. Display-only (GPU) — the deterministic raster path is untouched.
+- Also from this playtest: **ready-up core flow owner-confirmed** ("working great").
+
+**Status:** [x] Fixed [x] 380/380 tests [x] Gates PASS [x] Owner re-check 2026-07-07 (drag lands after the mouse_target fix; single preview; eraser + cursor good; chat height acceptable — polish note in backlog)
 
 ---
 
@@ -23,7 +36,7 @@
 
 **Impact:** Slice 3 TDD transition table updated in place; Slice 9 folds rejoiners into the participant set; CI driver readies after submit/social/pick (round-1 no-pick lapse still deadline-driven). Mini-TDD: `TDD/17-ready-up.md`.
 
-**Status:** [x] Code implemented [x] Tests green (376/376, incl. new ready suite) [x] Gates PASS [ ] Owner blocking checks (Done/Unready flow; chat-header strip; both early advances)
+**Status:** [x] Code implemented [x] Tests green (380/380, incl. new ready suite) [x] Gates PASS [x] Owner core-flow confirmed 2026-07-07 ("working great") — SLICE 17 COMPLETE
 
 ---
 
@@ -37,7 +50,7 @@
 
 **Impact:** `drawing_canvas.gd/.tscn`, `canvas_toolbar.gd/.tscn`, `palette.gd` (+`ERASE_COLOR_INDEX`); no wire/format/raster changes — TextOp and the blitter are untouched. Slice 16 TDD §7 superseded by this entry.
 
-**Status:** [x] Code implemented [x] Tests green [x] Gates PASS [ ] Owner re-check of the drag flow + eraser
+**Status:** [x] Code implemented [x] Tests green [x] Gates PASS [x] Owner re-check confirmed 2026-07-07 — SLICE 16 COMPLETE
 
 ---
 

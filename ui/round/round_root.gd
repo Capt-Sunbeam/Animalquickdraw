@@ -84,6 +84,10 @@ func _on_phase_changed(phase: NetIds.Phase, data: Dictionary) -> void:
 
 func _swap_screen(phase: NetIds.Phase, data: Dictionary) -> void:
 	if _current_screen != null:
+		# The chat may live inside the retiring screen's side slot (Slice 17
+		# fix batch) - rescue it BEFORE the free or it dies with the screen.
+		if _current_screen.is_ancestor_of(_chat):
+			_chat.reparent(_main, false)
 		_current_screen.queue_free()
 		_current_screen = null
 	var path: String = _screen_path_for(phase)
@@ -129,7 +133,16 @@ func _apply_chat_layout(screen: Control) -> void:
 	var placement: ChatPanel.Placement = ChatPanel.Placement.BOTTOM
 	if screen != null and screen.has_method("chat_placement"):
 		placement = screen.chat_placement()
-	var target: Container = _body if placement == ChatPanel.Placement.SIDE else _main
+	var target: Container = _main
+	if placement == ChatPanel.Placement.SIDE:
+		# Screens may host the side chat in their own slot so its bottom
+		# aligns with the canvas, not the window (owner, 2026-07-07);
+		# otherwise it sits beside the whole phase area.
+		target = _body
+		if screen != null and screen.has_method("chat_side_slot"):
+			var slot: Container = screen.chat_side_slot()
+			if slot != null:
+				target = slot
 	if _chat.get_parent() != target:
 		_chat.reparent(target, false)
 	_chat.placement = placement

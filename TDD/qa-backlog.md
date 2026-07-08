@@ -147,7 +147,9 @@ Two owner-directed fix batches this session (decision log 2026-07-06 "Judging = 
 
 ## Slice 16 (mini) — In-Image Text Tool (+ 2026-07-07 drag-to-place rework + Eraser)
 
-*First-build blocking checks CONFIRMED (owner, 2026-07-07): font legibility in the sandbox; in-round text flow. The drag rework + eraser re-check is in the owner checklist — not here. Batchable leftovers:*
+*ALL blocking checks CONFIRMED (owner, 2026-07-07): font legibility; in-round text flow; drag-to-place landing (after the `mouse_target` fix); single drag preview; eraser + footprint cursor. Chat side-column height: "acceptable, not perfect" — polish item below. Batchable leftovers:*
+
+- [ ] Chat side-column height polish (owner: acceptable for now) — it aligns to the canvas row bottom via `chat_side_slot()`; explore exact canvas-frame alignment at odd aspect ratios
 
 - [ ] ~~Entry box ergonomics near canvas edges / window resize~~ (OBSOLETE same day: floating box replaced by the toolbar Text row + drag chip)
 - [ ] ~~Click-elsewhere-commits flow under time pressure~~ (OBSOLETE same day: drag-to-place rework)
@@ -164,7 +166,7 @@ Two owner-directed fix batches this session (decision log 2026-07-06 "Judging = 
 
 ## Slice 17 (mini) — Ready-Up
 
-*Blocking checks (Done/Unready flow; chat-header ready strip; both early advances) are in the owner checklist — not here. Batchable leftovers:*
+*Core flow OWNER-CONFIRMED 2026-07-07 ("Ready up is working great!"). Remaining detail checks batchable:*
 
 - [ ] Ready panel (left of canvas) at 1280×720 and window resizes; name truncation on long names
 - [ ] Initials-chip colors readable/distinct for similar names (placeholder until Slice 11 avatars)

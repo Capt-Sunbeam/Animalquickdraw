@@ -271,3 +271,17 @@ None beyond the canvas input state (§5). No new autoloads, no new EventBus sign
 ---
 
 > **Update (2026-07-07, same session):** §7's canvas placement UI was reworked owner-directed after the first playtest: the click-to-place floating entry box is replaced by a **Text row under the toolbar** (type → rendered chip → drag onto the canvas; drop commits centered on the cursor). `Tool.TEXT` and the `TEXT_EDITING` input state are gone; an **Eraser** tool (background-color strokes, `Palette.ERASE_COLOR_INDEX`) joined the toolbar. Data model, raster, validation, and censoring are unchanged. See decision log "Slice 16 rework: drag-to-place text (Option B) + Eraser tool".
+
+---
+
+## Implementation Status
+
+**Status:** COMPLETE (core-confirmed)
+**Completed:** 2026-07-07 (session 6)
+**Implementation Notes:** `TDD/16-in-image-text-tool-implementation-notes.md`
+
+### Summary of Deviations
+- Placement UI reworked same-session to drag-to-place (owner-directed; see Update above + decision log "Slice 16 rework") — data model/raster/censoring unchanged
+- Eraser tool added (background-color strokes, `Palette.ERASE_COLOR_INDEX`)
+- Round CI driver pins `pool_source` (environmental gate fix)
+- Owner confirmations: font legibility + in-round flow (first build); eraser + drag-to-place landing (rework, after the `SubViewportContainer.mouse_target` fix); single drag preview. Detail items → qa-backlog Slice 16 section

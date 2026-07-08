@@ -53,10 +53,21 @@ Hostile ready without submission → dropped. Group pressure on the judge → im
 - [x] GameSession set_ready/participants/all-ready + submit/pick locks + phase reset
 - [x] SessionClient RPC pair + cache + judge_pick_latched; EventBus signals
 - [x] ReadyStatusStrip; draw screen Done!/Unready + panel; chat header strip via RoundRoot
-- [x] Tests (376 green) + CI driver readies; both gates PASS
-- [ ] Owner blocking checks: Done/Unready feel in DRAWING (panel updates on all peers); JUDGING ready strip in chat header (judge locked until pick); all-ready early advance in both phases
-- [ ] Docs: decision log, WHERE_WE_ARE, implementation notes on completion
+- [x] Tests (380 green) + CI driver readies; both gates PASS
+- [x] Owner core-flow confirmation 2026-07-07 ("Ready up is working great!"); detail checks → qa-backlog
+- [x] Docs: decision log, WHERE_WE_ARE, implementation notes
 
 ---
 
 **End of Slice 17 (mini): Ready-Up**
+
+---
+
+## Implementation Status
+
+**Status:** COMPLETE (core-confirmed)
+**Completed:** 2026-07-07 (session 6)
+**Implementation Notes:** `TDD/17-ready-up-implementation-notes.md`
+
+### Summary of Deviations
+- None — built as designed in the same-session discussion. Owner core-flow confirmation: "Ready up is working great!" (2026-07-07). Detail items → qa-backlog Slice 17 section

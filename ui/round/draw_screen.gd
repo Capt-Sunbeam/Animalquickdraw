@@ -63,6 +63,13 @@ func chat_placement() -> ChatPanel.Placement:
 	return ChatPanel.Placement.SIDE
 
 
+## The side chat lives INSIDE this screen's canvas row so its bottom aligns
+## with the canvas, not the window - it must never run down over the Done
+## button row (owner, 2026-07-07).
+func chat_side_slot() -> Container:
+	return %ChatSlot
+
+
 ## Slice 6 pause: fresh deadline after a host resume - same screen, canvas
 ## and strokes untouched. Ready-up cleared host-side on resume; the synced
 ## empty set (via ready_state_changed) unlocks this screen again.

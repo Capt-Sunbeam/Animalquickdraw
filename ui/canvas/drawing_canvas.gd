@@ -42,13 +42,13 @@ var _replay: ReplayPlayer = null
 var _mask: Image = null  # Slice 11 populates for MaskMode.CIRCLE
 # Slice 16 text tool (drag-to-place rework, owner 2026-07-07): type in the
 # TextRow, a rendered chip appears, drag it onto the canvas; the drop point
-# commits a TextOp (centered on the cursor). Chip + drag preview + drop are
-# ALL blitted by the same DocRasterizer path that commits, and the text is
-# censored live - what you see is exactly what the table sees.
-var _preview_view: TextureRect = null
-var _preview_image: Image = null
-var _preview_texture: ImageTexture = null
+# commits a TextOp (centered on the cursor). Chip and drag preview are both
+# blitted by the same DocRasterizer path that commits, and the text is
+# censored live - what you hold is exactly what lands. ONE preview only:
+# the cursor-following drag preview (owner, 2026-07-07 - a second on-canvas
+# hover copy read as a duplicate).
 var _chip_texture: ImageTexture = null
+var _eraser_cursor: EraserCursor = null   # display-only erase footprint
 
 @onready var _toolbar: CanvasToolbar = %Toolbar
 @onready var _palette: PalettePicker = %PalettePickerBox
@@ -83,8 +83,15 @@ func _ready() -> void:
 	_viewport_box.gui_input.connect(_on_canvas_gui_input)
 	_text_input.max_length = GameConstants.TEXT_MAX_CHARS
 	_text_input.text_changed.connect(func(_t: String) -> void: _refresh_text_chip())
-	_text_chip.set_drag_forwarding(_chip_get_drag_data, Callable(), Callable())
-	_viewport_box.set_drag_forwarding(Callable(), _can_drop_text, _drop_text)
+	# Drag & drop via scripted virtuals on the chip/viewport-box nodes
+	# (runtime set_drag_forwarding with partial callables proved unreliable
+	# in the 2026-07-07 playtest - drops never registered).
+	(_text_chip as TextChipDrag).canvas = self
+	(_viewport_box as CanvasDropTarget).canvas = self
+	_eraser_cursor = EraserCursor.new()
+	_eraser_cursor.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_eraser_cursor.visible = false
+	_viewport_box.add_child(_eraser_cursor)
 	_rebuild_surface()
 	_refresh_text_chip()
 	begin_drawing()
@@ -173,6 +180,7 @@ func _process(_delta: float) -> void:
 	if _texture_dirty:
 		_texture_dirty = false
 		_texture.update(_raster)
+	_update_eraser_cursor()
 
 
 func _input(event: InputEvent) -> void:
@@ -190,8 +198,6 @@ func _notification(what: int) -> void:
 	if what == NOTIFICATION_APPLICATION_FOCUS_OUT or what == NOTIFICATION_WM_WINDOW_FOCUS_OUT:
 		if _input_state == InputState.STROKING:
 			_end_stroke_at_last_point()
-	elif what == NOTIFICATION_DRAG_END:
-		_clear_drop_preview()   # drag cancelled or dropped elsewhere
 
 
 func _unhandled_key_input(event: InputEvent) -> void:
@@ -369,38 +375,36 @@ func _chip_get_drag_data(_at_position: Vector2) -> Variant:
 	preview.texture = ImageTexture.create_from_image(img)
 	preview.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	preview.stretch_mode = TextureRect.STRETCH_SCALE
+	preview.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var display_scale: float = 1.0
 	var internal: Vector2 = Vector2(_doc.canvas_size())
 	if internal.x > 0.0 and _viewport_box.size.x > 0.0:
 		display_scale = _viewport_box.size.x / internal.x
 	preview.size = Vector2(img.get_width(), img.get_height()) * display_scale
-	# Hold the text by its center - matches the drop anchoring.
+	# Hold the text by its center - matches the drop anchoring. The preview
+	# must be mouse-transparent or it hides the drop target under the cursor.
 	preview.position = -preview.size / 2.0
 	var wrapper := Control.new()
+	wrapper.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	wrapper.add_child(preview)
 	_text_chip.set_drag_preview(wrapper)
 	return {"aq_text_drop": true}
 
 
-## Drop target (canvas). Fires continuously during the drag - also paints
-## the exact-placement preview into the overlay layer.
-func _can_drop_text(at_position: Vector2, data: Variant) -> bool:
+## Drop target (canvas). Fires continuously during the drag (drives the
+## can-drop cursor); the cursor-following drag preview is the sole visual.
+func _can_drop_text(_at_position: Vector2, data: Variant) -> bool:
 	if not (data is Dictionary and (data as Dictionary).has("aq_text_drop")):
 		return false
 	if not _tools_enabled or _input_state != InputState.IDLE:
 		return false
-	var text: String = _sanitized_text()
-	if text.is_empty():
-		return false
-	_paint_drop_preview(_drop_anchor(at_position, text), text)
-	return true
+	return not _sanitized_text().is_empty()
 
 
 func _drop_text(at_position: Vector2, data: Variant) -> void:
 	if not _can_drop_text(at_position, data):
 		return
 	_commit_text_at(_drop_anchor(at_position, _sanitized_text()))
-	_clear_drop_preview()
 
 
 ## Anchor so the text centers on the cursor, clamped in-canvas (the wire
@@ -442,25 +446,25 @@ func _commit_text_at(anchor: Vector2i) -> void:
 	# clear button resets it.
 
 
-func _paint_drop_preview(anchor: Vector2i, text: String) -> void:
-	if _preview_image == null:
+## Eraser footprint circle at the mouse (owner request 2026-07-07): shown
+## whenever the eraser is the active tool, sized to the brush radius at the
+## current display scale. Display-only overlay - the raster never sees it.
+func _update_eraser_cursor() -> void:
+	if _eraser_cursor == null:
 		return
-	_preview_image.fill(Color(0.0, 0.0, 0.0, 0.0))
-	var op := TextOp.new()
-	op.color_index = _current_color_index
-	op.size_index = _current_size_index
-	op.x = anchor.x
-	op.y = anchor.y
-	op.text = text
-	DocRasterizer.apply_op(_preview_image, op, _mask)
-	_preview_texture.update(_preview_image)
-
-
-func _clear_drop_preview() -> void:
-	if _preview_image == null:
+	var active: bool = _tools_enabled \
+			and _current_tool == CanvasToolbar.Tool.ERASER \
+			and (_input_state == InputState.IDLE or _input_state == InputState.STROKING)
+	_eraser_cursor.visible = active
+	if not active:
 		return
-	_preview_image.fill(Color(0.0, 0.0, 0.0, 0.0))
-	_preview_texture.update(_preview_image)
+	var internal: Vector2 = Vector2(_doc.canvas_size())
+	var display_scale: float = 1.0
+	if internal.x > 0.0 and _viewport_box.size.x > 0.0:
+		display_scale = _viewport_box.size.x / internal.x
+	_eraser_cursor.radius_px = float(GameConstants.BRUSH_RADII_PX[_current_size_index]) \
+			* display_scale
+	_eraser_cursor.queue_redraw()
 
 
 # --- Internal: toolbar actions ---
@@ -534,18 +538,6 @@ func _apply_orientation_to_surface() -> void:
 	var size: Vector2i = _doc.canvas_size()
 	_viewport.size = size
 	_frame.ratio = float(size.x) / float(size.y)
-	# Slice 16: transparent preview layer over the raster view, at internal
-	# resolution (rebuilt here so orientation flips keep it in sync).
-	if _preview_view == null:
-		_preview_view = TextureRect.new()
-		_preview_view.name = "TextPreview"
-		_preview_view.stretch_mode = TextureRect.STRETCH_KEEP
-		_viewport.add_child(_preview_view)
-	_preview_view.position = Vector2.ZERO
-	_preview_view.size = Vector2(size)
-	_preview_image = Image.create_empty(size.x, size.y, false, Image.FORMAT_RGBA8)
-	_preview_texture = ImageTexture.create_from_image(_preview_image)
-	_preview_view.texture = _preview_texture
 
 
 func _full_reraster() -> void:
