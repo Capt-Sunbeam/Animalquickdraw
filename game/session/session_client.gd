@@ -411,6 +411,42 @@ static func _local_now_ms() -> int:
 	return int(Time.get_unix_time_from_system() * 1000.0)
 
 
+# --- Slice 10: wrap-up bundle relay ---
+
+
+## Emits the three Slice 10 signals in their documented order (TDD §3:
+## wrap_up_started -> titles_awarded -> game_ended, all before phase_changed)
+## so Slice 14 gets its data even if the player quits mid-sequence. A
+## malformed bundle is dropped with a warning (never crash on wire data);
+## the wrap-up screen then degrades to base standings.
+func _emit_wrap_up_signals(results: Dictionary) -> void:
+	var raw: Variant = results.get("wrap_up")
+	if not is_valid_wrap_up_bundle(raw):
+		if raw != null:
+			push_warning("SessionClient: malformed wrap-up bundle dropped")
+		return
+	var bundle: Dictionary = raw
+	EventBus.wrap_up_started.emit(bundle)
+	var titles_by_player: Dictionary = {}
+	for entry: Variant in bundle.get("titles", []):
+		if entry is Dictionary:
+			titles_by_player[str((entry as Dictionary).get("player_id", ""))] = \
+					str((entry as Dictionary).get("id", ""))
+	EventBus.titles_awarded.emit(titles_by_player)
+	EventBus.game_ended.emit(bundle.get("standings", []), bundle)
+
+
+static func is_valid_wrap_up_bundle(raw: Variant) -> bool:
+	if not raw is Dictionary:
+		return false
+	var bundle: Dictionary = raw
+	if int(bundle.get("v", 0)) != WrapUpCalculator.BUNDLE_VERSION:
+		return false
+	return bundle.get("superlatives") is Array and bundle.get("titles") is Array \
+			and bundle.get("standings") is Array and bundle.get("drawings") is Dictionary \
+			and bundle.get("kudos") is Dictionary
+
+
 # --- Slice 9: mid-game welcome reconstruction (client side) ---
 
 
@@ -521,7 +557,9 @@ func rpc_sync_phase(phase_value: int, data: Dictionary) -> void:
 			EventBus.round_resolved.emit(data)
 			EventBus.scores_updated.emit(_scores)
 		NetIds.Phase.WRAP_UP:
-			EventBus.session_results_ready.emit(data.get("results", {}))
+			var results: Dictionary = data.get("results", {})
+			EventBus.session_results_ready.emit(results)
+			_emit_wrap_up_signals(results)
 		NetIds.Phase.PAUSED:
 			EventBus.game_paused.emit(int(data.get("reason", NetIds.PauseReason.HOST_MENU)),
 					int(data.get("connected_count", 0)))

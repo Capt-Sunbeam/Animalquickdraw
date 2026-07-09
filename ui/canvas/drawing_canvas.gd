@@ -92,6 +92,11 @@ func _ready() -> void:
 	_eraser_cursor.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_eraser_cursor.visible = false
 	_viewport_box.add_child(_eraser_cursor)
+	# Slice 11: circular mode activates the Slice 1 mask hook - the doc IS an
+	# avatar doc (fixed 512x512 orientation) and every raster path masks.
+	if mask_mode == MaskMode.CIRCLE:
+		_doc.orientation = DrawingDoc.ORIENTATION_AVATAR
+		_mask = CircleMask.image()
 	_rebuild_surface()
 	_refresh_text_chip()
 	begin_drawing()
@@ -273,6 +278,10 @@ func _end_stroke_at_last_point() -> void:
 
 
 func _append_point(internal_pos: Vector2, force: bool) -> void:
+	if _mask != null:
+		# Circular mode (Slice 11): pointer positions outside the circle clamp
+		# to the nearest in-circle point while stroking.
+		internal_pos = CircleMask.clamp_to_circle(internal_pos)
 	var q: Vector2 = Stroke.quantize_point(internal_pos)
 	var count: int = _live_stroke.points.size()
 	if count > 0:
@@ -302,6 +311,8 @@ func _commit_live_stroke() -> void:
 
 
 func _fill_at(internal_pos: Vector2) -> void:
+	if _mask != null and not CircleMask.contains(internal_pos):
+		return   # circular mode: fill clicks outside the circle are ignored (§6)
 	var size: Vector2i = _doc.canvas_size()
 	var fill := FillOp.new()
 	fill.color_index = _current_color_index
@@ -495,6 +506,8 @@ func _press_clear() -> void:
 func _press_rotate() -> void:
 	if not _tools_enabled or _input_state != InputState.IDLE:
 		return
+	if mask_mode == MaskMode.CIRCLE:
+		return   # avatar orientation is fixed (button hidden; belt-and-braces)
 	if _doc.ops.is_empty():
 		_flip_orientation()  # nothing to lose - no dialog (§5)
 		return
@@ -542,6 +555,11 @@ func _apply_orientation_to_surface() -> void:
 
 func _full_reraster() -> void:
 	_raster = DocRasterizer.rasterize(_doc, _mask)
+	if _mask != null:
+		# Display clip (Slice 11): transparent corners so the square reads as
+		# a circle. Masked ops never write outside, so incremental stamping
+		# keeps the alpha intact until the next full re-raster.
+		CircleMask.apply_display_alpha(_raster)
 	_texture = ImageTexture.create_from_image(_raster)
 	_raster_view.texture = _texture
 	_texture_dirty = false

@@ -99,6 +99,21 @@ const TEXT_GLYPH_PX: int = 8                         # PixelFont cell size; adva
 const EXPORT_SCALE: int = 2                          # nearest-neighbor upscale for exported PNGs
 const THUMB_LOADS_PER_FRAME: int = 2                 # lazy thumb pump budget (collection grid)
 
+# --- Slice 11: Avatars ---
+const CANVAS_AVATAR: Vector2i = Vector2i(512, 512)   # circular internal resolution
+const AVATAR_DOC_MAX_BYTES: int = 32768              # wire/validation cap; typical avatar << 10 KB
+const AVATAR_MAX_OPS: int = 512                      # hostile-doc sanity cap (host-side)
+const HOUSE_AVATAR_COUNT: int = 6                    # size of the shipped fallback set
+const HOUSE_AVATAR_DIR: String = "res://data/house_avatars/"  # house_00.json .. house_05.json
+
+# --- Slice 10: End-Game Wrap-Up (sequence pacing; TITLE_POINTS_VALUE is
+# in the scoring block above) ---
+const WRAPUP_SUPERLATIVE_CARD_SECONDS: float = 4.0   # hold after the replay flourish
+const WRAPUP_TITLE_CARD_SECONDS: float = 5.0
+const WRAPUP_STANDINGS_STEP_SECONDS: float = 0.8
+const WRAPUP_EVIDENCE_REPLAY_MAX_SECONDS: float = 3.0  # evidence replays are capped hard
+const WRAPUP_TITLE_EVIDENCE_MAX: int = 3
+
 # --- Slice 9: Connectivity & Resilience ---
 # (Late joiners get the FULL standard allotment - owner decision 2026-07-07
 # superseding §11's half rule; no constant needed.)

@@ -39,8 +39,9 @@ func present(drawing_id: String, doc: Dictionary, author_name: String,
 func _process(delta: float) -> void:
 	if _player == null:
 		return
-	_player.advance(delta)
-	_texture.update(_player.get_image())
+	var player: ReplayPlayer = _player   # the finishing advance nulls the field
+	player.advance(delta)                # via _on_lap_done mid-call (2026-07-07)
+	_texture.update(player.get_image())
 
 
 func _on_lap_done() -> void:

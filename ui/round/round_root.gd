@@ -13,7 +13,7 @@ const PHASE_SCREENS: Dictionary = {
 	NetIds.Phase.REVEAL: "res://ui/round/reveal_judging_screen.tscn",
 	NetIds.Phase.JUDGING: "res://ui/round/reveal_judging_screen.tscn",
 	NetIds.Phase.RESOLUTION: "res://ui/round/resolution_screen.tscn",
-	NetIds.Phase.WRAP_UP: "res://ui/round/standings_screen.tscn",
+	NetIds.Phase.WRAP_UP: "res://ui/wrapup/wrap_up_screen.tscn",  # Slice 10
 }
 
 const TOAST_COALESCE_MSEC: int = 3000   # Slice 9: identical toasts within this window collapse

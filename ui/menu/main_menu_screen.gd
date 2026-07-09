@@ -30,6 +30,8 @@ const CLOSE_MESSAGES: Dictionary = {
 @onready var _sandbox_button: Button = %SandboxButton
 @onready var _join_dialog: JoinDialog = %JoinDialog
 @onready var _toast: Toast = %Toast
+@onready var _avatar_button: Button = %AvatarButton
+@onready var _menu_chip: AvatarChip = %MenuChip
 
 
 func _ready() -> void:
@@ -38,6 +40,10 @@ func _ready() -> void:
 	_join_button.pressed.connect(_on_join_pressed)
 	_join_dialog.join_requested.connect(_on_join_code_entered)
 	_collection_button.pressed.connect(func() -> void: Nav.goto(Routes.COLLECTION))
+	# Slice 11: the Avatar button's icon IS the local player's current chip.
+	_avatar_button.pressed.connect(func() -> void: Nav.goto(Routes.AVATAR_EDITOR))
+	_refresh_menu_chip()
+	EventBus.local_avatar_changed.connect(_refresh_menu_chip)
 	_sandbox_button.visible = OS.is_debug_build()
 	_sandbox_button.pressed.connect(func() -> void: Nav.goto(Routes.CANVAS_SANDBOX))
 	EventBus.peer_connected.connect(_on_peer_connected)
@@ -91,6 +97,13 @@ func _on_peer_disconnected(_peer_id: int) -> void:
 func _set_buttons_enabled(enabled: bool) -> void:
 	_host_button.disabled = not enabled
 	_join_button.disabled = not enabled
+
+
+## Slice 11: local chip = the saved avatar (or the fallback chain).
+func _refresh_menu_chip() -> void:
+	var doc: DrawingDoc = AvatarStore.load_doc()
+	_menu_chip.set_player(Platform.get_display_name(), Platform.get_platform_id(),
+			doc.to_dict() if doc != null else {})
 
 
 func _refresh_peer_list() -> void:

@@ -1,12 +1,14 @@
 class_name ReadyStatusStrip
 extends BoxContainer
-## Ready-up display (Slice 17): one chip per player - an initials circle
-## (programmer-art avatar placeholder; Slice 11 swaps in real avatars) plus
-## an empty square that becomes a checkmark when that player readies.
-## Optionally hosts the Ready button itself (the chat-header surface).
-## Data is pushed in by the owning screen - no Session coupling (cg §8).
+## Ready-up display (Slice 17): one AvatarChip per player (real avatars
+## since Slice 11) plus an empty square that becomes a checkmark when that
+## player readies. Optionally hosts the Ready button itself (the chat-header
+## surface). Player data is pushed in by the owning screen; the chip itself
+## does the avatar lookup (shared-component coupling, cg §8).
 
 signal ready_toggled(ready: bool)
+
+const AVATAR_CHIP: PackedScene = preload("res://ui/shared/avatar_chip.tscn")
 
 const CHIP_PX: float = 26.0
 
@@ -79,7 +81,11 @@ func _rebuild() -> void:
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 4)
 		row.tooltip_text = pname
-		row.add_child(_make_initials_chip(pname))
+		var chip: AvatarChip = AVATAR_CHIP.instantiate()
+		chip.chip_size = int(CHIP_PX)
+		chip.show_name_label = false
+		row.add_child(chip)
+		chip.bind_platform_id(pid, pname)   # live: refreshes if an avatar lands
 		if _show_names:
 			var name_label := Label.new()
 			name_label.text = pname
@@ -93,18 +99,3 @@ func _rebuild() -> void:
 		_rows.add_child(row)
 
 
-## Initials circle in a per-name color - the Slice 11 avatar stand-in.
-func _make_initials_chip(pname: String) -> Control:
-	var chip := PanelContainer.new()
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color.from_hsv(float(hash(pname) % 360) / 360.0, 0.45, 0.75)
-	style.set_corner_radius_all(int(CHIP_PX / 2.0))
-	chip.add_theme_stylebox_override("panel", style)
-	chip.custom_minimum_size = Vector2(CHIP_PX, CHIP_PX)
-	var initial := Label.new()
-	initial.text = pname.left(1).to_upper() if not pname.is_empty() else "?"
-	initial.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	initial.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	initial.add_theme_color_override("font_color", Color.WHITE)
-	chip.add_child(initial)
-	return chip

@@ -34,6 +34,10 @@ var _rate_limiter: SessionRules.ChatRateLimiter = SessionRules.ChatRateLimiter.n
 var _last_close_reason: String = ""        # menu consumes on _ready (survives scene swap)
 var _epoch: int = 0                        # bumped every reset; invalidates stale watchdogs
 var _pending_welcome: Dictionary = {}      # Slice 9: mid-game welcome, consumed by SessionClient
+# Slice 10: while held, a host quit is remembered instead of navigating -
+# the wrap-up sequence is the payoff and needs no further sync (TDD 10 §10).
+var _hold_host_quit: bool = false
+var _pending_host_quit: bool = false
 
 
 func _ready() -> void:
@@ -58,6 +62,7 @@ func host_session(code: String) -> Error:
 	_reset_session_state()
 	room_code = code.strip_edges().to_upper()
 	_apply_register(1, Platform.get_platform_id(), Platform.get_display_name())
+	_send_local_avatar()   # Slice 11: the host is also a player
 	# Slice 6 host convenience: restore the last-hosted lobby's settings
 	# (round count re-seeds from the current suggestion by design).
 	var profile: Dictionary = Save.read_json("profile.json", {})
@@ -175,6 +180,36 @@ func consume_pending_welcome() -> Dictionary:
 	return welcome
 
 
+## Slice 11 (§3 send trigger): once this peer's own registration is
+## confirmed, put the local avatar on the roster. No avatar -> no call
+## (absence means fallback; nothing to sync). Host path applies directly
+## and broadcasts (host is also a player); clients request.
+func _send_local_avatar() -> void:
+	var doc: DrawingDoc = AvatarStore.load_doc()
+	if doc == null:
+		return
+	if Net.is_host():
+		var me: Roster.PlayerState = roster.get_by_peer(1)
+		if me != null:
+			me.avatar_doc = doc.to_dict()
+			rpc_sync_avatar.rpc(me.platform_id, me.avatar_doc)
+	else:
+		rpc_request_set_avatar.rpc_id(1, doc.to_dict())
+
+
+## Slice 10: the wrap-up screen holds host-quit handling while its local
+## sequence plays (clients already hold the full bundle - the show finishes
+## without the host). Releasing the hold with a quit pending is not a thing:
+## the screen checks host_quit_pending() at sequence end and degrades to
+## Leave-only instead (the player exits on their own terms).
+func hold_host_quit(hold: bool) -> void:
+	_hold_host_quit = hold
+
+
+func host_quit_pending() -> bool:
+	return _pending_host_quit
+
+
 # --- Internal session logic (host-side unless noted) ---
 
 
@@ -237,6 +272,8 @@ func _reset_session_state() -> void:
 	phase = NetIds.Phase.LOBBY
 	_rate_limiter.reset()
 	_pending_welcome = {}
+	_hold_host_quit = false
+	_pending_host_quit = false
 	_epoch += 1
 
 
@@ -325,6 +362,9 @@ func _on_connection_failed() -> void:
 
 func _on_server_disconnected() -> void:
 	if _local_state == LocalState.MENU:
+		return
+	if _hold_host_quit:
+		_pending_host_quit = true   # Slice 10: the wrap-up sequence finishes first
 		return
 	_close_to_menu("host_quit")
 
@@ -419,6 +459,7 @@ func rpc_do_welcome(state: Dictionary) -> void:
 	room_code = str(state.get("room_code", ""))
 	phase = NetIds.Phase.LOBBY
 	_local_state = LocalState.IN_LOBBY
+	_send_local_avatar()   # Slice 11: registration confirmed - sync the face
 	Nav.goto(Routes.LOBBY)
 
 
@@ -447,6 +488,7 @@ func rpc_do_welcome_ingame(state: Dictionary) -> void:
 	phase = int(game.get("phase", NetIds.Phase.ROUND_INTRO)) as NetIds.Phase  # coarse marker
 	_local_state = LocalState.STARTING
 	_pending_welcome = state
+	_send_local_avatar()   # Slice 11: late joiners/rejoiners sync their face too
 	Nav.goto(Routes.ROUND)
 
 
@@ -462,6 +504,37 @@ func rpc_sync_player_status(platform_id: String, kind: int, display_name: String
 			EventBus.player_rejoined.emit(platform_id, display_name)
 		NetIds.PlayerStatus.LATE_JOINED:
 			EventBus.player_late_joined.emit(platform_id, display_name)
+
+
+## client -> host (Slice 11): set the sender's avatar doc. 5-step pattern;
+## every failure drops SILENTLY (§3/§10 - a griefer gets nothing observable
+## to iterate against; honest peers pre-validate via the same rule).
+@rpc("any_peer", "call_remote", "reliable")
+func rpc_request_set_avatar(avatar_doc: Dictionary) -> void:
+	if not multiplayer.is_server():
+		return                                             # 1. authority
+	var sender: int = multiplayer.get_remote_sender_id()
+	var player: Roster.PlayerState = roster.get_by_peer(sender)
+	if player == null:
+		return                                             # 2. resolve sender
+	if not SessionRules.avatar_doc_error(avatar_doc).is_empty():
+		return                                             # 3. validate - drop
+	player.avatar_doc = avatar_doc                         # 4. apply on host
+	rpc_sync_avatar.rpc(player.platform_id, avatar_doc)    # 5. broadcast
+
+
+## host -> all (Slice 11): one player's avatar doc arrived/changed. Keyed by
+## platform_id (stable identity, Slice 9 precedent). Receivers re-run
+## DrawingDoc.from_dict before rasterizing (AvatarResolver does - defense in
+## depth: never rasterize unvalidated data, even from the host).
+@rpc("authority", "call_local", "reliable")
+func rpc_sync_avatar(platform_id: String, avatar_doc: Dictionary) -> void:
+	if not multiplayer.is_server():
+		var player: Roster.PlayerState = roster.get_by_platform_id(platform_id)
+		if player == null:
+			return   # unknown player - stale/raced sync, drop
+		player.avatar_doc = avatar_doc
+	EventBus.avatar_updated.emit(platform_id)
 
 
 ## host -> all: roster mirror replace.

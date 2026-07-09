@@ -23,9 +23,13 @@ class PlayerState extends RefCounted:
 	var joined_late: bool = false   # joined after game start (never submits pool words)
 	var disconnect_at_ms: int = -1  # host clock at drop; -1 = connected
 	var dodge_suspect: bool = false # fluid OFF: left near their judge turn
+	# --- Slice 11 ---
+	var avatar_doc: Dictionary = {} # validated serialized DrawingDoc; {} = none.
+	                                # Relay data - the host validates but never
+	                                # rasterizes; receivers re-validate before use.
 
 	func to_dict() -> Dictionary:
-		return {
+		var out: Dictionary = {
 			"peer_id": peer_id,
 			"platform_id": platform_id,
 			"display_name": display_name,
@@ -38,6 +42,9 @@ class PlayerState extends RefCounted:
 			"disconnect_at_ms": disconnect_at_ms,
 			"dodge_suspect": dodge_suspect,
 		}
+		if not avatar_doc.is_empty():
+			out["avatar"] = avatar_doc   # omitted when none - snapshots stay small
+		return out
 
 	static func from_dict(d: Dictionary) -> PlayerState:
 		var p := PlayerState.new()
@@ -52,6 +59,8 @@ class PlayerState extends RefCounted:
 		p.joined_late = bool(d.get("joined_late", false))
 		p.disconnect_at_ms = int(d.get("disconnect_at_ms", -1))
 		p.dodge_suspect = bool(d.get("dodge_suspect", false))
+		var avatar: Variant = d.get("avatar")
+		p.avatar_doc = avatar if avatar is Dictionary else {}
 		return p
 
 

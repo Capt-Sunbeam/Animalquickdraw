@@ -208,3 +208,22 @@ func test_canvas_size_follows_orientation() -> void:
 	assert_that(doc.canvas_size()).is_equal(GameConstants.CANVAS_LANDSCAPE)
 	doc.orientation = DrawingDoc.ORIENTATION_PORTRAIT
 	assert_that(doc.canvas_size()).is_equal(GameConstants.CANVAS_PORTRAIT)
+
+
+# --- Slice 11: "avatar" orientation ---
+
+
+func test_avatar_orientation_accepted_with_512_canvas_and_bounds() -> void:
+	var doc: DrawingDoc = DrawingDoc.from_dict({"v": 1, "orientation": "avatar",
+		"ops": [{"t": "fill", "c": 17, "x": 256, "y": 256}]})
+	assert_object(doc).is_not_null()
+	assert_that(doc.canvas_size()).is_equal(GameConstants.CANVAS_AVATAR)
+	# Fill seed bounds validate against 512x512: 600 is fine on landscape,
+	# out of bounds on an avatar doc.
+	assert_object(DrawingDoc.from_dict({"v": 1, "orientation": "avatar",
+		"ops": [{"t": "fill", "c": 17, "x": 600, "y": 100}]})).is_null()
+
+
+func test_unknown_orientation_still_rejected() -> void:
+	assert_object(DrawingDoc.from_dict(
+		{"v": 1, "orientation": "hexagonal", "ops": []})).is_null()

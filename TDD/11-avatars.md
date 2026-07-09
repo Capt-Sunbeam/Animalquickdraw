@@ -601,3 +601,18 @@ Per `workflows/testing-protocol.md`; the multi-instance sync test is the blockin
 - [ ] Update WHERE_WE_ARE; Implementation Notes for Slice 11
 - [ ] Slice 2 implementation notes annotated (roster snapshot `"avatar"` key, RPC additions)
 - [ ] Decision Log: name-circle two-character small-size fallback; deterministic house pick via platform-id hash; mid-session edit deferral
+
+---
+
+## Implementation Status
+
+**Status:** IMPLEMENTED — machine-verified (487/487 tests, 3/3 gates); owner confirmation BATCHED to the end-of-session list (owner instruction 2026-07-07)
+**Completed:** 2026-07-08 (session 8)
+**Implementation Notes:** [11-avatars-implementation-notes.md](11-avatars-implementation-notes.md)
+
+### Summary of Deviations
+- Avatar sync + `avatar_updated` keyed by **platform_id** (Slice 9 stable-identity precedent); chip live mode is `bind_platform_id(pid, fallback_name)`
+- RPCs live on the Session autoload (owner of `rpc_sync_roster`); the send trigger fires on THREE paths (host self-register, lobby welcome, in-game welcome)
+- `AvatarStore` centralizes `user://avatar.json` (test path seam); editor/menu/Session all read through it
+- Text + eraser tools stay available in the editor (post-Slice-16 "same tools")
+- House avatars are generated docs (content-parse test pins all 6); chip internal label renamed `ChipNameLabel` (find_child collision)

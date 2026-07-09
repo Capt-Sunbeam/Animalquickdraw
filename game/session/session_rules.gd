@@ -79,6 +79,23 @@ static func ingame_register_action(has_entry: bool, entry_connected: bool,
 	return "late_join"
 
 
+## Slice 11 (§3): host-side avatar doc validation, testable as a plain
+## function. Empty string = acceptable; otherwise the (silent-drop) reason.
+static func avatar_doc_error(avatar_doc: Dictionary) -> String:
+	if var_to_bytes(avatar_doc).size() > GameConstants.AVATAR_DOC_MAX_BYTES:
+		return "oversized"
+	var doc: DrawingDoc = DrawingDoc.from_dict(avatar_doc)
+	if doc == null:
+		return "malformed"
+	if doc.orientation != DrawingDoc.ORIENTATION_AVATAR:
+		return "wrong_orientation"
+	if doc.ops.size() > GameConstants.AVATAR_MAX_OPS:
+		return "too_many_ops"
+	if doc.ops.is_empty():
+		return "empty"   # an empty doc is not an avatar (§6 rule 3)
+	return ""
+
+
 ## Content validation for chat (rate limit is checked separately).
 static func chat_text_ok(text: String) -> bool:
 	return not text.strip_edges().is_empty() and text.length() <= GameConstants.MAX_CHAT_LEN

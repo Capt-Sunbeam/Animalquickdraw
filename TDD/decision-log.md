@@ -12,6 +12,58 @@
 
 ---
 
+### Slice 11: avatar sync keyed by platform_id, avatar rides the roster payload, AvatarStore seam, house set generated
+**Date:** 2026-07-08 | **Slice:** 11 (extends 2's roster wire format; retrofits 3/17/10 surfaces) | **Type:** Full
+
+#### Context
+The Slice 11 TDD (drafted 2026-07-04) keyed avatar sync by peer_id, put load/save inline in the editor, and assumed a single "join accepted" send trigger. Since then Slice 9 standardized platform_id as the stable identity (peer ids zero out on disconnect), added a second join path (in-game welcome), and Slice 16 added text/eraser to the standard toolset.
+
+#### Decision
+- **`rpc_sync_avatar(platform_id, doc)` / `EventBus.avatar_updated(platform_id)`** — stable identity everywhere; chips survive rejoins with no special casing. Chip live mode: `bind_platform_id(pid, fallback_name)` (fallback keeps Session-free surfaces honest on roster misses).
+- **The roster snapshot carries an optional per-player `"avatar"` key** (omitted when empty) — `rpc_sync_roster` and both welcome payloads deliver avatars for free; `rpc_request_set_avatar`/`rpc_sync_avatar` handle the initial upload + change broadcast. Host validation is `SessionRules.avatar_doc_error` (plain function, silent drop): ≤ 32 KB, valid doc, `"avatar"` orientation, ≤ 512 ops, non-empty.
+- **`AvatarStore`** (static, path seam per CollectionStore.root_dir) centralizes `user://avatar.json` for its three consumers (editor, Session send trigger on THREE paths — host self-register, lobby welcome, in-game welcome — and the menu chip).
+- **Circular mode = the Slice 1 mask hook activated:** `CircleMask` owns the one equation (mask image, contains, rim clamp, display alpha applied AFTER authoritative raster — goldens hash the unmodified raster). Text/eraser stay available in the editor (mask-correct by construction).
+- **Name-circle small-size fallback:** below 48 px the circle shows the name's first two characters; the full name lives in the tooltip (a 9-char name in a 26 px circle is noise, not identity).
+- **Deterministic house pick:** `hash(platform_id) % count` (name-hash fallback) — same doodle for the same player on every peer and across sessions, zero sync. The 6 shipped docs are generated programmer art (content-parse test pins them; format is the ordinary DrawingDoc, replaceable any time).
+- **Anonymity hard rule holds:** no chips on reveal/judging grids (surfaces untouched).
+
+#### Impact
+- Affects: Slice 2 wire format (optional key, tolerated by from_dict defaults), Slices 3/17/10 surfaces (chips), Slice 12 (Steam names flow through `Platform.get_display_name()` with zero changes here), Slice 13 (house set / chips reusable)
+- Migration needed: No
+- Breaking change: No
+
+#### Status
+- [x] Code implemented [x] Tests updated (487/487, 0 orphans) [x] Gates PASS (lobby/round/resilience) [x] TDD + implementation notes updated [x] Slice 2 implementation notes annotated [ ] Owner confirmation (batched, end of session)
+
+---
+
+### Slice 10: wrap-up bundle rides the results broadcast — no dedicated RPC, no route, no begin_wrap_up
+**Date:** 2026-07-07 | **Slice:** 10 (touches 3's RoundRecord, 9's results bundle) | **Type:** Full
+
+#### Context
+The Slice 10 TDD (drafted 2026-07-04) specified `rpc_sync_wrap_up_bundle`, `Routes.WRAP_UP` + `Nav.goto`, and a new `GameSession.begin_wrap_up(early)`. The shipped code (Slices 3/6/9) already has: a WRAP_UP phase broadcast carrying the results dictionary through `rpc_sync_phase` (the one replication channel), phase screens as RoundRoot children (never Nav routes), and both wrap-up entry paths (`_advance_round` natural end, Slice 9's `end_game_early`). Consistency guide/code reality wins.
+
+#### Decision
+- **The computed wrap-up bundle is `results["wrap_up"]`** — built by the new `WrapUpCalculator` inside `_build_results(early)`, broadcast once with the WRAP_UP phase, validated client-side (`SessionClient.is_valid_wrap_up_bundle`), never mutated. Base `final_scores`/`standings` keys stay BASE scores (Slice 3 shape pins + CI score-sum checks); title/superlative points live only in `wrap_up.standings`, the authoritative final display. Welcome snapshots deliver the bundle to WRAP_UP-time joiners for free.
+- **Wrap-up screen is the WRAP_UP phase screen** (`ui/wrapup/wrap_up_screen.tscn` replaces the Slice 3 placeholder standings screen, which is deleted). EventBus order on every peer: `session_results_ready` → `wrap_up_started` → `titles_awarded` → `game_ended` → `phase_changed` (Slice 14's feed is safe even if the player quits mid-sequence).
+- **`RoundRecord.reveal_order` records the post-shuffle entry order** — the superlative earlier-reveal tie-break key, captured at collect time, never re-derived.
+- **Speed Demon interpretation:** finish time = last *stroke* timestamp (fill/clear/text ops are timestamp-less); ≥ 2 timestamped non-blank docs required; draw time is the frozen `draw_time_sec`.
+- **Host quit mid-sequence defers via `Session.hold_host_quit`:** the wrap-up screen holds navigation while its local show plays; a pending quit degrades the post-game controls to Leave-only ("the wrapped moment is the payoff").
+
+#### Impact
+- Affects: Slice 14 (consumes the three signals + `wrap_up.kudos`/`rounds_completed` exactly as the TDD promised), Slice 11 (retrofits AvatarChip into title cards + standings rows)
+- Migration needed: No (results readers tolerate unknown keys by contract)
+- Breaking change: No
+
+#### In passing (same session)
+- Pre-existing Slice 5 bug fixed: `WinnerSpotlight._process` dereferenced `_player` after the finishing `advance()` synchronously nulled it via the `finished` handler — a script error on every natural victory-lap finish (gate-log noise since Slice 5; final still-frame update skipped). Local-capture fix here and in the new `SuperlativeCard`.
+- CI pin rule, third instance: `verify_round`'s wallet check assumed the AUTO kudos allotment but never pinned it — the owner's real playtest profile carried `kudos_allotment: 2` and failed the gate. Pinned. Rule extended: **human playtest residue in `last_lobby_settings` is a third writer, alongside other gates.**
+
+#### Status
+- [x] Code implemented [x] Tests updated (453/453, 0 orphans) [x] Gates PASS (lobby/round/resilience) [x] TDD + implementation notes updated [ ] Owner confirmation (batched, end of session)
+
+---
+
 ### Late joiners get the FULL standard kudos allotment (supersedes brief §11's half rule)
 **Date:** 2026-07-07 | **Slice:** 9 | **Decided by:** Owner (during the Slice 9 blocking playtest)
 

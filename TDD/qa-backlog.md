@@ -7,7 +7,7 @@
 - Owner: check items off whenever tested (any session); report failures as bugs.
 - ✅ AUTO = an automated test/gate covers the mechanics; the human check is for look/feel only.
 
-**Last Updated:** 2026-07-07 (session 6 — Slice 16 drag-rework + Eraser items; Slice 17 ready-up section added)
+**Last Updated:** 2026-07-08 (session 8 — Slice 10 wrap-up + Slice 11 avatars sections added; Slice 17 initials-chip item obsoleted)
 
 ---
 
@@ -169,7 +169,7 @@ Two owner-directed fix batches this session (decision log 2026-07-06 "Judging = 
 *Core flow OWNER-CONFIRMED 2026-07-07 ("Ready up is working great!"). Remaining detail checks batchable:*
 
 - [ ] Ready panel (left of canvas) at 1280×720 and window resizes; name truncation on long names
-- [ ] Initials-chip colors readable/distinct for similar names (placeholder until Slice 11 avatars)
+- [ ] ~~Initials-chip colors readable/distinct for similar names (placeholder until Slice 11 avatars)~~ — OBSOLETE 2026-07-08: Slice 11 replaced the initials chips with real AvatarChips (see Slice 11 section)
 - [ ] Chat-header strip fit with 8 players (chips may crowd the header at min width)
 - [ ] "Waiting for the others..." vs "Sent! Keep tweaking..." status wording reads right
 - [ ] Pause → resume clears everyone's ready (by design; re-press Done) — acceptable? ✅ AUTO (reset logic)
@@ -192,6 +192,41 @@ Two owner-directed fix batches this session (decision log 2026-07-06 "Judging = 
 - [ ] Late joiner / rejoiner landing mid-POOL_SETUP: the submission screen shows columns a late joiner can never submit (host drops them silently) and a rejoiner's re-submits show "already submitted" — polish wanted?
 - [ ] Rejoin mid-JUDGING: grid builds fully judgeable straight from the welcome snapshot (machine-verified state; human look check)
 - [ ] Ready state lost across pause/resume now also applies to below-minimum pauses (re-press Done) — same accepted limitation as Slice 17
+
+## Slice 10 — End-Game Wrap-Up
+
+*Machine coverage: 18-test calculator suite (superlatives/titles/tie-breaks/standings/determinism) + relay signal-order tests + scene smokes; `verify_round.sh` drives a full game into WRAP_UP on 3 peers. NOTE: the TDD's normally-blocking check (early-end wrap-up) is in the END-OF-SESSION batched list per owner instruction 2026-07-07 — test it first. Batchables:*
+
+- [ ] Full wrap-up sequence feel after a reaction/kudos-heavy 3-player game: superlatives → titles → standings pacing (4 s/5 s/0.8 s constants — tune if draggy) ✅ AUTO (mechanics)
+- [ ] Skip isolation: skipping on one client does not affect the others ✅ AUTO by design (skip is purely local)
+- [ ] Skip semantics feel: first press finishes the replay flourish, second advances — intuitive or annoying on static title cards (which advance on first press)?
+- [ ] Negative score display in final standings (judge with only no-pick penalties) — true minus, podium still plays ✅ AUTO (render values)
+- [ ] Title-point breakdown tooltip on standings scores (hover) — discoverable enough?
+- [ ] Superlative card replay flourish: ≤ 3 s cap feels right; author reveal ("drawn by X") lands as a moment
+- [ ] Title card evidence fan at 1–3 drawings incl. portrait orientation (letterboxed, not stretched)
+- [ ] "(left early)" dimming on disconnected players' title cards + standings rows
+- [ ] Progress dots + "That's a wrap!" header + rounds badge (incl. "ended early • N rounds" wording)
+- [ ] Host quit mid-sequence on a client: sequence finishes, then Leave-only post-game (no toast currently — is one wanted?)
+- [ ] `title_points_enabled` OFF (Custom): no "+1" chips anywhere, standings = base scores ✅ AUTO (points zeroed)
+- [ ] Stat label wording pass: "done with N% of the clock to spare", "just N.N marks per drawing", "not a single reaction or kudos" — funny or confusing?
+- [ ] Chat stays usable (NORMAL prominence) through the whole sequence
+
+## Slice 11 — Avatars
+
+*Machine coverage: resolver/store/circle-mask/validation suites + chip and editor scene tests; all three gates instantiate real chips. NOTE: the TDD's normally-blocking check (two-instance avatar sync) is in the END-OF-SESSION batched list per owner instruction 2026-07-07 — test it first. Batchables:*
+
+- [ ] Drawing feel inside the circle: edge clamping doesn't fight the cursor when stroking across the rim
+- [ ] Fill stays inside the circle, including fills seeded near the rim ✅ AUTO (mask goldens; the feel check remains)
+- [ ] Name-circle legibility at 26/32/48/96 px; the two-character fallback below 48 px feels right
+- [ ] House avatars look intentional; the same player gets the same doodle everywhere ✅ AUTO (deterministic pick; the look is the human check)
+- [ ] Editor flows: load-existing (edit on top), unsaved-changes prompt on Back/Esc, Clear-avatar confirm, "Avatar saved" toast, "getting complex" toast near the op cap
+- [ ] Editor layout at 1280×720: circular canvas letterboxing; transparent corners over the UI background read as "not canvas" (or does it want a dedicated circle backing?)
+- [ ] Chips sit well at their sizes: lobby rows (48), ready panel + chat strip (26), wrap-up title card (96) + standings (48), menu button (32)
+- [ ] **Anonymity check:** no avatar chips anywhere on reveal/judging drawing grids (hard rule, brief §4) ✅ AUTO by construction (surfaces untouched) — eyeball it anyway
+- [ ] Disconnected players' chips dim correctly (lobby list rows dim whole-row; wrap-up title card dims chip + name)
+- [ ] Text tool + eraser inside the avatar editor: sensible or clutter? (kept per "same tools" — cut if it reads as noise)
+- [ ] Roster broadcast size with 8 avatar'd players (each ≤ ~10 KB typical) — any visible join/kudos lag on real networks?
+- [ ] Rejoin/late-join avatar delivery: joiner sees existing faces, existing peers see the joiner's ✅ AUTO by design (roster snapshot path; human check on a real run)
 
 ## Design gaps / open items (not bugs — need decisions)
 

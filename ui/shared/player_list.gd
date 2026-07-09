@@ -1,12 +1,13 @@
 class_name PlayerList
 extends PanelContainer
-## Shared roster display (Slice 2 TDD §7) - reused by in-round and wrap-up
-## screens later. Name-only rows with a host crown icon + "(host)" label
-## (never color alone - cg §13) and an avatar chip placeholder until
-## Slice 11. Rebuilds on EventBus.roster_updated.
+## Shared roster display (Slice 2 TDD §7) - rows with a real AvatarChip
+## (Slice 11), name, and a host crown icon + "(host)" label (never color
+## alone - cg §13). Rebuilds on EventBus.roster_updated.
+
+const AVATAR_CHIP: PackedScene = preload("res://ui/shared/avatar_chip.tscn")
 
 const HOST_MARK: String = "♛"  # ♛ glyph; paired with the "(host)" text label
-const AVATAR_PLACEHOLDER_SIZE: Vector2 = Vector2(24, 24)
+const CHIP_PX: int = 48        # TDD 11 §7: lobby chips at 48
 const DISCONNECTED_ALPHA: float = 0.45
 
 @onready var _count_label: Label = %CountLabel
@@ -35,10 +36,11 @@ func rebuild(players: Array) -> void:
 
 func _build_row(state: Roster.PlayerState) -> HBoxContainer:
 	var row := HBoxContainer.new()
-	var avatar := TextureRect.new()  # placeholder chip slot until Slice 11
-	avatar.custom_minimum_size = AVATAR_PLACEHOLDER_SIZE
-	avatar.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	row.add_child(avatar)
+	var chip: AvatarChip = AVATAR_CHIP.instantiate()
+	chip.chip_size = CHIP_PX
+	chip.show_name_label = false   # this row renders its own crown/host label
+	row.add_child(chip)
+	chip.set_player(state.display_name, state.platform_id, state.avatar_doc)
 	var name_label := Label.new()
 	var is_host_player: bool = state.peer_id == 1
 	name_label.text = "%s%s%s" % [

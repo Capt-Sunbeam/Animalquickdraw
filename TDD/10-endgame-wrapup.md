@@ -520,3 +520,20 @@ Worst case bundle: 8 players × (up to 6 superlative + 8 title-evidence sets, de
 
 ### Documentation
 - [ ] Update WHERE_WE_ARE; Implementation Notes; Decision Log if bundle shape deviates after reconciling Slice 3/4 field names
+
+---
+
+## Implementation Status
+
+**Status:** IMPLEMENTED — machine-verified (453/453 tests, 3/3 gates); owner confirmation BATCHED to the end-of-session list (owner instruction 2026-07-07)
+**Completed:** 2026-07-07 (session 8)
+**Implementation Notes:** [10-endgame-wrapup-implementation-notes.md](10-endgame-wrapup-implementation-notes.md)
+
+### Summary of Deviations
+- Bundle rides `results["wrap_up"]` through the existing WRAP_UP phase broadcast — no `rpc_sync_wrap_up_bundle` RPC (one replication channel; Slice 9 precedent)
+- No `Routes.WRAP_UP` (RoundRoot phase screen) and no `begin_wrap_up()` (shipped `_advance_round` / `end_game_early` paths feed `_build_results(early)`)
+- `RoundRecord.reveal_order` added (post-shuffle order = superlative tie-break key)
+- Speed Demon uses last *stroke* timestamp; ≥ 2 timestamped docs required
+- Bundle `drawings` entries are `{"doc", "prompt"}` (docs stay canonical)
+- Host-quit deferral implemented as `Session.hold_host_quit` (wrap-up screen holds it; Leave-only degrade)
+- In passing: pre-existing ReplayPlayer null race fixed in `WinnerSpotlight`; `verify_round` now pins `kudos_allotment`

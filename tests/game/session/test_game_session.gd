@@ -536,6 +536,109 @@ func test_results_bundle_shape_rounds_scores_standings_reserved_keys() -> void:
 			{"received_by_author": {}, "drawing_totals": {}})
 
 
+# --- Slice 10: wrap-up bundle rides the results (one replication channel) ---
+
+
+func test_results_carry_valid_wrap_up_bundle_on_natural_end() -> void:
+	var rig: Rig = _make_rig(4, 2)
+	rig.session.start_game()
+	for i: int in range(10):
+		rig.session.on_phase_deadline()   # both rounds lapse: blanks, no picks
+	var wrap: Dictionary = rig.results["wrap_up"]
+	assert_int(int(wrap["v"])).is_equal(1)
+	assert_bool(bool(wrap["early_end"])).is_false()
+	assert_int(int(wrap["rounds_completed"])).is_equal(2)
+	var standings: Array = wrap["standings"]
+	assert_int(standings.size()).is_equal(4)
+	for raw: Variant in standings:
+		var row: Dictionary = raw
+		assert_array(row.keys()).contains_exactly_in_any_order(["player_id",
+				"display_name", "rank", "base_score", "title_points",
+				"final_score", "connected"])
+		assert_int(int(row["final_score"]))\
+				.is_equal(int(row["base_score"]) + int(row["title_points"]))
+	# All-blank game: no reactions -> zero superlatives; Worst Drawer still
+	# lands (empty submissions count, §10) and its point shifts the standings.
+	assert_array(wrap["superlatives"]).is_empty()
+	var title_ids: Array[String] = []
+	for t: Variant in wrap["titles"]:
+		title_ids.append(str((t as Dictionary)["id"]))
+	assert_array(title_ids).contains(["worst_drawer"])
+
+
+func test_end_game_early_carries_early_bundle_and_is_idempotent() -> void:
+	var roster := Roster.new()
+	for i: int in range(3):
+		roster.register(i + 1, "p%d" % i, "Player %d" % i)
+	var settings := GameSettings.new()
+	settings.round_count = 2
+	settings.reveal_style = GameSettings.RevealStyle.GRID
+	var clock := Clock.new()
+	var session := GameSession.new(settings, roster, Callable(clock, "now"))
+	session.rng.seed = 42
+	var pools := PromptPools.new()
+	pools.rng.seed = 7
+	pools.load_from(FIXTURE_DIR)
+	session.use_pools(pools)
+	# Mutated (not reassigned) inside the lambdas - captures are by-value.
+	var captured: Dictionary = {"wrap_up_entries": 0, "results": {}}
+	session.phase_entered.connect(func(p: NetIds.Phase, _d: Dictionary) -> void:
+		if p == NetIds.Phase.WRAP_UP:
+			captured["wrap_up_entries"] = int(captured["wrap_up_entries"]) + 1)
+	session.session_finished.connect(func(r: Dictionary) -> void:
+		captured["results"] = r)
+	session.start_game()
+	session.on_phase_deadline()   # -> DRAWING (round 0, never completes)
+	var leaver: Roster.PlayerState = roster.mark_disconnected(2, clock.now())
+	session.handle_departure(leaver)   # 2 connected < MIN_PLAYERS -> pause
+	assert_bool(session.is_paused()).is_true()
+	session.end_game_early()
+	var results: Dictionary = captured["results"]
+	assert_bool(bool(results["ended_early"])).is_true()
+	var wrap: Dictionary = results["wrap_up"]
+	assert_bool(bool(wrap["early_end"])).is_true()
+	assert_int(int(wrap["rounds_completed"])).is_equal(0)   # partial round = nothing
+	var standings: Array = wrap["standings"]
+	assert_int(standings.size()).is_equal(3)   # disconnected player appears
+	var disconnected_seen: bool = false
+	for raw: Variant in standings:
+		if str((raw as Dictionary)["player_id"]) == "p1":
+			disconnected_seen = true
+			assert_bool(bool((raw as Dictionary)["connected"])).is_false()
+	assert_bool(disconnected_seen).is_true()
+	# Double entry (early-end raced with anything) is a no-op.
+	session.end_game_early()
+	assert_int(int(captured["wrap_up_entries"])).is_equal(1)
+
+
+func test_reveal_order_recorded_matches_broadcast_entry_order() -> void:
+	var rig: Rig = _make_rig(4, 1)
+	_to_drawing(rig)
+	for pid: String in ["p1", "p2", "p3"]:
+		assert_bool(rig.session.submit_drawing(pid, _valid_payload(1))).is_true()
+	rig.session.on_phase_deadline()   # -> REVEAL (shuffled)
+	var entries: Array = rig.last_data(NetIds.Phase.REVEAL)["entries"]
+	for i: int in range(10):
+		rig.session.on_phase_deadline()
+		if rig.session.get_phase() == NetIds.Phase.WRAP_UP:
+			break
+	var wrap: Dictionary = rig.results["wrap_up"]
+	assert_int(int(wrap["rounds_completed"])).is_equal(1)
+	# The recorded reveal order (superlative tie-break key) is exactly the
+	# broadcast entry order.
+	var broadcast_ids: Array[String] = []
+	for entry: Variant in entries:
+		broadcast_ids.append(str((entry as Dictionary)["drawing_id"]))
+	# Reach the record through a fresh bundle build - infos are ordered by
+	# reveal_index, so the first three info-ordered ids must match.
+	var infos: Array[Dictionary] = WrapUpCalculator.drawing_infos(
+			rig.session._records, rig.session._session_stats)
+	var info_ids: Array[String] = []
+	for info: Dictionary in infos:
+		info_ids.append(str(info["drawing_id"]))
+	assert_array(info_ids).is_equal(broadcast_ids)
+
+
 # --- integration: full scripted game (sim harness) ---
 
 

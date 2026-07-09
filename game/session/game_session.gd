@@ -417,8 +417,7 @@ func resume() -> void:
 func end_game_early() -> void:
 	if _phase != NetIds.Phase.PAUSED:
 		return
-	var results: Dictionary = _build_results()
-	results["ended_early"] = true
+	var results: Dictionary = _build_results(true)
 	_enter_phase(NetIds.Phase.WRAP_UP, 0.0, {"results": results})
 	session_finished.emit(results)
 
@@ -718,6 +717,11 @@ func _collect_and_reveal() -> void:
 		_session_stats.register_drawing(sub.drawing_id, _round_index, pid,
 				_round.prompt.display_text if _round.prompt != null else "")
 	_shuffle_entries()
+	# Slice 10: the post-shuffle order IS the on-screen reveal order - the
+	# superlative tie-break key. Recorded per round, never re-derived.
+	_round.reveal_order.clear()
+	for entry: Dictionary in _entries:
+		_round.reveal_order.append(str(entry["drawing_id"]))
 	# Slice 5: reveal choreography. GRID keeps Slice 3's fixed-length look
 	# beat; ONE_AT_A_TIME sizes the phase to the beat schedule (+ failsafe -
 	# the main deadline only fires if the beat chain stalls).
@@ -855,7 +859,12 @@ func _advance_round() -> void:
 ## ended_early / rounds_played / rounds_planned / players. Disconnected
 ## players APPEAR with their remembered scores; a partial round contributes
 ## nothing (never appended to _records); negative scores sort normally.
-func _build_results() -> Dictionary:
+## Slice 10 (same precedent): the computed wrap-up bundle rides in the
+## "wrap_up" key - one replication channel, no dedicated bundle RPC. The
+## base final_scores/standings keys stay BASE scores (Slice 3 shape pin);
+## title/superlative points live only in wrap_up.standings, the
+## authoritative final display order.
+func _build_results(early: bool = false) -> Dictionary:
 	var rounds: Array[Dictionary] = []
 	for record: RoundRecord in _records:
 		rounds.append(record.to_result_dict())
@@ -871,7 +880,7 @@ func _build_results() -> Dictionary:
 		})
 	return {
 		"v": 1,
-		"ended_early": false,
+		"ended_early": early,
 		"rounds_played": _records.size(),
 		"rounds_planned": _settings.round_count,
 		"players": players,
@@ -888,7 +897,28 @@ func _build_results() -> Dictionary:
 			"received_by_author": _session_stats.kudos_received_by_author(),
 			"drawing_totals": _kudos_ledger.totals(),
 		},
+		"wrap_up": WrapUpCalculator.build_bundle(_records, _session_stats,
+				_wrapup_players_meta(), _scoring.snapshot(), _judge_order,
+				_settings.draw_time_sec, _settings.title_points_enabled, early),
 	}
+
+
+## Roster snapshot for the wrap-up calculator (rotation order = display
+## tie-break order everywhere else in the game).
+func _wrapup_players_meta() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for pid: String in _judge_order:
+		var p: Roster.PlayerState = _roster.get_by_platform_id(pid)
+		if p == null:
+			continue
+		out.append({
+			"platform_id": p.platform_id,
+			"display_name": p.display_name,
+			"connected": p.is_connected,
+			"kudos_granted": p.kudos_granted,
+			"kudos_spent": p.kudos_spent,
+		})
+	return out
 
 
 # --- Helpers ---

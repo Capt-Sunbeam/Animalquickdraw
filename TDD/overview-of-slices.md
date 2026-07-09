@@ -98,8 +98,8 @@ Hard ~180k-token context budget per session (Decision Log 2026-07-04). One chunk
 | 7 | `TDD/07-player-created-pools.md` | `TDD/07-player-created-pools-implementation-notes.md` |
 | 8 | `TDD/08-collection-browser-export.md` | `TDD/08-collection-browser-export-implementation-notes.md` |
 | 9 | `TDD/09-connectivity-resilience.md` | — |
-| 10 | `TDD/10-endgame-wrapup.md` | — |
-| 11 | `TDD/11-avatars.md` | — |
+| 10 | `TDD/10-endgame-wrapup.md` | `TDD/10-endgame-wrapup-implementation-notes.md` |
+| 11 | `TDD/11-avatars.md` | `TDD/11-avatars-implementation-notes.md` |
 | 12 | `TDD/12-steam-integration.md` | — |
 | 13 | `TDD/13-public-lobbies-moderation.md` | — |
 | 14 | `TDD/14-achievements-stats.md` | — |

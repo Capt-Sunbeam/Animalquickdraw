@@ -101,3 +101,7 @@ Full lobby flow over the dev ENet transport: host creates a session and self-reg
 - ChatPanel COLLAPSED hover-expansion is minimal (expand on hover/click, collapse on exit unless typing) — it gets real exercise in Slice 3's drawer view; polish deferred to that playtest.
 - `rpc_do_reject_join` reasons render through a menu-side map; unknown future reasons fall back to silence rather than a generic toast.
 - Chat history rebuilds the RichTextLabel on every message (≤100 entries) — trivially cheap, revisit only if profiling ever says otherwise.
+
+---
+
+> **Update (2026-07-08, Slice 11):** the roster wire format gained one OPTIONAL per-player key: `"avatar"` (a serialized avatar DrawingDoc; omitted when the player has none). `rpc_sync_roster` and both welcome payloads carry it automatically via `PlayerState.to_dict/from_dict`; readers default it to `{}`. Two avatar RPCs were appended to the Session autoload (the node owning `rpc_sync_roster`): `rpc_request_set_avatar` (client→host, 5-step validated via `SessionRules.avatar_doc_error`, silent drop) and `rpc_sync_avatar(platform_id, doc)` (host→all). See TDD/11-avatars-implementation-notes.md.

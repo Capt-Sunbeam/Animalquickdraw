@@ -115,6 +115,34 @@ signal game_resumed(phase: int, time_left_ms: int)
 ## fluid_rejoin OFF (the -1 is announced in the round intro as well).
 signal judge_slot_forfeited(platform_id: String, display_name: String)
 
+# --- Slice 11: Avatars ---
+
+## Emitted on every peer when a player's avatar arrives or changes
+## (rpc_sync_avatar or a roster snapshot carrying a new doc). Keyed by
+## platform_id like every stable identity (Slice 9 precedent); the id may be
+## the local player's own.
+signal avatar_updated(platform_id: String)
+## Emitted locally when the local player's avatar file is saved or cleared
+## in the editor. Menu-chip refresh; no network implications.
+signal local_avatar_changed()
+
+# --- Slice 10: End-Game Wrap-Up ---
+
+## Emitted on all peers when a valid wrap-up bundle arrives with the WRAP_UP
+## phase; the local sequence starts. bundle = results["wrap_up"] (TDD 10 §2).
+signal wrap_up_started(bundle: Dictionary)
+## Emitted on all peers immediately after wrap_up_started. Keys: platform_id
+## (String); values: title id (String, see TitleIds). Players without a card
+## are absent. Slice 14 keys its titles_earned counters off this.
+signal titles_awarded(titles_by_player: Dictionary)
+## Emitted on all peers after titles_awarded with the final standings (incl.
+## title points) and the full bundle (kudos summary, rounds_completed).
+## Slice 14 reads games_played / wins / spend-all-kudos detection from here.
+signal game_ended(standings: Array, bundle: Dictionary)
+## Emitted locally when this player's wrap-up sequence completes or is
+## skipped to the end; the post-game buttons unlock.
+signal wrap_up_sequence_finished()
+
 # --- Slice 17: Ready-Up ---
 
 ## Emitted on all peers when the phase's ready-up set changes. Resets

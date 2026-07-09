@@ -1,0 +1,50 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://ui/wrapup/title_card.gd" id="1_titlecard"]
+
+[node name="TitleCard" type="VBoxContainer"]
+custom_minimum_size = Vector2(560, 0)
+theme_override_constants/separation = 10
+script = ExtResource("1_titlecard")
+
+[node name="TitleLabel" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 32
+horizontal_alignment = 1
+text = "Hotshot"
+
+[node name="ChipSlot" type="CenterContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="NameRow" type="HBoxContainer" parent="."]
+layout_mode = 2
+alignment = 1
+theme_override_constants/separation = 12
+
+[node name="NameLabel" type="Label" parent="NameRow"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 22
+text = "?"
+
+[node name="PointsChip" type="Label" parent="NameRow"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_override_font_sizes/font_size = 22
+text = "+1"
+
+[node name="StatLabel" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 17
+horizontal_alignment = 1
+text = "5 kudos received"
+
+[node name="EvidenceRow" type="HBoxContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+alignment = 1
+theme_override_constants/separation = 12

@@ -75,6 +75,10 @@ func _ready() -> void:
 		s.replay_mode = GameSettings.ReplayMode.WINNER_ONLY
 		s.reveal_replay_secs = 5.0
 		s.judging_window_sec = 30.0
+		# The wallet check expects the AUTO allotment (1 for 2 rounds) - an
+		# owner playtest profile with an explicit allotment must never reroute
+		# it (found 2026-07-07, Slice 10 run: profile carried allotment 2).
+		s.kudos_allotment = GameSettings.KUDOS_AUTO
 		Session.set_settings(s)
 	else:
 		var err: Error = await Session.join_session(room_code)

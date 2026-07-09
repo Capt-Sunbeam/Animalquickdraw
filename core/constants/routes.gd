@@ -7,3 +7,4 @@ const CANVAS_SANDBOX: String = "res://ui/canvas/canvas_sandbox_screen.tscn"  # d
 const LOBBY: String = "res://ui/lobby/lobby_screen.tscn"  # Slice 2
 const ROUND: String = "res://ui/round/round_root.tscn"    # Slice 3
 const COLLECTION: String = "res://ui/collection/collection_screen.tscn"  # Slice 8
+const AVATAR_EDITOR: String = "res://ui/avatars/avatar_editor_screen.tscn"  # Slice 11

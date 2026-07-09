@@ -161,3 +161,22 @@ func test_slice9_fields_round_trip_and_default() -> void:
 	assert_bool(old.joined_late).is_false()
 	assert_int(old.disconnect_at_ms).is_equal(-1)
 	assert_bool(old.dodge_suspect).is_false()
+
+
+# --- Slice 11: avatar doc on the roster ---
+
+
+func test_avatar_doc_round_trips_and_is_omitted_when_empty() -> void:
+	var roster := Roster.new()
+	var with_avatar: Roster.PlayerState = roster.register(2, "pid-a", "Alice")
+	with_avatar.avatar_doc = {"v": 1, "orientation": "avatar",
+			"ops": [{"t": "fill", "c": 17, "x": 256, "y": 256}]}
+	roster.register(3, "pid-b", "Bob")   # no avatar
+	var dicts: Array[Dictionary] = roster.to_dicts()
+	assert_bool(dicts[0].has("avatar")).is_true()
+	assert_bool(dicts[1].has("avatar")).is_false()   # omitted - snapshots stay small
+	var mirror := Roster.new()
+	mirror.apply_dicts(dicts)
+	assert_dict(mirror.get_by_platform_id("pid-a").avatar_doc)\
+			.is_equal(with_avatar.avatar_doc)
+	assert_dict(mirror.get_by_platform_id("pid-b").avatar_doc).is_empty()

@@ -8,8 +8,9 @@ const FORMAT_VERSION: int = 1
 
 const ORIENTATION_LANDSCAPE: StringName = &"landscape"
 const ORIENTATION_PORTRAIT: StringName = &"portrait"
-# Slice 11 adds &"avatar".
-const KNOWN_ORIENTATIONS: Array[StringName] = [ORIENTATION_LANDSCAPE, ORIENTATION_PORTRAIT]
+const ORIENTATION_AVATAR: StringName = &"avatar"   # Slice 11: 512x512 circular
+const KNOWN_ORIENTATIONS: Array[StringName] = [ORIENTATION_LANDSCAPE,
+		ORIENTATION_PORTRAIT, ORIENTATION_AVATAR]
 
 var orientation: StringName = ORIENTATION_LANDSCAPE
 var ops: Array[DrawingOp] = []
@@ -18,6 +19,8 @@ var ops: Array[DrawingOp] = []
 func canvas_size() -> Vector2i:
 	if orientation == ORIENTATION_PORTRAIT:
 		return GameConstants.CANVAS_PORTRAIT
+	if orientation == ORIENTATION_AVATAR:
+		return GameConstants.CANVAS_AVATAR
 	return GameConstants.CANVAS_LANDSCAPE
 
 

@@ -9,6 +9,9 @@ var prompt: Prompt = null
 var submissions: Array[Submission] = []
 var winner_drawing_id: String = ""   # empty = no pick
 var winner_player_id: String = ""    # empty = no pick
+## Slice 10: drawing ids in on-screen reveal order (the post-shuffle entry
+## order) - the superlative tie-break key (§2: earlier reveal wins).
+var reveal_order: PackedStringArray = PackedStringArray()
 
 
 func to_result_dict() -> Dictionary:

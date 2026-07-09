@@ -11,7 +11,6 @@ const DRAW: PackedScene = preload("res://ui/round/draw_screen.tscn")
 const JUDGE_WAIT: PackedScene = preload("res://ui/round/judge_wait_screen.tscn")
 const REVEAL: PackedScene = preload("res://ui/round/reveal_judging_screen.tscn")
 const RESOLUTION: PackedScene = preload("res://ui/round/resolution_screen.tscn")
-const STANDINGS: PackedScene = preload("res://ui/round/standings_screen.tscn")
 const PHASE_TIMER: PackedScene = preload("res://ui/shared/phase_timer.tscn")
 
 const SESSION_CLIENT_SCRIPT: GDScript = preload("res://game/session/session_client.gd")
@@ -153,21 +152,6 @@ func test_resolution_screen_smoke_picked_and_no_pick_variants() -> void:
 	assert_str(headline.text).contains("-1")
 
 
-func test_standings_screen_renders_negative_scores_with_minus() -> void:
-	var screen: Control = _instantiate(STANDINGS)
-	screen.setup({"results": {"standings": [
-		{"player_id": "a", "score": 5, "rank": 1},
-		{"player_id": "b", "score": -1, "rank": 2},
-	]}}, null)
-	var rows: VBoxContainer = screen.find_child("Rows", true, false)
-	assert_int(rows.get_child_count()).is_equal(2)
-	var loser_score: Label = rows.get_child(1).get_child(3)
-	assert_str(loser_score.text).is_equal("-1")
-	# Not the host in the test env: back button hidden, waiting shown.
-	var back: Button = screen.find_child("BackButton", true, false)
-	assert_bool(back.visible).is_false()
-
-
 func test_round_root_swaps_screens_on_phase_changed() -> void:
 	var root: Control = _instantiate(ROUND_ROOT)
 	var area: Control = root.find_child("PhaseArea", true, false)
@@ -176,9 +160,10 @@ func test_round_root_swaps_screens_on_phase_changed() -> void:
 		"deadline_ms": _now_ms() + 4000,
 	})
 	assert_object(root.find_child("RoundIntroScreen", true, false)).is_not_null()
+	# WRAP_UP now lands on the Slice 10 wrap-up sequence screen.
 	EventBus.phase_changed.emit(NetIds.Phase.WRAP_UP, {"results": {"standings": []}})
 	await get_tree().process_frame  # queue_free of the old screen settles
-	assert_object(root.find_child("StandingsScreen", true, false)).is_not_null()
+	assert_object(root.find_child("WrapUpScreen", true, false)).is_not_null()
 	assert_object(area).is_not_null()
 
 
