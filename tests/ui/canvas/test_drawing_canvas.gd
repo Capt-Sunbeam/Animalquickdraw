@@ -277,3 +277,148 @@ func test_max_points_cap_splits_stroke() -> void:
 	for op: DrawingOp in _canvas.get_doc().ops:
 		var stroke: Stroke = op
 		assert_bool(stroke.points.size() <= GameConstants.STROKE_MAX_POINTS).is_true()
+
+
+# --- Slice 18: display zoom/pan math + hold-to-draw source rules ---
+
+
+func test_zoom_clamps_to_valid_range() -> void:
+	assert_float(DrawingCanvas.clamp_zoom(0.25)).is_equal(1.0)
+	assert_float(DrawingCanvas.clamp_zoom(3.0)).is_equal(3.0)
+	assert_float(DrawingCanvas.clamp_zoom(99.0)).is_equal(GameConstants.CANVAS_ZOOM_MAX)
+
+
+func test_pan_clamp_collapses_at_fit_and_ranges_when_zoomed() -> void:
+	var view := Vector2(800.0, 600.0)
+	# At fit the range collapses: panning is structurally impossible.
+	assert_that(DrawingCanvas.clamp_pan(Vector2(-500.0, 37.0), view, 1.0)).is_equal(Vector2.ZERO)
+	# At 2x the scaled view doubles: valid pan is [-view, 0] per axis.
+	assert_that(DrawingCanvas.clamp_pan(Vector2(-9999.0, 10.0), view, 2.0)) \
+		.is_equal(Vector2(-800.0, 0.0))
+	assert_that(DrawingCanvas.clamp_pan(Vector2(-100.0, -550.0), view, 2.0)) \
+		.is_equal(Vector2(-100.0, -550.0))
+
+
+func test_map_at_fit_is_the_legacy_letterbox_map() -> void:
+	# Zoom off = Slice 1 behavior, exactly (regression pin).
+	var container := Vector2(900.0, 675.0)
+	var internal := Vector2(800.0, 600.0)
+	var p := Vector2(450.0, 337.5)
+	var mapped: Vector2 = DrawingCanvas.map_display_to_internal(
+			p, container, internal, 1.0, Vector2.ZERO)
+	assert_that(mapped).is_equal(p * (internal / container))
+
+
+func test_zoom_at_cursor_keeps_canvas_point_fixed() -> void:
+	var container := Vector2(800.0, 600.0)
+	var internal := Vector2(800.0, 600.0)
+	var cursor := Vector2(200.0, 150.0)
+	var before: Vector2 = DrawingCanvas.map_display_to_internal(
+			cursor, container, internal, 1.0, Vector2.ZERO)
+	var new_pan: Vector2 = DrawingCanvas.pan_after_zoom(cursor, Vector2.ZERO, 1.0, 2.0)
+	new_pan = DrawingCanvas.clamp_pan(new_pan, container, 2.0)
+	var after: Vector2 = DrawingCanvas.map_display_to_internal(
+			cursor, container, internal, 2.0, new_pan)
+	assert_that(after).is_equal(before)
+
+
+func test_view_resets_on_begin_drawing_and_load_doc() -> void:
+	_canvas._zoom = 3.0
+	_canvas._pan = Vector2(-50.0, -40.0)
+	_canvas.begin_drawing()
+	assert_float(_canvas._zoom).is_equal(1.0)
+	assert_that(_canvas._pan).is_equal(Vector2.ZERO)
+	_canvas._zoom = 2.0
+	_canvas.load_doc(DrawingDoc.new())
+	assert_float(_canvas._zoom).is_equal(1.0)
+
+
+func test_key_stroke_ignores_mouse_release() -> void:
+	_canvas._stroke_from_key = true
+	_canvas._stroke_begin(Vector2(100.0, 100.0))
+	var release := InputEventMouseButton.new()
+	release.button_index = MOUSE_BUTTON_LEFT
+	release.pressed = false
+	_canvas._input(release)
+	assert_int(_canvas._input_state).is_equal(DrawingCanvas.InputState.STROKING)
+	assert_object(_canvas._live_stroke).is_not_null()
+	_canvas._end_stroke_at_last_point()  # clean up for the next test
+
+
+func test_mouse_stroke_ignores_draw_hold_release() -> void:
+	_canvas._stroke_from_key = false
+	_canvas._stroke_begin(Vector2(100.0, 100.0))
+	var key_release := InputEventKey.new()
+	key_release.physical_keycode = KEY_D
+	key_release.pressed = false
+	_canvas._unhandled_key_input(key_release)
+	assert_int(_canvas._input_state).is_equal(DrawingCanvas.InputState.STROKING)
+	assert_object(_canvas._live_stroke).is_not_null()
+	_canvas._end_stroke_at_last_point()
+
+
+func test_draw_hold_release_ends_key_stroke() -> void:
+	_canvas._stroke_from_key = true
+	_canvas._stroke_begin(Vector2(100.0, 100.0))
+	var key_release := InputEventKey.new()
+	key_release.physical_keycode = KEY_D
+	key_release.pressed = false
+	_canvas._unhandled_key_input(key_release)
+	assert_int(_canvas._input_state).is_equal(DrawingCanvas.InputState.IDLE)
+	assert_int(_canvas.get_doc().ops.size()).is_equal(1)
+
+
+func test_process_fallback_is_source_aware() -> void:
+	# A key-held stroke survives frames with no mouse button down...
+	_canvas._stroke_from_key = true
+	_canvas._stroke_begin(Vector2(100.0, 100.0))
+	Input.action_press("draw_hold")
+	await await_idle_frame()
+	assert_int(_canvas._input_state).is_equal(DrawingCanvas.InputState.STROKING)
+	# ...and the fallback lifts the pen when the action goes slack.
+	Input.action_release("draw_hold")
+	await await_idle_frame()
+	assert_int(_canvas._input_state).is_equal(DrawingCanvas.InputState.IDLE)
+	assert_int(_canvas.get_doc().ops.size()).is_equal(1)
+
+
+# --- Slice 18 rework (2026-07-10): minimap navigation + D-as-click ---
+
+
+func test_minimap_view_rect_math() -> void:
+	var view := Vector2(800.0, 600.0)
+	# Fit: the whole canvas is the view.
+	assert_that(CanvasMinimap.view_rect_frac(1.0, Vector2.ZERO, view)) \
+		.is_equal(Rect2(0.0, 0.0, 1.0, 1.0))
+	# 2x, panned to the exact middle: a half-size window starting at 25%.
+	assert_that(CanvasMinimap.view_rect_frac(2.0, Vector2(-400.0, -300.0), view)) \
+		.is_equal(Rect2(0.25, 0.25, 0.5, 0.5))
+
+
+func test_center_view_on_fraction_moves_pan() -> void:
+	_canvas._zoom = 2.0
+	_canvas._center_view_on_fraction(Vector2(0.5, 0.5))
+	# Center of the drawing at view center: pan = view/2 - 0.5 * view * 2
+	# = -view/2 (then clamped by layout - in range at 2x).
+	var view: Vector2 = _canvas._viewport_box.size
+	assert_that(_canvas._pan).is_equal(
+			DrawingCanvas.clamp_pan(-view * 0.5, view, 2.0))
+
+
+func test_minimap_hidden_at_fit_visible_zoomed() -> void:
+	_canvas._minimap.set_view(1.0, Vector2.ZERO, Vector2(800.0, 600.0))
+	assert_bool(_canvas._minimap.visible).is_false()
+	_canvas._minimap.set_view(2.0, Vector2.ZERO, Vector2(800.0, 600.0))
+	assert_bool(_canvas._minimap.visible).is_true()
+
+
+func test_key_click_presses_the_button_under_the_pointer() -> void:
+	# The D-as-click synthesis: a click pair at the Clear button's center
+	# must run the ordinary button path (ClearOp appended).
+	_canvas.size = Vector2(1000.0, 760.0)
+	await await_idle_frame()
+	var clear_button: Button = _canvas._toolbar._clear_button
+	_canvas._key_click_at(clear_button.get_global_rect().get_center())
+	await await_idle_frame()
+	assert_int(_canvas.get_doc().ops.size()).is_equal(1)
+	assert_int(_canvas.get_doc().ops[0].type).is_equal(DrawingOp.Type.CLEAR)

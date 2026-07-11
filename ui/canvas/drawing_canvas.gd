@@ -18,7 +18,7 @@ signal save_toggle_changed(enabled: bool)
 signal replay_finished()
 
 enum MaskMode { NONE, CIRCLE }  # CIRCLE implemented in Slice 11
-enum InputState { IDLE, STROKING, CONFIRMING_ROTATE, REPLAYING }
+enum InputState { IDLE, STROKING, CONFIRMING_ROTATE, REPLAYING, PANNING }
 
 @export var show_rotate: bool = true
 @export var show_save_toggle: bool = true
@@ -49,6 +49,13 @@ var _mask: Image = null  # Slice 11 populates for MaskMode.CIRCLE
 # hover copy read as a duplicate).
 var _chip_texture: ImageTexture = null
 var _eraser_cursor: EraserCursor = null   # display-only erase footprint
+# Slice 18 view state (display-only; the doc and every internal coordinate
+# are untouched - determinism is not in play).
+var _zoom: float = 1.0
+var _pan: Vector2 = Vector2.ZERO          # RasterView position; <= 0 per axis
+var _stroke_from_key: bool = false        # live stroke started by draw_hold
+var _pan_grab_mouse: Vector2 = Vector2.ZERO
+var _minimap: CanvasMinimap = null        # "you are here" inset while zoomed
 
 @onready var _toolbar: CanvasToolbar = %Toolbar
 @onready var _palette: PalettePicker = %PalettePickerBox
@@ -81,6 +88,10 @@ func _ready() -> void:
 	_rotate_confirm.confirmed.connect(_confirm_rotate)
 	_rotate_confirm.cancelled.connect(func() -> void: _input_state = InputState.IDLE)
 	_viewport_box.gui_input.connect(_on_canvas_gui_input)
+	_viewport_box.resized.connect(_apply_zoom_layout)
+	_toolbar.zoom_in_pressed.connect(func() -> void: _step_zoom(1))
+	_toolbar.zoom_out_pressed.connect(func() -> void: _step_zoom(-1))
+	_toolbar.zoom_reset_pressed.connect(_reset_view)
 	_text_input.max_length = GameConstants.TEXT_MAX_CHARS
 	_text_input.text_changed.connect(func(_t: String) -> void: _refresh_text_chip())
 	# Drag & drop via scripted virtuals on the chip/viewport-box nodes
@@ -92,6 +103,14 @@ func _ready() -> void:
 	_eraser_cursor.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_eraser_cursor.visible = false
 	_viewport_box.add_child(_eraser_cursor)
+	# Slice 18 rework: zoom navigation inset (namespaced node name - the
+	# recursive-find_child lesson).
+	_minimap = CanvasMinimap.new()
+	_minimap.name = "CanvasMinimapInset"
+	_minimap.visible = false
+	_minimap.mouse_filter = Control.MOUSE_FILTER_STOP
+	_viewport_box.add_child(_minimap)
+	_minimap.view_center_requested.connect(_center_view_on_fraction)
 	# Slice 11: circular mode activates the Slice 1 mask hook - the doc IS an
 	# avatar doc (fixed 512x512 orientation) and every raster path masks.
 	if mask_mode == MaskMode.CIRCLE:
@@ -116,6 +135,7 @@ func begin_drawing() -> void:
 	_doc = DrawingDoc.new()
 	_doc.orientation = kept_orientation
 	_clock_start_ms = Time.get_ticks_msec()
+	_reset_view()
 	_full_reraster()
 	_refresh_undo_state()
 	doc_changed.emit()
@@ -131,6 +151,7 @@ func load_doc(doc: DrawingDoc) -> void:
 	_commit_live_stroke()
 	_doc = doc
 	_apply_orientation_to_surface()
+	_reset_view()
 	_full_reraster()
 	_refresh_undo_state()
 	doc_changed.emit()
@@ -179,9 +200,15 @@ func _process(_delta: float) -> void:
 			_texture.update(_raster)
 			replay_finished.emit()
 		return
-	if _input_state == InputState.STROKING and not Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
-		# Release fallback (mouse released outside the window, focus games).
-		_end_stroke_at_last_point()
+	if _input_state == InputState.STROKING:
+		# Release fallback (released outside the window, focus games) - checks
+		# the source that started the stroke (Slice 18: draw_hold strokes).
+		var still_held: bool = Input.is_action_pressed("draw_hold") if _stroke_from_key \
+				else Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT)
+		if not still_held:
+			_end_stroke_at_last_point()
+	if _input_state == InputState.PANNING and not Input.is_mouse_button_pressed(MOUSE_BUTTON_MIDDLE):
+		_input_state = InputState.IDLE
 	if _texture_dirty:
 		_texture_dirty = false
 		_texture.update(_raster)
@@ -189,13 +216,37 @@ func _process(_delta: float) -> void:
 
 
 func _input(event: InputEvent) -> void:
+	# Trackpad gestures are handled here, NOT in gui_input - their delivery
+	# to Controls varies by platform (the owner's two-finger pan never
+	# arrived through gui_input on macOS). Hit-test the canvas ourselves.
+	if event is InputEventMagnifyGesture or event is InputEventPanGesture:
+		if _gesture_over_canvas():
+			if event is InputEventMagnifyGesture:
+				var mg: InputEventMagnifyGesture = event
+				_set_zoom(_zoom * mg.factor, _viewport_box.get_local_mouse_position())
+			else:
+				var pg: InputEventPanGesture = event
+				_move_pan(-pg.delta * GameConstants.CANVAS_GESTURE_PAN_FACTOR)
+			get_viewport().set_input_as_handled()
+		return
+	if _input_state == InputState.PANNING:
+		if event is InputEventMouseMotion:
+			var cur: Vector2 = _viewport_box.get_local_mouse_position()
+			_move_pan(cur - _pan_grab_mouse)
+			_pan_grab_mouse = cur
+		elif event is InputEventMouseButton:
+			var pan_mb: InputEventMouseButton = event
+			if pan_mb.button_index == MOUSE_BUTTON_MIDDLE and not pan_mb.pressed:
+				_input_state = InputState.IDLE
+		return
 	if _input_state != InputState.STROKING:
 		return
 	if event is InputEventMouseMotion:
 		_stroke_extend(_display_to_internal(_viewport_box.get_local_mouse_position()))
 	elif event is InputEventMouseButton:
 		var mb: InputEventMouseButton = event
-		if mb.button_index == MOUSE_BUTTON_LEFT and not mb.pressed:
+		if mb.button_index == MOUSE_BUTTON_LEFT and not mb.pressed and not _stroke_from_key:
+			# A draw_hold stroke ignores mouse releases (source rule, Slice 18).
 			_stroke_end(_display_to_internal(_viewport_box.get_local_mouse_position()))
 
 
@@ -203,11 +254,18 @@ func _notification(what: int) -> void:
 	if what == NOTIFICATION_APPLICATION_FOCUS_OUT or what == NOTIFICATION_WM_WINDOW_FOCUS_OUT:
 		if _input_state == InputState.STROKING:
 			_end_stroke_at_last_point()
+		if _input_state == InputState.PANNING:
+			_input_state = InputState.IDLE
 
 
 func _unhandled_key_input(event: InputEvent) -> void:
 	if event.is_action_pressed("ui_undo"):
 		_press_undo()
+	elif event.is_action_pressed("draw_hold") and not event.is_echo():
+		_begin_key_draw()
+	elif event.is_action_released("draw_hold") \
+			and _input_state == InputState.STROKING and _stroke_from_key:
+		_stroke_end(_display_to_internal(_viewport_box.get_local_mouse_position()))
 
 
 # --- Internal: input handling ---
@@ -216,6 +274,8 @@ func _unhandled_key_input(event: InputEvent) -> void:
 func _on_canvas_gui_input(event: InputEvent) -> void:
 	if not _tools_enabled or _input_state != InputState.IDLE:
 		return
+	if _handle_view_input(event):
+		return
 	if event is InputEventMouseButton:
 		var mb: InputEventMouseButton = event
 		if mb.button_index == MOUSE_BUTTON_LEFT and mb.pressed:
@@ -223,19 +283,199 @@ func _on_canvas_gui_input(event: InputEvent) -> void:
 			if _current_tool == CanvasToolbar.Tool.FILL:
 				_fill_at(pos)
 			else:
+				_stroke_from_key = false
 				_stroke_begin(pos)   # BRUSH and ERASER both stroke (§6)
 
 
-## Display -> internal coordinate mapping through the letterbox transform.
-## The AspectRatioContainer keeps the container at the canvas aspect, so the
-## map is uniform; positions clamp to the canvas rect (Slice 1 §6).
+## Display -> internal coordinate mapping through the letterbox transform
+## and the Slice 18 zoom/pan view transform. The AspectRatioContainer keeps
+## the container at the canvas aspect, so the map is uniform; positions
+## clamp to the canvas rect (Slice 1 §6).
 func _display_to_internal(container_local: Vector2) -> Vector2:
-	var container_size: Vector2 = _viewport_box.size
-	var internal: Vector2 = Vector2(_doc.canvas_size())
+	return map_display_to_internal(container_local, _viewport_box.size,
+			Vector2(_doc.canvas_size()), _zoom, _pan)
+
+
+# --- Slice 18: display zoom/pan. View-only - the doc, raster, and every
+# --- internal coordinate are untouched. Pure math is static for headless
+# --- tests; the zoom is applied by resizing the RasterView INSIDE the
+# --- SubViewport, so the render target never grows with zoom.
+
+
+static func clamp_zoom(zoom: float) -> float:
+	return clampf(zoom, 1.0, GameConstants.CANVAS_ZOOM_MAX)
+
+
+## Pan is the RasterView position within the view: at zoom z the view shows
+## a 1/z window of the canvas, so valid pan is [view * (1 - z), 0] per
+## axis - collapsing to (0,0) at fit (panning is impossible unzoomed).
+static func clamp_pan(pan: Vector2, view_size: Vector2, zoom: float) -> Vector2:
+	var min_pan: Vector2 = view_size * (1.0 - zoom)
+	return Vector2(clampf(pan.x, min_pan.x, 0.0), clampf(pan.y, min_pan.y, 0.0))
+
+
+## New pan keeping the canvas point under `cursor` (display coords) fixed
+## across a zoom change. Unclamped - the layout pass clamps.
+static func pan_after_zoom(cursor: Vector2, pan: Vector2, old_zoom: float, new_zoom: float) -> Vector2:
+	if old_zoom <= 0.0:
+		return pan
+	return cursor - (cursor - pan) * (new_zoom / old_zoom)
+
+
+## THE display->internal map - every input path funnels through here. At
+## zoom 1 / pan 0 this is exactly the Slice 1 letterbox map (pinned).
+static func map_display_to_internal(container_local: Vector2, container_size: Vector2,
+		internal: Vector2, zoom: float, pan: Vector2) -> Vector2:
 	var p: Vector2 = container_local
-	if container_size.x > 0.0 and container_size.y > 0.0:
-		p = container_local * (internal / container_size)
+	if container_size.x > 0.0 and container_size.y > 0.0 and zoom > 0.0:
+		p = ((container_local - pan) / zoom) * (internal / container_size)
 	return p.clamp(Vector2.ZERO, internal - Vector2(0.1, 0.1))
+
+
+func _apply_zoom_layout() -> void:
+	if _raster_view == null or _viewport_box == null:
+		return
+	_pan = clamp_pan(_pan, _viewport_box.size, _zoom)
+	_raster_view.position = _pan
+	_raster_view.size = _viewport_box.size * _zoom
+	_toolbar.set_zoom_display(_zoom)
+	_layout_minimap()
+
+
+func _set_zoom(new_zoom: float, anchor_display: Vector2) -> void:
+	var clamped: float = clamp_zoom(new_zoom)
+	if is_equal_approx(clamped, _zoom):
+		return
+	_pan = pan_after_zoom(anchor_display, _pan, _zoom, clamped)
+	_zoom = clamped
+	_apply_zoom_layout()
+
+
+## Toolbar +/-: next/previous rung on the CANVAS_ZOOM_STEPS ladder,
+## anchored at the view center.
+func _step_zoom(direction: int) -> void:
+	var steps: PackedFloat32Array = GameConstants.CANVAS_ZOOM_STEPS
+	var target: float = _zoom
+	if direction > 0:
+		for i: int in steps.size():
+			if steps[i] > _zoom * 1.001:
+				target = steps[i]
+				break
+	else:
+		for i: int in range(steps.size() - 1, -1, -1):
+			if steps[i] < _zoom * 0.999:
+				target = steps[i]
+				break
+	_set_zoom(target, _viewport_box.size / 2.0)
+
+
+func _reset_view() -> void:
+	_zoom = 1.0
+	_pan = Vector2.ZERO
+	_apply_zoom_layout()
+
+
+func _move_pan(delta_display: Vector2) -> void:
+	_pan += delta_display
+	_apply_zoom_layout()
+
+
+## Wheel/middle-drag view input over the canvas (IDLE only - a mid-stroke
+## zoom would bend the mapping under a live stroke). Trackpad gestures are
+## handled in _input (delivery to gui_input is platform-flaky). Returns
+## true when consumed. Wheel events carry `factor` for precise trackpad
+## scrolling (0 on plain wheels) - scale by it so trackpads glide and
+## wheels step.
+func _handle_view_input(event: InputEvent) -> bool:
+	if event is InputEventMouseButton:
+		var mb: InputEventMouseButton = event
+		if not mb.pressed:
+			return false
+		match mb.button_index:
+			MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN:
+				var up: bool = mb.button_index == MOUSE_BUTTON_WHEEL_UP
+				var notch: float = mb.factor if mb.factor > 0.0 else 1.0
+				if mb.ctrl_pressed or mb.meta_pressed:
+					var step: float = pow(GameConstants.CANVAS_WHEEL_ZOOM_FACTOR, notch)
+					_set_zoom(_zoom * (step if up else 1.0 / step), mb.position)
+				elif mb.shift_pressed:
+					var dx: float = GameConstants.CANVAS_WHEEL_PAN_PX * notch
+					_move_pan(Vector2(dx if up else -dx, 0.0))
+				else:
+					var dy: float = GameConstants.CANVAS_WHEEL_PAN_PX * notch
+					_move_pan(Vector2(0.0, dy if up else -dy))
+				return true
+			MOUSE_BUTTON_MIDDLE:
+				_input_state = InputState.PANNING
+				_pan_grab_mouse = _viewport_box.get_local_mouse_position()
+				return true
+	return false
+
+
+func _gesture_over_canvas() -> bool:
+	return _tools_enabled and _input_state == InputState.IDLE \
+			and is_visible_in_tree() \
+			and _viewport_box.get_global_rect().has_point(_viewport_box.get_global_mouse_position())
+
+
+## Minimap request: put the canvas point at fraction `frac` (0..1 of the
+## whole drawing) at the view center. Clamped by the layout pass.
+func _center_view_on_fraction(frac: Vector2) -> void:
+	_pan = _viewport_box.size * 0.5 - frac * _viewport_box.size * _zoom
+	_apply_zoom_layout()
+
+
+func _layout_minimap() -> void:
+	if _minimap == null:
+		return
+	var view: Vector2 = _viewport_box.size
+	var internal: Vector2 = Vector2(_doc.canvas_size())
+	var w: float = view.x * GameConstants.CANVAS_MINIMAP_WIDTH_FRAC
+	var h: float = w * (internal.y / maxf(internal.x, 1.0))
+	_minimap.size = Vector2(w, h)
+	_minimap.position = view - _minimap.size - Vector2(8.0, 8.0)
+	_minimap.set_view(_zoom, _pan, view)
+
+
+## Hold-to-draw + key-click (Slice 18; rework 2026-07-10): while
+## `draw_hold` (default D) is held over the canvas, the pointer is the
+## pen; over the minimap, the minimap pans; anywhere else, a D press is a
+## synthesized left-click at the pointer (toolbar/palette/toggles/chat
+## focus - one rule, no per-widget wiring). Focused text fields consume
+## the key before _unhandled_key_input, so typing "d" can never ink OR
+## click.
+func _begin_key_draw() -> void:
+	if not is_visible_in_tree():
+		return
+	if _minimap != null and _minimap.visible \
+			and _minimap.get_global_rect().has_point(get_global_mouse_position()):
+		return   # the minimap's hold-D pan owns this pointer
+	if _viewport_box.get_global_rect().has_point(_viewport_box.get_global_mouse_position()):
+		if not _tools_enabled or _input_state != InputState.IDLE:
+			return
+		var pos: Vector2 = _display_to_internal(_viewport_box.get_local_mouse_position())
+		if _current_tool == CanvasToolbar.Tool.FILL:
+			_fill_at(pos)
+		else:
+			_stroke_from_key = true
+			_stroke_begin(pos)
+		return
+	if Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
+		return   # a real press is in flight - don't double-click
+	_key_click_at(get_viewport().get_mouse_position())
+
+
+## Synthesized full press+release pair (no held-button state to get
+## stuck), pushed viewport-locally so the window stretch transform never
+## touches the coordinates.
+func _key_click_at(canvas_pos: Vector2) -> void:
+	for is_press: bool in [true, false]:
+		var ev := InputEventMouseButton.new()
+		ev.button_index = MOUSE_BUTTON_LEFT
+		ev.pressed = is_press
+		ev.position = canvas_pos
+		ev.global_position = canvas_pos
+		get_viewport().push_input(ev, true)
 
 
 # --- Internal: stroke lifecycle (also the headless-test seam) ---
@@ -390,7 +630,7 @@ func _chip_get_drag_data(_at_position: Vector2) -> Variant:
 	var display_scale: float = 1.0
 	var internal: Vector2 = Vector2(_doc.canvas_size())
 	if internal.x > 0.0 and _viewport_box.size.x > 0.0:
-		display_scale = _viewport_box.size.x / internal.x
+		display_scale = _viewport_box.size.x * _zoom / internal.x
 	preview.size = Vector2(img.get_width(), img.get_height()) * display_scale
 	# Hold the text by its center - matches the drop anchoring. The preview
 	# must be mouse-transparent or it hides the drop target under the cursor.
@@ -472,7 +712,7 @@ func _update_eraser_cursor() -> void:
 	var internal: Vector2 = Vector2(_doc.canvas_size())
 	var display_scale: float = 1.0
 	if internal.x > 0.0 and _viewport_box.size.x > 0.0:
-		display_scale = _viewport_box.size.x / internal.x
+		display_scale = _viewport_box.size.x * _zoom / internal.x
 	_eraser_cursor.radius_px = float(GameConstants.BRUSH_RADII_PX[_current_size_index]) \
 			* display_scale
 	_eraser_cursor.queue_redraw()
@@ -527,6 +767,7 @@ func _flip_orientation() -> void:
 		_doc.orientation = DrawingDoc.ORIENTATION_LANDSCAPE
 	_doc.ops.clear()
 	_apply_orientation_to_surface()
+	_reset_view()
 	_full_reraster()
 	_refresh_undo_state()
 	orientation_changed.emit(_doc.orientation)
@@ -563,6 +804,8 @@ func _full_reraster() -> void:
 	_texture = ImageTexture.create_from_image(_raster)
 	_raster_view.texture = _texture
 	_texture_dirty = false
+	if _minimap != null:
+		_minimap.setup(_texture)
 
 
 func _refresh_undo_state() -> void:

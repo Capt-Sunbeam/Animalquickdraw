@@ -70,8 +70,11 @@ func test_chat_panel_prominence_setter_applies_all_three_states() -> void:
 	# expanded chat must never crowd the grid's social rows.
 	chat.prominence = ChatPanel.Prominence.PROMINENT
 	assert_bool(history.visible).is_true()
-	assert_float(history.custom_minimum_size.y).is_equal(
-			ChatPanel.prominent_history_height(chat.get_viewport_rect().size.y))
+	# f32 tolerance: custom_minimum_size is a Vector2 (32-bit), the reference
+	# math is 64-bit. Slice 18's stretch mode made the headless viewport hit
+	# the ratio path (base 720) and exposed the exact-compare mismatch.
+	assert_float(history.custom_minimum_size.y).is_equal_approx(
+			ChatPanel.prominent_history_height(chat.get_viewport_rect().size.y), 0.001)
 	assert_int(history.get_theme_font_size("normal_font_size"))\
 			.is_equal(ChatPanel.PROMINENT_FONT_SIZE)
 

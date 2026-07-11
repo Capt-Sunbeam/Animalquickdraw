@@ -10,6 +10,9 @@ signal tool_selected(tool: Tool)
 signal undo_pressed()
 signal clear_pressed()
 signal rotate_pressed()
+signal zoom_in_pressed()
+signal zoom_out_pressed()
+signal zoom_reset_pressed()
 
 enum Tool { BRUSH, FILL, ERASER }
 
@@ -20,6 +23,9 @@ enum Tool { BRUSH, FILL, ERASER }
 @onready var _undo_button: Button = %UndoButton
 @onready var _clear_button: Button = %ClearButton
 @onready var _rotate_button: Button = %RotateButton
+@onready var _zoom_out_button: Button = %ZoomOut
+@onready var _zoom_label_button: Button = %ZoomLabel
+@onready var _zoom_in_button: Button = %ZoomIn
 
 var _size_group := ButtonGroup.new()
 var _tool_group := ButtonGroup.new()
@@ -43,6 +49,9 @@ func _ready() -> void:
 	_undo_button.pressed.connect(func() -> void: undo_pressed.emit())
 	_clear_button.pressed.connect(func() -> void: clear_pressed.emit())
 	_rotate_button.pressed.connect(func() -> void: rotate_pressed.emit())
+	_zoom_in_button.pressed.connect(func() -> void: zoom_in_pressed.emit())
+	_zoom_out_button.pressed.connect(func() -> void: zoom_out_pressed.emit())
+	_zoom_label_button.pressed.connect(func() -> void: zoom_reset_pressed.emit())
 	# Defaults: medium brush, brush tool.
 	_size_buttons[1].button_pressed = true
 	_brush_button.button_pressed = true
@@ -60,6 +69,12 @@ func set_rotate_visible(visible_flag: bool) -> void:
 	_rotate_button.visible = visible_flag
 
 
+## Slice 18: zoom cluster readout ("100%".."800%"); the label doubles as
+## the reset-to-fit button.
+func set_zoom_display(zoom: float) -> void:
+	_zoom_label_button.text = "%d%%" % roundi(zoom * 100.0)
+
+
 func set_all_enabled(enabled: bool) -> void:
 	for btn: Button in _size_buttons:
 		btn.disabled = not enabled
@@ -69,3 +84,6 @@ func set_all_enabled(enabled: bool) -> void:
 	_undo_button.disabled = not enabled
 	_clear_button.disabled = not enabled
 	_rotate_button.disabled = not enabled
+	_zoom_in_button.disabled = not enabled
+	_zoom_out_button.disabled = not enabled
+	_zoom_label_button.disabled = not enabled

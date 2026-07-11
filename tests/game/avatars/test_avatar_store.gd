@@ -62,3 +62,29 @@ func test_clear_deletes_the_file() -> void:
 	assert_int(AvatarStore.clear()).is_equal(OK)
 	assert_bool(Save.file_exists(TEST_PATH)).is_false()
 	assert_int(AvatarStore.clear()).is_equal(OK)   # clearing nothing is fine
+
+
+# --- default_path_for_args: dev instances share user://, so a --name= arg
+# --- namespaces the avatar file (mirrors EnetBackend.disambiguate_platform_id)
+
+func test_default_path_namespaced_by_dev_name_arg() -> void:
+	var args := PackedStringArray(["--platform=enet", "--name=P2"])
+	assert_that(AvatarStore.default_path_for_args(args)).is_equal("avatar_P2.json")
+
+
+func test_default_path_plain_without_name_arg() -> void:
+	assert_that(AvatarStore.default_path_for_args(PackedStringArray())).is_equal("avatar.json")
+
+
+func test_default_path_plain_on_non_enet_platform() -> void:
+	var args := PackedStringArray(["--platform=steam", "--name=P2"])
+	assert_that(AvatarStore.default_path_for_args(args)).is_equal("avatar.json")
+
+
+func test_default_path_sanitizes_hostile_name_arg() -> void:
+	# ".." anywhere in a Save path is rejected wholesale, so the tag is a
+	# whitelist; a name with no safe characters falls back to the plain file.
+	var traversal := PackedStringArray(["--name=../ev il/p"])
+	assert_that(AvatarStore.default_path_for_args(traversal)).is_equal("avatar_evilp.json")
+	var hostile := PackedStringArray(["--name=#!?."])
+	assert_that(AvatarStore.default_path_for_args(hostile)).is_equal("avatar.json")

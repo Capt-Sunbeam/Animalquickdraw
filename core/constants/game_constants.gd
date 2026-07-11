@@ -118,3 +118,12 @@ const WRAPUP_TITLE_EVIDENCE_MAX: int = 3
 # (Late joiners get the FULL standard allotment - owner decision 2026-07-07
 # superseding §11's half rule; no constant needed.)
 const JUDGE_DODGE_WINDOW_SEC: float = 30.0           # fluid OFF: leaving this close to your turn = suspect
+
+# --- Slice 18: Canvas Ergonomics & Display Scaling ---
+const WINDOW_MIN_SIZE: Vector2i = Vector2i(960, 540)  # below this, dense screens stop being usable
+const CANVAS_ZOOM_MAX: float = 8.0
+const CANVAS_ZOOM_STEPS: PackedFloat32Array = [1.0, 1.5, 2.0, 3.0, 4.0, 6.0, 8.0]  # toolbar button ladder
+const CANVAS_WHEEL_ZOOM_FACTOR: float = 1.15          # per wheel notch (Ctrl/Cmd held)
+const CANVAS_WHEEL_PAN_PX: float = 60.0               # per wheel notch, display px
+const CANVAS_GESTURE_PAN_FACTOR: float = 20.0         # trackpad two-finger scroll multiplier
+const CANVAS_MINIMAP_WIDTH_FRAC: float = 0.24         # inset width as a fraction of the canvas view

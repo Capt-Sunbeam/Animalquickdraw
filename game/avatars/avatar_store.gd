@@ -6,7 +6,34 @@ extends RefCounted
 ## in profile.json (§4). `path` is a test seam (CollectionStore.root_dir
 ## pattern) so suites never touch a real player's avatar.
 
-static var path: String = "avatar.json"
+static var path: String = default_path_for_args(OS.get_cmdline_user_args())
+
+
+## Dev instances on one machine share user://, so they would all read the
+## same avatar file (same problem, same cure as
+## EnetBackend.disambiguate_platform_id): a --name= user arg namespaces the
+## file ("avatar_P2.json") so local playtest instances keep distinct
+## avatars. Steam builds launch without user args -> plain "avatar.json";
+## this is dev-only.
+static func default_path_for_args(args: PackedStringArray) -> String:
+	if EnetBackend.arg_value(args, "platform", "enet") != "enet":
+		return "avatar.json"
+	var tag: String = _name_tag(EnetBackend.arg_value(args, "name"))
+	if tag.is_empty():
+		return "avatar.json"
+	return "avatar_%s.json" % tag
+
+
+## Filesystem-safe subset of the --name arg (Save._path_ok rejects ".."
+## anywhere in a path, so whitelist instead of patching characters out).
+static func _name_tag(raw: String) -> String:
+	var tag: String = ""
+	for i: int in raw.length():
+		var ch: String = raw[i]
+		if (ch >= "a" and ch <= "z") or (ch >= "A" and ch <= "Z") \
+				or (ch >= "0" and ch <= "9") or ch == "_" or ch == "-":
+			tag += ch
+	return tag
 
 
 ## Parsed local avatar; null = none (missing file, corrupt content, wrong

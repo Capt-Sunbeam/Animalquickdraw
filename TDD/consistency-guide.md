@@ -259,7 +259,7 @@ Network disconnect handling is defined by Slice 9; until then, drop-to-main-menu
 - **Screens** live in `ui/<feature>/<name>_screen.tscn` + matching script; navigated via `Nav.goto(scene_path)` (which also handles transition + cleanup). In-round phase screens are children of a persistent `RoundRoot` scene swapped by phase — not full `Nav` navigations.
 - **Components** (reused widgets) live in `ui/shared/` or the feature folder; expose `@export` config + signals; no upward `get_parent()` reach-arounds.
 - **Theme:** all styling through `core/theme/main_theme.tres` + theme variations. No per-node hardcoded colors/fonts except the drawing palette itself.
-- **Layout:** design for 1280×720 minimum, anchor/container-based so the window is freely resizable. The canvas view letterboxes to preserve the fixed internal aspect.
+- **Layout:** design for 1280×720 base, anchor/container-based so the window is freely resizable. The canvas view letterboxes to preserve the fixed internal aspect. **Slice 18:** the project runs `canvas_items`/`expand` window stretch with a 960×540 minimum window (`GameConstants.WINDOW_MIN_SIZE`, applied in `Nav._ready`) — screens must stay container/anchor-driven (no absolute-pixel layouts), and test suites that simulate OS-level input must park `content_scale_mode` (see `test_text_drag_drop.gd`).
 - **Chat prominence** is a property of the phase screen (judge-drawing phase: large; drawer-drawing phase: collapsed), not a global toggle.
 - **User Confirmation Checkpoints:** every slice TDD lists UI features the owner must playtest before slice completion (per `workflows/testing-protocol.md` — blocking vs batchable).
 

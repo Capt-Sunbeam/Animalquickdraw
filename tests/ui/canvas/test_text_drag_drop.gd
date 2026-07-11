@@ -10,6 +10,23 @@ extends GdUnitTestSuite
 ## chain the engine invokes on a real drop.
 
 
+var _saved_scale_mode: Window.ContentScaleMode
+
+
+func before_test() -> void:
+	# Slice 18's canvas_items stretch transforms OS-level input by the
+	# window content-scale factor; under headless window geometry that
+	# factor is unpredictable, so simulated global positions stop landing
+	# where get_global_rect points. Scaling is display-only - park it for
+	# this simulated-input suite and restore after.
+	_saved_scale_mode = get_tree().root.content_scale_mode
+	get_tree().root.content_scale_mode = Window.CONTENT_SCALE_MODE_DISABLED
+
+
+func after_test() -> void:
+	get_tree().root.content_scale_mode = _saved_scale_mode
+
+
 func _laid_out_canvas(runner: GdUnitSceneRunner) -> DrawingCanvas:
 	var canvas: DrawingCanvas = runner.scene()
 	canvas.position = Vector2.ZERO

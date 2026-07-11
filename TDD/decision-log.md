@@ -2,13 +2,50 @@
 
 **Purpose:** Track design decisions made during development. New entries are added at the top of the Decisions section.
 
-**Last Updated:** 2026-07-07
+**Last Updated:** 2026-07-10
 
 ---
 
 ## Decisions
 
 *New entries go here, at the top of this section.*
+
+---
+
+### Slice 18 rework: D doubles as a click; zoom navigation via minimap (fix over scrap)
+**Date:** 2026-07-10 | **Slice:** 18 (same-session owner rework) | **Decided by:** Owner | **Type:** Quick
+
+**Decision:** First playtest found zoom disorienting (no position sense; trackpad pan never arrived) and wanted D to click buttons too. Owner chose the full fix over scrapping zoom: (1) D outside the canvas synthesizes a left-click pair at the pointer (`push_input` viewport-local — one rule for all buttons, no stuck-press state); (2) a `CanvasMinimap` corner inset (visible while zoomed) shows the whole drawing + view rectangle, and click-drag or **hold-D-and-move** on it pans — answering "where am I?" and "how do I move?" in one widget; (3) trackpad gestures rerouted from `gui_input` to `_input` with an explicit hit-test (platform-flaky Control delivery was why pan "didn't exist"), wheel events scale by `factor` for precise trackpad scrolling. Text-chip drag stays real-click-drag (D-hold drag risks stuck state near text fields) — batchable.
+
+**Status:** [x] Implemented (505 tests green, 3 gates PASS) [x] Owner re-check confirmed 2026-07-10 ("that's great"; minimap border polish applied same day)
+
+---
+
+### Slice 18 (mini) inserted: canvas ergonomics & display scaling before Steam
+**Date:** 2026-07-10 | **Slice:** 18 (owner-inserted mini-slice, between Chunks 14 and 15) | **Decided by:** Owner | **Type:** Full
+
+#### Context
+Owner playtests surfaced three ergonomics problems: no window stretch mode (small windows clip text, fullscreen leaves the UI tiny), no canvas zoom for detail work, and click-drag drawing being hostile to trackpad players.
+
+#### Decision
+- **Insert a mini-slice now rather than after Slice 12** — every future playtest (including Slice 12's two-machine Steam tests) benefits, and zoom + hold-to-draw touch the same input path so batching avoids rework. TDD: `TDD/18-canvas-ergonomics.md`.
+- **Window scaling = `canvas_items` stretch + `expand` aspect + 960×540 min window.** Chosen over per-screen responsive rework (the art pass restyles screens anyway) and over `keep` aspect (letterbox bars).
+- **Canvas zoom is display-only and implemented INSIDE the SubViewport** (RasterView resize, not container scale): the ViewportBox's `stretch = true` ties render-target size to container size, so scaling the container would grow VRAM ~O(zoom²) (≈150 MB at 8× fullscreen). Internal raster resolution untouched — determinism not in play.
+- **Hold-to-draw is an InputMap action (`draw_hold`, physical D) handled in `_unhandled_key_input`** — focused text fields consume typed keys first, making "typing d never inks" structural rather than a focus check. Stroke source is tracked so key and mouse releases stay independent.
+- **Testing rule discovered:** suites driving OS-level simulated input must park `content_scale_mode = DISABLED` (the stretch transform makes simulated global positions miss); recorded in consistency guide §8.
+
+**Status:** [x] Implemented (501 tests green, 3 gates PASS) [x] Owner checks cleared 2026-07-10 (trackpad flow confirmed after same-session rework; slice COMPLETE)
+
+---
+
+### Art pass: hand-drawn UI skin planned; slotted after Slice 14, before Slice 15 completes
+**Date:** 2026-07-08 | **Slice:** Future mini-slice (all UI surfaces) | **Decided by:** Owner | **Type:** Quick
+
+**Decision:** The owner will hand-draw the full UI skin (menus/panels/buttons via 9-slice scans, a custom handwriting font, and a main-menu wallpaper collaged from their existing hand-drawn animals). Plan captured in `TDD/art-pass-plan.md`. Ordering: finish Slices 12–14 and the batched testing first, THEN the art pass, THEN Slice 15's store assets + release-candidate playtest (those must happen with final art). Waiting until after Slice 14 also means the UI inventory (the drawing checklist) covers every screen once — nothing drawn twice.
+
+**Scope guards:** the drawing palette and the text tool's PixelFont are deterministic wire-format constants — untouched by the art pass unless explicitly re-decided (versioned + golden rebake). Sound remains a separate open item.
+
+**Status:** [x] Plan doc created [ ] Mini-TDD (at scheduling) [ ] Inventory generated [ ] Assets produced [ ] Integrated
 
 ---
 

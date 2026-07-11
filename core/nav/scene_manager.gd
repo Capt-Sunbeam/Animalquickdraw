@@ -6,6 +6,13 @@ extends Node
 ## persistent RoundRoot (consistency guide §8, Slice 3).
 
 
+func _ready() -> void:
+	# Slice 18: canvas_items/expand stretch scales the UI with the window;
+	# below this floor, proportional scaling alone can't keep dense screens
+	# (lobby, reveal grid) usable.
+	get_window().min_size = GameConstants.WINDOW_MIN_SIZE
+
+
 func goto(route: String) -> void:
 	var err: Error = get_tree().change_scene_to_file(route)
 	if err != OK:

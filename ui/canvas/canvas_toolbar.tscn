@@ -74,3 +74,29 @@ custom_minimum_size = Vector2(72, 36)
 layout_mode = 2
 tooltip_text = "Rotate canvas (clears your drawing)"
 text = "Rotate"
+
+[node name="ZoomSpacer" type="Control" parent="."]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="ZoomOut" type="Button" parent="."]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(36, 36)
+layout_mode = 2
+tooltip_text = "Zoom out"
+text = "-"
+
+[node name="ZoomLabel" type="Button" parent="."]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(64, 36)
+layout_mode = 2
+tooltip_text = "Zoom level - click to reset to fit"
+flat = true
+text = "100%"
+
+[node name="ZoomIn" type="Button" parent="."]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(36, 36)
+layout_mode = 2
+tooltip_text = "Zoom in"
+text = "+"

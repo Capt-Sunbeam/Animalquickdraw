@@ -76,6 +76,10 @@ Six simple faces (smiley/sleepy/surprised/cat/grumpy/winker on distinct palette 
 - Threading an optional parameter (the rasterizer's `mask`) through every write path at Slice 1 time made this slice's core feature a two-line activation — the hook pattern earned its keep.
 - Shared components must namespace their internal node names (`ChipNameLabel`) — recursive `find_child` in host screens and tests sees right through component boundaries.
 
+## Post-Slice Fixes
+
+- **Dev instances shared one avatar (2026-07-10, owner's batched check):** all `dev_run.sh` instances share `user://`, so after saving an avatar on P1, P2/P3 loaded the same `avatar.json` and honestly broadcast it as their own — every player showed P1's face. Not a sync bug (three distinct platform_id-keyed broadcasts, all rendered), but it made the blocking two-instance check unrunnable locally. Cure mirrors `EnetBackend.disambiguate_platform_id`: `AvatarStore.default_path_for_args` namespaces the file by the `--name=` user arg (`avatar_P2.json`) on the enet platform only; the name tag is whitelist-sanitized because `Save._path_ok` rejects `..` wholesale. Steam builds launch without user args → plain `avatar.json`, zero ship impact. +4 tests (491 total).
+
 ## Known Limitations
 
 - Mid-session avatar edits don't propagate (editor is menu-only; applies at next join — §10, forward-compatible).

@@ -7,7 +7,7 @@
 - Owner: check items off whenever tested (any session); report failures as bugs.
 - ✅ AUTO = an automated test/gate covers the mechanics; the human check is for look/feel only.
 
-**Last Updated:** 2026-07-08 (session 8 — Slice 10 wrap-up + Slice 11 avatars sections added; Slice 17 initials-chip item obsoleted)
+**Last Updated:** 2026-07-10 (session 9 — Slice 18 canvas-ergonomics section added)
 
 ---
 
@@ -227,6 +227,25 @@ Two owner-directed fix batches this session (decision log 2026-07-06 "Judging = 
 - [ ] Text tool + eraser inside the avatar editor: sensible or clutter? (kept per "same tools" — cut if it reads as noise)
 - [ ] Roster broadcast size with 8 avatar'd players (each ≤ ~10 KB typical) — any visible join/kudos lag on real networks?
 - [ ] Rejoin/late-join avatar delivery: joiner sees existing faces, existing peers see the joiner's ✅ AUTO by design (roster snapshot path; human check on a real run)
+
+## Slice 18 — Canvas Ergonomics & Display Scaling
+
+*Machine coverage: zoom/pan math (clamp, zoom-at-cursor round-trip, fit-identity vs the Slice 1 map), hold-to-draw source rules incl. the `_process` fallback, minimap view-rect math, D-click end-to-end, toolbar zoom cluster signals; all three gates green. Core-confirmed 2026-07-10 (trackpad flow incl. minimap + D-click; no scaling issues reported). Batchables:*
+
+- [ ] Mouse-path view controls feel: wheel pan speed/direction, Shift+wheel horizontal, Ctrl/Cmd+wheel zoom factor, middle-drag pan (constants are first guesses — tune freely)
+- [ ] Trackpad two-finger pan speed (`CANVAS_GESTURE_PAN_FACTOR`) at 2×–8× zoom
+- [ ] Zoom cluster: − / % / + stepping feels right; % label as reset-to-fit is discoverable (tooltip enough?)
+- [ ] Minimap (rework): size/position/opacity of the inset; view-rect visibility over busy drawings; hold-D pan vs click-drag pan both feel right
+- [ ] D-as-click (rework): palette swatches, size buttons, save toggle, zoom cluster, chat focus all respond to pointer+D; no surprise clicks on empty space
+- [ ] Text-chip drag on a trackpad still requires real click-drag (accepted rework limitation) — painful enough to revisit?
+- [ ] Hold-D + Fill: press stamps once at the pointer — repeat-press cadence acceptable?
+- [ ] Hold-D in the avatar editor: rim clamping while key-drawing across the circle edge
+- [ ] Zoomed drawing near canvas edges: strokes clamp to the edge exactly (no drift at 8×)
+- [ ] Eraser footprint circle + text-chip drag preview sizes stay correct at every zoom level
+- [ ] Sandbox replay while zoomed reads acceptably (accepted TDD limitation — confirm it's not confusing)
+- [ ] Window at exactly 960×540: lobby, reveal grid, wrap-up all usable (min-size floor sanity)
+- [ ] Extreme aspect ratios (ultrawide, tall/narrow): `expand` aspect keeps layouts sane
+- [ ] High zoom linear filtering (soft pixels) — fine for now, or want nearest-neighbor above 1×? (art-pass question)
 
 ## Design gaps / open items (not bugs — need decisions)
 
