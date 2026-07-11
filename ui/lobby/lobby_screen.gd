@@ -7,6 +7,7 @@ extends Control
 var _updating_ui: bool = false  # guards value_changed while applying syncs
 
 @onready var _room_code_label: Label = %RoomCodeLabel
+@onready var _invite_button: Button = %InviteButton
 @onready var _leave_button: Button = %LeaveButton
 @onready var _settings_note: Label = %SettingsNote
 @onready var _rounds_spin: SpinBox = %RoundsSpin
@@ -32,6 +33,11 @@ func _ready() -> void:
 	EventBus.round_suggestion_changed.connect(_on_round_suggestion_changed)
 	EventBus.game_started.connect(_on_game_started)
 	_room_code_label.text = "Room code: %s" % Session.room_code
+	# Slice 12: Steam-only affordance - hidden entirely on ENet (no dead UI).
+	# The room code sits right beside it as the universal manual fallback
+	# (the overlay can be disabled user-side, TDD 12 §10).
+	_invite_button.visible = Platform.supports_invites()
+	_invite_button.pressed.connect(Platform.open_invite_overlay)
 	_leave_button.pressed.connect(Session.leave)
 	_chat.prominence = ChatPanel.Prominence.NORMAL
 	_chat.message_submitted.connect(Session.submit_chat)

@@ -38,6 +38,11 @@ var _pending_welcome: Dictionary = {}      # Slice 9: mid-game welcome, consumed
 # the wrap-up sequence is the payoff and needs no further sync (TDD 10 §10).
 var _hold_host_quit: bool = false
 var _pending_host_quit: bool = false
+# Slice 12: Steam invite routing. Session owns it (not a screen) because the
+# accept can arrive on ANY screen and the confirm dialog must survive scene
+# swaps - deviation from TDD 12 §8's "Session unchanged", see impl notes.
+var _invite_dialog: ConfirmationDialog = null
+var _launch_lobby_checked: bool = false
 
 
 func _ready() -> void:
@@ -45,6 +50,7 @@ func _ready() -> void:
 	EventBus.peer_disconnected.connect(_on_peer_disconnected)
 	EventBus.connection_failed.connect(_on_connection_failed)
 	EventBus.server_disconnected.connect(_on_server_disconnected)
+	EventBus.invite_join_requested.connect(_on_invite_join_requested)
 
 
 # --- Public actions (UI calls these; never mutates roster/settings directly) ---
@@ -60,7 +66,11 @@ func host_session(code: String) -> Error:
 		_local_state = LocalState.MENU
 		return err
 	_reset_session_state()
-	room_code = code.strip_edges().to_upper()
+	# Slice 12: the Steam backend generates the real 5-char code during
+	# lobby creation; ENet echoes the typed dev code. Backend wins.
+	room_code = Platform.get_room_code()
+	if room_code.is_empty():
+		room_code = code.strip_edges().to_upper()
 	_apply_register(1, Platform.get_platform_id(), Platform.get_display_name())
 	_send_local_avatar()   # Slice 11: the host is also a player
 	# Slice 6 host convenience: restore the last-hosted lobby's settings
@@ -69,6 +79,10 @@ func host_session(code: String) -> Error:
 	if profile.get("last_lobby_settings") is Dictionary:
 		settings = GameSettings.restore_for_lobby(
 				profile["last_lobby_settings"], roster.connected_count())
+	# Slice 12: full initial metadata write (schema TDD 12 §2).
+	_push_lobby_metadata(LobbyMetadata.build_full(
+			room_code, Platform.get_display_name(), settings.to_dict(),
+			roster.connected_count(), false))
 	_local_state = LocalState.IN_LOBBY
 	Nav.goto(Routes.LOBBY)
 	return OK
@@ -91,11 +105,88 @@ func join_session(code: String) -> Error:
 	return OK
 
 
+## Coroutine - await it. Slice 12 invite/cold-launch path: join a known
+## Steam lobby directly (no code search). Mirrors join_session otherwise;
+## the display code comes back from the joined lobby's metadata.
+func join_session_by_lobby(lobby_id: int) -> Error:
+	if _local_state != LocalState.MENU:
+		return ERR_BUSY
+	_reset_session_state()
+	_local_state = LocalState.JOIN_CONNECTING
+	var err: Error = await Net.join_lobby(lobby_id)
+	if err != OK:
+		_local_state = LocalState.MENU
+		return err
+	room_code = Platform.get_room_code()
+	_arm_state_watchdog(LocalState.JOIN_CONNECTING)
+	return OK
+
+
 func leave() -> void:
 	if _local_state == LocalState.MENU:
 		return
 	Net.leave()
 	_close_to_menu("left")
+
+
+# --- Slice 12: Steam invite / cold-launch join routing ---
+
+
+## True when a cold-launch invite is pending (menu shows the joining state).
+func will_check_launch_lobby() -> bool:
+	return not _launch_lobby_checked and Platform.platform_ok \
+			and Platform.get_launch_lobby() != 0
+
+
+## Called once by the main menu on first load: a cold launch via Steam
+## invite carries "+connect_lobby <id>" on the command line (TDD 12 §6).
+func check_launch_lobby() -> void:
+	if _launch_lobby_checked:
+		return
+	_launch_lobby_checked = true
+	if not Platform.platform_ok:
+		return
+	var lobby_id: int = Platform.get_launch_lobby()
+	if lobby_id != 0:
+		_join_invited_lobby(lobby_id)
+
+
+## Overlay "Join Game" / accepted invite while the app is running.
+func _on_invite_join_requested(lobby_id: int) -> void:
+	if _local_state == LocalState.MENU:
+		_join_invited_lobby(lobby_id)
+		return
+	# Mid-session: an accidental accept must never nuke the game without
+	# consent (TDD 12 §10) - confirm first. Leaving still gets Slice 9
+	# rejoin memory in the abandoned game.
+	_confirm_invite_join(lobby_id)
+
+
+func _confirm_invite_join(lobby_id: int) -> void:
+	if _invite_dialog == null:
+		_invite_dialog = ConfirmationDialog.new()
+		_invite_dialog.title = "Steam invite"
+		_invite_dialog.ok_button_text = "Leave & join"
+		add_child(_invite_dialog)
+	for conn: Dictionary in _invite_dialog.confirmed.get_connections():
+		_invite_dialog.confirmed.disconnect(conn["callable"])
+	_invite_dialog.dialog_text = "Leave this game and join your friend's game?"
+	_invite_dialog.confirmed.connect(_on_invite_confirmed.bind(lobby_id))
+	_invite_dialog.popup_centered()
+
+
+func _on_invite_confirmed(lobby_id: int) -> void:
+	leave()
+	_join_invited_lobby(lobby_id)
+
+
+func _join_invited_lobby(lobby_id: int) -> void:
+	var err: Error = await join_session_by_lobby(lobby_id)
+	if err != OK:
+		var reason: String = Platform.get_last_failure_reason()
+		_last_close_reason = reason if not reason.is_empty() else "connection_failed"
+		# Reload the menu so its close-reason toast explains the failure.
+		Nav.goto(Routes.MENU)
 
 
 ## Host: direct filtered path. Client: request RPC to the host.
@@ -116,6 +207,7 @@ func set_settings(new_settings: GameSettings) -> void:
 	rpc_sync_round_suggestion.rpc(
 			GameSettings.suggested_rounds(roster.connected_count()),
 			settings.rounds_overridden)
+	_push_lobby_metadata(LobbyMetadata.settings_keys(settings.to_dict()))
 
 
 func can_start() -> bool:
@@ -135,6 +227,7 @@ func start_game() -> void:
 	profile["last_lobby_settings"] = settings.to_dict()
 	Save.write_json("profile.json", profile)
 	rpc_sync_game_started.rpc(_build_start_data())
+	_push_lobby_metadata(LobbyMetadata.state_key(true))
 
 
 ## Host-only (standings screen, Slice 3): returns the whole session to the
@@ -143,6 +236,7 @@ func return_to_lobby() -> void:
 	if not Net.is_host() or phase == NetIds.Phase.LOBBY:
 		return
 	rpc_sync_return_to_lobby.rpc()
+	_push_lobby_metadata(LobbyMetadata.state_key(false))
 
 
 func is_host() -> bool:
@@ -157,6 +251,7 @@ func broadcast_roster() -> void:
 	if not multiplayer.is_server():
 		return
 	rpc_sync_roster.rpc(roster.to_dicts())
+	_push_lobby_metadata(LobbyMetadata.players_key(roster.connected_count()))
 
 
 func local_player() -> Roster.PlayerState:
@@ -262,6 +357,15 @@ func _broadcast_lobby_state() -> void:
 	rpc_sync_round_suggestion.rpc(
 			GameSettings.suggested_rounds(roster.connected_count()),
 			settings.rounds_overridden)
+	_push_lobby_metadata(LobbyMetadata.players_key(roster.connected_count()))
+
+
+## Slice 12 host hook: mirror lobby facts into Steam lobby metadata for the
+## code search / Slice 13 browser. Host-only by the same is_server guard as
+## broadcast_roster (headless-test rationale); no-op on ENet via Platform.
+func _push_lobby_metadata(data: Dictionary) -> void:
+	if multiplayer.is_server():
+		Platform.update_lobby_metadata(data)
 
 
 func _reset_session_state() -> void:

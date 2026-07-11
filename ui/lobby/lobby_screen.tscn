@@ -40,6 +40,13 @@ layout_mode = 2
 theme_override_font_sizes/font_size = 18
 text = "Room code:"
 
+[node name="InviteButton" type="Button" parent="Margin/Root/TopBar"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+tooltip_text = "Opens the Steam friend picker - or just share the room code"
+text = "Invite friends"
+
 [node name="TitleLabel" type="Label" parent="Margin/Root/TopBar"]
 layout_mode = 2
 size_flags_horizontal = 3

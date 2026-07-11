@@ -167,3 +167,47 @@ func test_join_dialog_ignores_empty_code() -> void:
 func test_main_menu_still_smoke_instantiates_with_join_dialog() -> void:
 	var menu: Control = _instantiate(MAIN_MENU)
 	assert_object(menu.find_child("JoinDialog", true, false)).is_not_null()
+
+
+# --- Slice 12: Steam affordances (TDD 12 §11 UI tests) ---
+
+
+class InviteStubBackend:
+	extends PlatformBackend
+	func supports_invites() -> bool:
+		return true
+
+
+func test_lobby_invite_button_hidden_without_invite_support() -> void:
+	# Test env runs the ENet backend -> no invite affordance, no dead UI.
+	var screen: Control = _instantiate(LOBBY_SCREEN)
+	var invite: Button = screen.find_child("InviteButton", true, false)
+	assert_object(invite).is_not_null()
+	assert_bool(invite.visible).is_false()
+
+
+func test_lobby_invite_button_visible_with_invite_support() -> void:
+	var original: PlatformBackend = Platform.backend
+	Platform.backend = InviteStubBackend.new()
+	var screen: Control = _instantiate(LOBBY_SCREEN)
+	Platform.backend = original
+	var invite: Button = screen.find_child("InviteButton", true, false)
+	assert_bool(invite.visible).is_true()
+
+
+func test_menu_offline_mode_disables_multiplayer_buttons() -> void:
+	var menu_script: GDScript = load("res://ui/menu/main_menu_screen.gd")
+	var dialog_shown_before: bool = menu_script._offline_dialog_shown
+	menu_script._offline_dialog_shown = true   # skip the one-time popup
+	Platform.platform_ok = false
+	var menu: Control = _instantiate(MAIN_MENU)
+	Platform.platform_ok = true
+	menu_script._offline_dialog_shown = dialog_shown_before
+	var host_button: Button = menu.find_child("HostButton", true, false)
+	var join_button: Button = menu.find_child("JoinButton", true, false)
+	assert_bool(host_button.disabled).is_true()
+	assert_bool(join_button.disabled).is_true()
+	assert_str(host_button.tooltip_text).is_not_empty()
+	# Local features stay available (design brief §14 local-first).
+	var collection_button: Button = menu.find_child("CollectionButton", true, false)
+	assert_bool(collection_button.disabled).is_false()

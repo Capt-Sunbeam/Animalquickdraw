@@ -12,6 +12,22 @@
 
 ---
 
+### Slice 12: API/contract deviations vs the TDD draft (stats init, invite routing, tiebreak)
+**Date:** 2026-07-11 | **Slice:** 12 | **Decided by:** AI (API reality) + owner direction | **Type:** Quick
+
+**Decision:** (1) **Stats init:** Steamworks SDK 1.64 removed `requestCurrentStats`/`current_stats_received` (ClassDB-verified) - `is_stats_ready()` = init success; Slice 14 must not wait on the callback. (2) **Invite routing lives in Session, not the menu** - accepts can arrive on any screen and the confirm dialog must survive scene swaps; menu only renders states. Slice 13's browser joins should reuse `Session.join_session_by_lobby()`. (3) **Code-collision tiebreak** = highest member count, then Steam's result order (creation time isn't on the wire; TDD said "newest"). (4) **Lobby privacy note (per TDD):** all lobbies are created Steam-`PUBLIC` (search requires it); "private" = `aq_public:"0"` + obscure code - the intended bar for a party game. (5) **Dev-testing guarantee (owner requirement 2026-07-11):** ENet stays the editor/dev/test default - only exported builds default to steam; regression-pinned (`test_editor_runs_default_to_enet`).
+
+**Status:** [x] Implemented (532 tests green, 3 gates PASS, Steam smoke PASS) [ ] Owner two-account protocol
+
+---
+
+### Slice 12: GodotSteam GDExtension 4.20 vendored (version pin)
+**Date:** 2026-07-11 | **Slice:** 12 | **Decided by:** AI (per TDD §12 setup) | **Type:** Quick
+
+**Decision:** Vendored **GodotSteam GDExtension 4.20** (release tag `v4.20-gde`, published 2026-06-24; Steamworks SDK **1.64**; compatibility_minimum Godot 4.4) into `addons/godotsteam`, unmodified from upstream (`godotsteam-4.20-gdextension-plugin-4.4.zip` from the project's Codeberg releases). All shipping platforms covered (win64/osx/linux64) plus upstream extras (win32/linux32/linuxarm64/androidarm64) — kept intact so upgrades are a clean folder swap. The bundled editor plugin (`plugin.cfg`) is only an update-checker dock and is left **disabled**; the GDExtension itself loads from `godotsteam.gdextension` regardless. `steam_appid.txt` (`480`) committed at project root for dev; **must be excluded from shipping builds** (Slice 15 checklist). Verified post-import: `Steam` singleton, `SteamMultiplayerPeer`, `steamInitEx`, `createLobby` all registered headlessly with ENet still the default backend.
+
+**Status:** [x] Vendored + import verified [ ] Slice 12 implementation on top
+
 ### Slice 18 rework: D doubles as a click; zoom navigation via minimap (fix over scrap)
 **Date:** 2026-07-10 | **Slice:** 18 (same-session owner rework) | **Decided by:** Owner | **Type:** Quick
 

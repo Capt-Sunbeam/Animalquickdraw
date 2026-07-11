@@ -30,11 +30,25 @@ func join(room_code: String) -> Error:
 	return OK
 
 
+## Coroutine - await it. Slice 12 invite/cold-launch path: connects via a
+## known Steam lobby id, skipping code resolution.
+func join_lobby(lobby_id: int) -> Error:
+	var peer: MultiplayerPeer = await Platform.create_client_peer_for_lobby(lobby_id)
+	if peer == null:
+		return ERR_CANT_CONNECT
+	multiplayer.multiplayer_peer = peer
+	return OK
+
+
 func leave() -> void:
 	if has_active_peer():
 		multiplayer.multiplayer_peer.close()
 	# Assigning null restores Godot's OfflineMultiplayerPeer.
 	multiplayer.multiplayer_peer = null
+	# Slice 12: backend teardown (Steam: leaveLobby + clearRichPresence).
+	# Runs on every leave path incl. server_disconnected, so ghost lobbies
+	# never linger to match future code searches.
+	Platform.backend.leave_cleanup()
 
 
 func has_active_peer() -> bool:

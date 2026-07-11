@@ -19,7 +19,15 @@ const CLOSE_MESSAGES: Dictionary = {
 	"host_quit": "Host left the game.",
 	"connection_failed": "Connection failed.",
 	"timeout": "Couldn't reach the host.",
+	# Slice 12: Steam join failures (invite path surfaces them here).
+	"not_found": "That game no longer exists.",
+	"version_mismatch": "Your game versions don't match - update Animal Quickdraw.",
 }
+
+const OFFLINE_TOOLTIP: String = "Steam isn't running - restart Steam and try again"
+
+## One-time per run: the offline dialog survives menu reloads (static).
+static var _offline_dialog_shown: bool = false
 
 @onready var _status_label: Label = %StatusLabel
 @onready var _identity_label: Label = %IdentityLabel
@@ -53,6 +61,14 @@ func _ready() -> void:
 	var close_reason: String = Session.consume_close_reason()
 	if CLOSE_MESSAGES.has(close_reason):
 		_toast.show_error(str(CLOSE_MESSAGES[close_reason]))
+	# Slice 12: Steam init failed => multiplayer off, local features stay.
+	if not Platform.platform_ok:
+		_apply_offline_mode()
+	elif Session.will_check_launch_lobby():
+		# Cold-launch invite: skip straight into the join flow (TDD 12 §7).
+		_set_buttons_enabled(false)
+		_status_label.text = "Joining friend's game..."
+		Session.check_launch_lobby()
 	if OS.is_debug_build():
 		_handle_ci_args()
 
@@ -76,14 +92,43 @@ func _on_join_pressed() -> void:
 
 func _on_join_code_entered(code: String) -> void:
 	_set_buttons_enabled(false)
-	_status_label.text = "Connecting to %s..." % code
+	_status_label.text = "Finding lobby..." if Platform.is_steam else "Connecting to %s..." % code
 	var err: Error = await Session.join_session(code)
 	if err != OK:
-		_toast.show_error("Couldn't connect (%s)." % error_string(err))
+		# Slice 12: Steam joins fail with specific reasons (TDD 12 §10).
+		match Platform.get_last_failure_reason():
+			"not_found":
+				_toast.show_error("Room %s not found." % code)
+			"version_mismatch":
+				_toast.show_error(str(CLOSE_MESSAGES["version_mismatch"]))
+			"full":
+				_toast.show_error(str(CLOSE_MESSAGES["full"]))
+			_:
+				_toast.show_error("Couldn't connect (%s)." % error_string(err))
 		_status_label.text = ""
 		_set_buttons_enabled(true)
 	# Success: Session registers and navigates to the lobby; failures after
 	# this point (reject/timeout) reload the menu with a close reason.
+
+
+## Slice 12: Host/Join disabled with a why-tooltip; collection and avatar
+## editor stay fully usable (local-first). Dialog shows once per run.
+func _apply_offline_mode() -> void:
+	_host_button.disabled = true
+	_join_button.disabled = true
+	_host_button.tooltip_text = OFFLINE_TOOLTIP
+	_join_button.tooltip_text = OFFLINE_TOOLTIP
+	_status_label.text = "Steam offline - multiplayer unavailable"
+	if _offline_dialog_shown:
+		return
+	_offline_dialog_shown = true
+	var dialog := AcceptDialog.new()
+	dialog.title = "Steam unavailable"
+	dialog.dialog_text = "Couldn't connect to Steam - multiplayer is unavailable.\n" \
+			+ "Restart Steam and relaunch the game.\n\n" \
+			+ "Your collection and avatar editor still work."
+	add_child(dialog)
+	dialog.popup_centered()
 
 
 func _on_peer_connected(_peer_id: int) -> void:

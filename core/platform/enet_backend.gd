@@ -10,6 +10,7 @@ const BASE_PORT: int = 24515
 const PROFILE_PATH: String = "profile.json"
 
 var _platform_id: String = ""
+var _room_code: String = ""  # Slice 12 contract: the code to display
 
 
 ## Maps a dev room code to a localhost port. Returns -1 for invalid codes.
@@ -84,6 +85,7 @@ func create_host_peer(room_code: String) -> MultiplayerPeer:
 	var peer := ENetMultiplayerPeer.new()
 	if peer.create_server(port, GameConstants.MAX_PLAYERS) != OK:
 		return null
+	_room_code = room_code.strip_edges().to_upper()
 	return peer
 
 
@@ -95,4 +97,13 @@ func create_client_peer(room_code: String) -> MultiplayerPeer:
 	var peer := ENetMultiplayerPeer.new()
 	if peer.create_client("127.0.0.1", port) != OK:
 		return null
+	_room_code = room_code.strip_edges().to_upper()
 	return peer
+
+
+func get_room_code() -> String:
+	return _room_code
+
+
+func leave_cleanup() -> void:
+	_room_code = ""

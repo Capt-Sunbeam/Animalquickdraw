@@ -7,7 +7,7 @@
 - Owner: check items off whenever tested (any session); report failures as bugs.
 - ✅ AUTO = an automated test/gate covers the mechanics; the human check is for look/feel only.
 
-**Last Updated:** 2026-07-10 (session 9 — Slice 18 canvas-ergonomics section added)
+**Last Updated:** 2026-07-11 (session 10 — Slice 12 Steam section added, incl. the owner-earmarked real-App-ID pass)
 
 ---
 
@@ -246,6 +246,20 @@ Two owner-directed fix batches this session (decision log 2026-07-06 "Judging = 
 - [ ] Window at exactly 960×540: lobby, reveal grid, wrap-up all usable (min-size floor sanity)
 - [ ] Extreme aspect ratios (ultrawide, tall/narrow): `expand` aspect keeps layouts sane
 - [ ] High zoom linear filtering (soft pixels) — fine for now, or want nearest-neighbor above 1×? (art-pass question)
+
+## Slice 12 — Steam Platform Integration
+
+*Machine coverage: room-code/metadata/launch-args/backend-selection suites + coroutine-contract test + offline-menu and invite-button scene tests; all 3 ENet gates green; single-instance Steam smoke PASS (real client: init, lobby, metadata read-back, relay host peer). BLOCKING two-account checks listed in WHERE_WE_ARE — they gate Slices 13/14. Batchables:*
+
+- [ ] Wrong/expired code → "Room ___ not found" toast within the 10 s timeout; join dialog stays open for retry ✅ AUTO (reason mapping; the feel check remains)
+- [ ] Steam persona name appears in the roster (and censored if it trips the blocklist — try renaming your Steam account to a blocklisted word for one run) ✅ AUTO (censor path; the human check is the real persona flow)
+- [ ] Invite button absent when running `--platform=enet` ✅ AUTO (scene test)
+- [ ] Invite button → overlay friend picker opens; with the overlay disabled in Steam settings, the room code beside it is the fallback — wording clear enough?
+- [ ] Host quits → second account gets the host-quit toast; no zombie lobby left (rejoin by the same code should fail "not found")
+- [ ] Lobby metadata in a Steamworks debug dump matches the schema table (spot-check for Slice 13) ✅ AUTO (smoke verified write+read-back; eyeball once anyway)
+- [ ] Invite accepted while in another game → "Leave & join" confirm; declining leaves the current game untouched
+- [ ] Steam-quit boot: offline dialog once, Host/Join disabled with tooltip, collection + avatar editor fully usable
+- [ ] **Real App ID pass (owner-earmarked 2026-07-11, runs with Slice 15):** register the App ID, then the §9 swap procedure (APP_ID constant, delete `steam_appid.txt` from the shipped depot, Steamworks build config) and re-verify under the real ID: overlay shows "Animal Quickdraw", invites, **cold-launch "Join Game" with the game closed launches OUR exe** (unverifiable under Spacewar — Steam would launch Valve's app; until then simulate with manual `+connect_lobby <id>`), store-visible lobby names
 
 ## Design gaps / open items (not bugs — need decisions)
 

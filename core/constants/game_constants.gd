@@ -127,3 +127,8 @@ const CANVAS_WHEEL_ZOOM_FACTOR: float = 1.15          # per wheel notch (Ctrl/Cm
 const CANVAS_WHEEL_PAN_PX: float = 60.0               # per wheel notch, display px
 const CANVAS_GESTURE_PAN_FACTOR: float = 20.0         # trackpad two-finger scroll multiplier
 const CANVAS_MINIMAP_WIDTH_FRAC: float = 0.24         # inset width as a fraction of the canvas view
+
+# --- Slice 12: Steam Platform Integration ---
+const ROOM_CODE_LENGTH: int = 5
+const ROOM_CODE_ALPHABET: String = "23456789ABCDEFGHJKMNPQRSTUVWXYZ"  # no 0/O/1/I/L ambiguity
+const LOBBY_SEARCH_TIMEOUT_SEC: float = 10.0          # join-by-code search + lobby create/join waits

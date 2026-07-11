@@ -151,3 +151,17 @@ signal ready_state_changed(ready_ids: PackedStringArray)
 ## Emitted LOCALLY when this peer (as judge) sends a pick - enables the
 ## judge's Ready button in the chat strip. Never networked.
 signal judge_pick_latched()
+
+# --- Slice 12: Steam Platform Integration ---
+
+## Platform backend finished initializing. ok=false => multiplayer disabled
+## this run (menu shows the offline dialog; local features stay usable).
+## Late-loading screens read Platform.platform_ok instead of racing this.
+signal platform_ready(ok: bool)
+## The user accepted a Steam invite / used "Join Game" while the app is
+## running. The join flow should leave any current session (with consent)
+## and join this lobby.
+signal invite_join_requested(lobby_id: int)
+## Async lobby resolution for a room code finished. lobby_id == 0 => not
+## found (or search timed out) - the join dialog shows the not-found toast.
+signal lobby_resolved(code: String, lobby_id: int)

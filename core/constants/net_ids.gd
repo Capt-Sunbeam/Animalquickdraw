@@ -20,3 +20,8 @@ enum PauseReason { HOST_MENU, BELOW_MINIMUM }
 
 ## Slice 9: rpc_sync_player_status kind - what happened to the player.
 enum PlayerStatus { DROPPED, REJOINED, LATE_JOINED }
+
+## Slice 12: network/protocol version, written into Steam lobby metadata
+## (aq_proto) and matched exactly by joiners and lobby searches. Bump on ANY
+## breaking RPC/payload change; a mismatch reads as "room not found".
+const PROTOCOL_VERSION: String = "1"
