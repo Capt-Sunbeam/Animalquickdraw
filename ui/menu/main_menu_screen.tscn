@@ -1,9 +1,11 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=7 format=3]
 
 [ext_resource type="Script" path="res://ui/menu/main_menu_screen.gd" id="1_menu"]
 [ext_resource type="PackedScene" path="res://ui/shared/toast.tscn" id="2_toast"]
 [ext_resource type="PackedScene" path="res://ui/menu/join_dialog.tscn" id="3_join"]
 [ext_resource type="PackedScene" path="res://ui/shared/avatar_chip.tscn" id="4_avchip"]
+[ext_resource type="Script" path="res://ui/menu/menu_wallpaper.gd" id="5_wall"]
+[ext_resource type="Texture2D" path="res://assets/ui/wallpaper_tile.png" id="6_walltex"]
 
 [node name="MainMenuScreen" type="Control"]
 layout_mode = 3
@@ -13,6 +15,12 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_menu")
+
+[node name="Wallpaper" type="TextureRect" parent="."]
+layout_mode = 1
+anchors_preset = 0
+texture = ExtResource("6_walltex")
+script = ExtResource("5_wall")
 
 [node name="CenterContainer" type="CenterContainer" parent="."]
 layout_mode = 1

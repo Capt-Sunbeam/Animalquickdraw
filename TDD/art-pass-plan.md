@@ -1,6 +1,6 @@
 # Art Pass Plan — Hand-Drawn UI Skin
 
-**Status:** PLANNED + REFINED (rough plan approved 2026-07-08, session 8; refined in the 2026-07-11 art discussion session — see the decision log entry of that date and **`TDD/art/pilot-brief.md`**). Not yet scheduled or numbered; becomes an owner-approved mini-TDD (Slice 16 precedent) when it starts. **A pilot is ACTIVE first** (see §Pilot below).
+**Status:** PLANNED + REFINED (rough plan approved 2026-07-08, session 8; refined in the 2026-07-11 art discussion session — see the decision log entry of that date and **`TDD/art/pilot-brief.md`**). Not yet scheduled or numbered; becomes an owner-approved mini-TDD (Slice 16 precedent) when it starts. **Pilot UI-skin leg PASSED (owner-approved 2026-07-11)** — B1/P1 live in the theme; font + collage legs continuing (see `TDD/art/pilot-brief.md` §Pilot status).
 **Agreed ordering (owner decision, 2026-07-08):** finish the remaining slices and the batched testing first, then the art pass — slotted **after Slice 14, before Slice 15 completes** (store assets and the release-candidate playtest pass must happen with the final look, not programmer art).
 
 ## Refinements settled 2026-07-11 (owner + AI discussion)

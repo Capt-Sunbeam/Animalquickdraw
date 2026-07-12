@@ -156,6 +156,17 @@ def reading_order(boxes):
 
 # ---------------------------------------------------------------- elements mode
 
+def flatfield_norm3(rgb_arr: np.ndarray, radius_div: int) -> np.ndarray:
+    """Per-channel flat-field: paper ~= 1.0 everywhere, clamped at 1.0 so
+    only darker-than-paper deviations count as ink."""
+    norm = np.empty_like(rgb_arr)
+    for c in range(3):
+        ch = rgb_arr[:, :, c]
+        bgc = box_blur(ch, max(ch.shape) // radius_div + 1)
+        norm[:, :, c] = np.minimum(ch / np.maximum(bgc, 1e-3), 1.0)
+    return norm
+
+
 def extract_elements(img: Image.Image, args):
     """Dark ink on light paper -> list of (bbox_fullres, alpha_fullres)."""
     rgb = np.asarray(img, dtype=np.float32) / 255.0
@@ -171,15 +182,39 @@ def extract_elements(img: Image.Image, args):
         gray_ds = np.asarray(
             Image.fromarray((gray_full * 255).astype(np.uint8)).resize(
                 ds_size, Image.BILINEAR), dtype=np.float32) / 255.0
+        rgb_ds = np.asarray(img.resize(ds_size, Image.BILINEAR),
+                            dtype=np.float32) / 255.0
     else:
         scale = 1.0
         gray_ds = gray_full
+        rgb_ds = rgb
 
-    # Flatten uneven phone lighting: normalize against a heavy local blur.
-    bg = box_blur(gray_ds, max(gray_ds.shape) // 8)
-    norm_ds = gray_ds / np.maximum(bg, 1e-3)
-
-    ink_ds = norm_ds < args.threshold
+    if args.keep_color:
+        # Color-preserving detection (collage drawings): distance below
+        # paper across ALL channels keeps every pen color, including dark
+        # blue; the bluish-AND-light rule drops grid lines specifically.
+        # Tight flat-field radius (//16): tracks the lighting vignette closely
+        # so photo corners don't read as ink (real pens are dist 0.4+, the
+        # residual gradient stays under ~0.1). Detection is deliberately
+        # stiffer than the per-crop alpha pass, which recovers faint strokes.
+        norm3_ds = flatfield_norm3(rgb_ds, 16)
+        dist_ds = np.sqrt(((norm3_ds - 1.0) ** 2).sum(axis=2))
+        grid_ds = ((norm3_ds[:, :, 2] - norm3_ds[:, :, 0] > 0.08)
+                   & (norm3_ds.min(axis=2) > 0.55))
+        ink_ds = (dist_ds > max(0.2, args.paper_tol + args.softness)) & ~grid_ds
+        if args.shadow_filter:
+            # Soft paper-edge shadows are broad gradients; pen/pencil strokes
+            # are locally darker than their immediate surroundings. Require
+            # local darkness so shadows never enter grouping (no ghost pieces,
+            # no shadow bridges merging neighbours).
+            lum_ds = rgb_ds.mean(axis=2)
+            detail_ds = box_blur(lum_ds, 6) - lum_ds
+            ink_ds &= detail_ds > 0.035
+    else:
+        # Flatten uneven phone lighting: normalize against a heavy local blur.
+        bg = box_blur(gray_ds, max(gray_ds.shape) // 8)
+        norm_ds = gray_ds / np.maximum(bg, 1e-3)
+        ink_ds = norm_ds < args.threshold
 
     # Despeckle at analysis resolution before grouping.
     lbl, n = connected_components(ink_ds)
@@ -208,11 +243,28 @@ def extract_elements(img: Image.Image, args):
         y1 = min(full_h, int((ys.max() + 1) * scale) + pad)
 
         # Full-res alpha inside the crop, illumination-flattened the same way.
-        crop = gray_full[y0:y1, x0:x1]
-        bg_crop = box_blur(crop, max(crop.shape) // 4 + 1)
-        norm_crop = crop / np.maximum(bg_crop, 1e-3)
-        alpha = np.clip((args.threshold + args.softness - norm_crop)
-                        / args.softness, 0.0, 1.0)
+        if args.keep_color:
+            crop_rgb = rgb[y0:y1, x0:x1]
+            norm3 = flatfield_norm3(crop_rgb, 4)
+            dist = np.sqrt(((norm3 - 1.0) ** 2).sum(axis=2))
+            alpha = np.clip((dist - args.paper_tol) / args.softness, 0.0, 1.0)
+            grid = ((norm3[:, :, 2] - norm3[:, :, 0] > 0.08)
+                    & (norm3.min(axis=2) > 0.55))
+            alpha[grid] = 0.0
+            if args.shadow_filter:
+                lum = crop_rgb.mean(axis=2)
+                detail = box_blur(lum, 16) - lum
+                stroke = np.clip((detail - 0.03) / 0.03, 0.0, 1.0)
+                stroke = gray_dilate(stroke, 8)  # cover stroke interiors
+                alpha *= stroke
+            color = crop_rgb
+        else:
+            crop = gray_full[y0:y1, x0:x1]
+            bg_crop = box_blur(crop, max(crop.shape) // 4 + 1)
+            norm_crop = crop / np.maximum(bg_crop, 1e-3)
+            alpha = np.clip((args.threshold + args.softness - norm_crop)
+                            / args.softness, 0.0, 1.0)
+            color = None
 
         # Mask to this group only (upscaled), so near neighbours don't bleed in.
         group_ds = binary_dilate(labels == i, 2)
@@ -222,11 +274,13 @@ def extract_elements(img: Image.Image, args):
             (group_ds[gy0:gy1, gx0:gx1] * 255).astype(np.uint8)).resize(
             (x1 - x0, y1 - y0), Image.NEAREST)
         alpha *= (np.asarray(group_crop, dtype=np.float32) / 255.0)
+        if args.keep_color:
+            alpha[alpha < args.noise_floor] = 0.0
 
-        pieces.append(((x0, y0, x1, y1), alpha))
+        pieces.append(((x0, y0, x1, y1), alpha, color))
 
     order = reading_order([p[0] for p in pieces])
-    return [(pieces[i][0], pieces[i][1], None) for i in order]  # None = pure ink
+    return [pieces[i] for i in order]
 
 
 # ---------------------------------------------------------------- scraps mode
@@ -323,10 +377,34 @@ def extract_scraps(img: Image.Image, args):
         amask = alpha > 0
         lbl2, n2 = connected_components(amask)
         if n2:
-            counts = np.bincount(lbl2.ravel())
+            counts = np.bincount(lbl2.ravel(), minlength=n2 + 1)
             tiny = counts < args.min_ink
             tiny[0] = False
             alpha[tiny[lbl2]] = 0.0
+
+            # Binder punch-holes: the dark background shows through as a
+            # SOLID near-circular blob. Line art never makes solid disks
+            # this size, so they're safe to drop automatically.
+            ys_a, xs_a = np.nonzero(lbl2 > 0)
+            labs = lbl2[ys_a, xs_a]
+            bx0 = np.full(n2 + 1, 1 << 30); bx1 = np.zeros(n2 + 1, dtype=np.int64)
+            by0 = np.full(n2 + 1, 1 << 30); by1 = np.zeros(n2 + 1, dtype=np.int64)
+            np.minimum.at(bx0, labs, xs_a); np.maximum.at(bx1, labs, xs_a)
+            np.minimum.at(by0, labs, ys_a); np.maximum.at(by1, labs, ys_a)
+            bw = (bx1 - bx0 + 1).astype(np.float64)
+            bh = (by1 - by0 + 1).astype(np.float64)
+            long_side = np.maximum(bw, bh)
+            with np.errstate(divide="ignore", invalid="ignore"):
+                fill = counts / np.maximum(bw * bh, 1.0)
+                aspect = bw / np.maximum(bh, 1.0)
+            disk = ((long_side >= 40) & (long_side <= 140)
+                    & (fill > 0.6) & (aspect > 0.65) & (aspect < 1.55)
+                    & ~tiny)
+            disk[0] = False
+            if disk.any():
+                alpha[disk[lbl2]] = 0.0
+                print(f"    dropped {int(disk.sum())} solid disk blob(s) "
+                      f"(binder holes)")
 
         pieces.append(((x0, y0, x1, y1), alpha, crop))
 
@@ -359,6 +437,43 @@ def save_piece(alpha: np.ndarray, color, out_path: Path, bold: int):
     return out.shape[1], out.shape[0]
 
 
+def write_contact_sheet(saved, sheet_path: Path) -> None:
+    """Owner-review grid: every extracted piece labeled with its filename.
+    Written automatically so no one has to open PNGs one by one."""
+    from PIL import ImageDraw
+    thumbs = []
+    for name, path in saved:
+        im = Image.open(path)
+        im.thumbnail((320, 320))
+        cell = Image.new("RGB", (im.width, im.height + 18), (244, 239, 225))
+        cell.paste(im, (0, 18), im)
+        ImageDraw.Draw(cell).text((3, 2), name, fill=(60, 40, 20))
+        thumbs.append(cell)
+    if not thumbs:
+        return
+    rows, row, w_acc = [], [], 0
+    for t in thumbs:
+        if w_acc + t.width > 1400 and row:
+            rows.append(row)
+            row, w_acc = [], 0
+        row.append(t)
+        w_acc += t.width + 14
+    if row:
+        rows.append(row)
+    total_h = sum(max(t.height for t in r) for r in rows) + 14 * (len(rows) + 1)
+    total_w = max(sum(t.width for t in r) + 14 * (len(r) + 1) for r in rows)
+    sheet = Image.new("RGB", (total_w, total_h), (90, 90, 100))
+    y = 14
+    for r in rows:
+        x = 14
+        for t in r:
+            sheet.paste(t, (x, y))
+            x += t.width + 14
+        y += max(t.height for t in r) + 14
+    sheet.save(sheet_path)
+    print(f"contact sheet -> {sheet_path}")
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -381,12 +496,19 @@ def main():
                     help="scraps: color distance from paper treated as paper")
     ap.add_argument("--noise-floor", type=float, default=0.15, dest="noise_floor",
                     help="scraps: zero alpha below this (kills grid residue)")
+    ap.add_argument("--keep-color", action="store_true", dest="keep_color",
+                    help="elements: preserve pen colors (collage drawings on "
+                         "light paper) instead of pure black ink")
+    ap.add_argument("--shadow-filter", action="store_true", dest="shadow_filter",
+                    help="keep-color: drop soft paper-edge shadows (loose "
+                         "pieces photographed on a light background)")
     args = ap.parse_args()
 
     args.out.mkdir(parents=True, exist_ok=True)
     names = [n.strip() for n in args.names.split(",") if n.strip()]
     name_idx = 0
     total = 0
+    saved = []
 
     for photo in args.photos:
         img = load_image(photo)
@@ -405,9 +527,12 @@ def main():
             out_path = args.out / f"{stem}.png"
             w, h = save_piece(alpha, color, out_path, args.bold)
             print(f"  -> {out_path.name}  {w}x{h}px  (from bbox {bbox})")
+            saved.append((stem, out_path))
             total += 1
 
     print(f"done: {total} piece(s) -> {args.out}")
+    if total:
+        write_contact_sheet(saved, args.out.with_name(args.out.name + "_contact.png"))
     return 0 if total else 1
 
 

@@ -19,7 +19,7 @@
 
 **Resolved same day (owner, 2026-07-11):** (a) the in-drawing text tool KEEPS PixelFont as-is (wire-format; deliberate contrast with the UI handwriting font); (b) sound is OUT of the art pass — it gets its own session later. (c) **Font charset (owner-prepped sheets):** owner pre-drew 80 boxes (4×4 grid squares each) → 26 uppercase + 26 lowercase + 10 digits + 18 punctuation/symbols; any character NOT drawn falls back to a bundled simple sans via Godot's font-fallback chain (so arbitrary Steam names/chat always render). Character order + writing rules: `TDD/art/font-sheet-guide.md`.
 
-**Status:** [x] Pipeline script built + synthetic-tested [ ] Pilot photos [ ] Pilot in-game look-check
+**Status:** [x] Pipeline script built + synthetic-tested [x] Pilot photos (B1/P1/2 font sheets, 2026-07-11) [x] Pilot in-game look-check — **UI skin OWNER-APPROVED 2026-07-11** ("it looks so good!"); font TTF + collage legs continue (collage in concurrent session)
 
 ---
 

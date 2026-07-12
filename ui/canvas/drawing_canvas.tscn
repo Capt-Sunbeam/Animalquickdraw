@@ -16,9 +16,38 @@ grow_vertical = 2
 theme_override_constants/separation = 8
 script = ExtResource("1_canvas")
 
-[node name="Toolbar" parent="." instance=ExtResource("2_toolbar")]
+[node name="TopTools" type="HBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Toolbar" parent="TopTools" instance=ExtResource("2_toolbar")]
 unique_name_in_owner = true
 layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="TextRow" type="HBoxContainer" parent="TopTools"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="TextRowLabel" type="Label" parent="TopTools/TextRow"]
+layout_mode = 2
+text = "Text:"
+
+[node name="TextInput" type="LineEdit" parent="TopTools/TextRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(160, 34)
+layout_mode = 2
+placeholder_text = "Type, drag onto drawing"
+clear_button_enabled = true
+
+[node name="TextChip" type="TextureRect" parent="TopTools/TextRow"]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Drag me onto the canvas"
+expand_mode = 1
+stretch_mode = 5
+script = ExtResource("6_chip")
 
 [node name="CanvasFrame" type="AspectRatioContainer" parent="."]
 unique_name_in_owner = true
@@ -53,35 +82,11 @@ unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="TextRow" type="HBoxContainer" parent="BottomBar"]
-unique_name_in_owner = true
-layout_mode = 2
-theme_override_constants/separation = 8
-
-[node name="TextRowLabel" type="Label" parent="BottomBar/TextRow"]
-layout_mode = 2
-text = "Text:"
-
-[node name="TextInput" type="LineEdit" parent="BottomBar/TextRow"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(160, 34)
-layout_mode = 2
-placeholder_text = "Type, drag onto drawing"
-clear_button_enabled = true
-
-[node name="TextChip" type="TextureRect" parent="BottomBar/TextRow"]
-unique_name_in_owner = true
-layout_mode = 2
-tooltip_text = "Drag me onto the canvas"
-expand_mode = 1
-stretch_mode = 5
-script = ExtResource("6_chip")
-
 [node name="SaveToggle" type="CheckButton" parent="BottomBar"]
 unique_name_in_owner = true
 layout_mode = 2
 tooltip_text = "Save the final submitted drawing to your collection"
-text = "Save to my collection"
+text = "Save"
 
 [node name="RotateConfirm" parent="." instance=ExtResource("4_confirm")]
 unique_name_in_owner = true

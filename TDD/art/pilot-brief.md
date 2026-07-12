@@ -55,3 +55,12 @@ AirDrop the photos to the Mac and put the files in `art_drops/pilot/incoming/`, 
 4. If F1 was drawn: glyph extraction proof, then (with owner OK) `brew install potrace fontforge` to build the test TTF
 
 **Exit criteria:** owner sees their own ink as a live button/panel in-game and says the style direction works (or we adjust: pen, bolding, paper, style) — BEFORE the at-scale drawing checklist gets generated.
+
+---
+
+## Pilot status (2026-07-11)
+
+- **UI skin leg: PASSED.** B1 + P1 extracted clean on the first real photos (no bolding needed), wired into the theme, and owner-approved across live playtests. A polish loop followed (see WHERE_WE_ARE session #12 row): theme type variations, dialog skin, layout fixes, and the measured draw-screen width fix.
+- **Font leg: in progress.** Both sheets photographed; glyphs pending box-grid extraction + potrace/FontForge TTF build (brew installs — ask owner first). Owner still to draw `. , ' -` in spare boxes.
+- **Collage leg: moved to a concurrent session** (which also extended `clean_scan.py` with `--keep-color`).
+- **I1 icon: skipped** — corner-doodle 9-slice behavior got validated by P1 itself; icons are covered by the full art-pass checklist later.
