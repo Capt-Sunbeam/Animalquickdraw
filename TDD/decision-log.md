@@ -2,13 +2,22 @@
 
 **Purpose:** Track design decisions made during development. New entries are added at the top of the Decisions section.
 
-**Last Updated:** 2026-07-11
+**Last Updated:** 2026-07-12
 
 ---
 
 ## Decisions
 
 *New entries go here, at the top of this section.*
+
+---
+
+### Art pass: wallpaper + font SHIPPED (concurrent session 13) — capture standard, loop-field tile, class-normalized metrics
+**Date:** 2026-07-12 | **Slice:** Art pass (unnumbered) | **Decided by:** Owner + AI, iterating on live builds | **Type:** Quick
+
+**Decision:** (1) **Collage capture standard = dark-background photos** — the owner's white-on-grid single-photo idea was tried honestly and failed on physics (curled-paper crease shadows are locally indistinguishable from bold strokes); dark cloth erases the failure class. (2) **Grid-paper batches use darkness thresholds** (`--paper-tol 0.18 --noise-floor 0.3`, now `process_incoming.py` defaults) because phone JPEG chroma desaturates thin blue grid to grey, defeating color-based suppression; plus an automatic binder-hole disk filter. (3) **Idempotent batch processing via `incoming/` → `done/` folder moves** — owner rejected a content-hash manifest as over-engineered. (4) **Wallpaper = drifting loop-field** (owner design: slow pan revealing ~3–4 screens of art): 1800² tile, ALL 130 stickers exactly once, seed 4 (`compose_tile.py`; same seed = same tile) → `assets/ui/wallpaper_tile.png` (only collage artifact in git) + `menu_wallpaper.gd`/`.gdshader` UV-scroll (Control-position animation pixel-snaps = jitter; and canvas_item fragment COLOR arrives pre-multiplied by the unscrolled texture — overwrite, never multiply). `b1_button.png` gained the solid paper fill (wallpaper showed through). (5) **Font metrics = typographic class normalization** — owner explicitly REJECTED preserving as-drawn letter sizes ("ransom note"): caps 660/digits 640/x-letters 460/ascenders 680/descenders −200, per-char symbol table (`build_font.py METRICS`). (6) **Charset mapping follows the owner's real box order** (upper row 6 is `( ) _ ^ _`; no `&` drawn — initial miscatalog rendered parens as carets). Per-glyph despeckle: single-stroke chars keep only components ≥25% of the main body; `MULTIPART_CHARS` exempt. (7) 81 glyphs shipped as theme `default_font` (`assets/fonts/aq_hand.ttf`); **undrawn chars (`. , ' - & + =`) ride Godot's system-font fallback** until drawn. potrace + fontforge brew-installed (owner consent).
+
+**Status:** [x] Wallpaper owner-approved live [x] Font owner-approved in 3-instance gameplay [ ] Owner draws missing punctuation (any time) [ ] Wallpaper reuse on lobby/wrap-up (deferred)
 
 ---
 

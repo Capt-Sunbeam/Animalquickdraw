@@ -61,6 +61,8 @@ AirDrop the photos to the Mac and put the files in `art_drops/pilot/incoming/`, 
 ## Pilot status (2026-07-11)
 
 - **UI skin leg: PASSED.** B1 + P1 extracted clean on the first real photos (no bolding needed), wired into the theme, and owner-approved across live playtests. A polish loop followed (see WHERE_WE_ARE session #12 row): theme type variations, dialog skin, layout fixes, and the measured draw-screen width fix.
-- **Font leg: in progress.** Both sheets photographed; glyphs pending box-grid extraction + potrace/FontForge TTF build (brew installs — ask owner first). Owner still to draw `. , ' -` in spare boxes.
-- **Collage leg: moved to a concurrent session** (which also extended `clean_scan.py` with `--keep-color`).
+- **Font leg: PASSED (owner-approved 2026-07-12, session #13).** 81 glyphs extracted cell-wise from both sheets (`tools/art_pipeline/extract_glyphs.py`), assembled via potrace + FontForge (`build_font.py`, class-normalized metrics) into `assets/fonts/aq_hand.ttf`, live as the theme default font. Owner still to draw `. , ' - & + =` in spare boxes (system-font fallback covers them meanwhile).
+- **Collage leg: PASSED (owner-approved 2026-07-12, session #13).** 130-sticker library (dark-background capture standard), seamless drifting loop-field wallpaper (`compose_tile.py`, 1800² seed 4, all stickers once) live on the main menu with UV-scroll drift.
 - **I1 icon: skipped** — corner-doodle 9-slice behavior got validated by P1 itself; icons are covered by the full art-pass checklist later.
+
+**→ PILOT COMPLETE (all legs owner-approved). The full art pass (UI inventory + at-scale drawing) remains slotted after Slice 14 per the plan.**

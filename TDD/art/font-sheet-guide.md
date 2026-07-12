@@ -1,7 +1,9 @@
 # Font Sheet Guide — Character Order & Writing Rules
 
+**STATUS (2026-07-12): FONT SHIPPED.** Both sheets processed → 81 glyphs → `assets/fonts/aq_hand.ttf`, live as the theme default font (owner-approved in gameplay). The owner used their OWN box order, not this guide's — the real layouts live in the session-13 log and as `--layout` strings in the extraction commands. **Still to draw (spare boxes, any time): `. , ' - & + =`** — they render in the system fallback font until then. To add them: draw, photograph the page, re-run `tools/art_pipeline/extract_glyphs.py` with the updated layout string, then `build_font.py` (metrics for those chars are already in its METRICS table).
+
 **For:** the owner's pre-drawn 80-box sheets (boxes are 4×4 grid squares, drawn on grid paper).
-**Pipeline:** photograph sheets → glyph extraction → potrace + FontForge → TTF → theme default font. Characters not drawn fall back to a bundled simple sans automatically (Godot font-fallback chain), so skipping a character is always safe.
+**Pipeline:** photograph sheets → glyph extraction → potrace + FontForge → TTF → theme default font. Characters not drawn fall back automatically (system-font fallback), so skipping a character is always safe.
 
 ---
 
