@@ -1,0 +1,27 @@
+{
+	"v": 1,
+	"pool_id": "adjectives",
+	"words": [
+		"sleepy", "grumpy", "sneaky", "chunky", "wobbly",
+		"fancy", "confused", "heroic", "majestic", "sparkly",
+		"gigantic", "tiny", "invisible", "melting", "frozen",
+		"fluffy", "spiky", "square", "bouncy", "dizzy",
+		"angry", "overjoyed", "nervous", "proud", "shy",
+		"sassy", "dramatic", "mysterious", "robotic", "royal",
+		"muscular", "noodly", "stretchy", "squished", "upside-down",
+		"disco", "ninja", "cowboy", "wizard", "vampire",
+		"zombie", "ghostly", "angelic", "sleepwalking", "roller-skating",
+		"breakdancing", "surfing", "skateboarding", "flying", "swimming",
+		"jogging", "yodeling", "juggling", "karate-chopping", "moonwalking",
+		"opera-singing", "weightlifting", "meditating", "snoring", "sunbathing",
+		"caffeinated", "hangry", "suspicious", "embarrassed", "fabulous",
+		"grouchy", "heartbroken", "jolly", "lovestruck", "mischievous",
+		"overdressed", "panicked", "regal", "smug", "startled",
+		"triumphant", "underwater", "airborne", "ancient", "babyish",
+		"bearded", "buff", "clumsy", "cursed", "dapper",
+		"electric", "enormous", "feral", "glamorous", "golden",
+		"haunted", "inflatable", "knitted", "lumpy", "microscopic",
+		"musical", "pixelated", "radioactive", "rubbery", "sticky",
+		"stinky", "sugar-crashing", "tangled", "toothless", "waddling"
+	]
+}

@@ -1,0 +1,88 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://ui/collection/collection_screen.gd" id="1_cscreen"]
+[ext_resource type="PackedScene" path="res://ui/collection/collection_viewer.tscn" id="2_viewer"]
+[ext_resource type="PackedScene" path="res://ui/shared/confirm_dialog.tscn" id="3_confirm"]
+[ext_resource type="PackedScene" path="res://ui/shared/toast.tscn" id="4_toast"]
+
+[node name="CollectionScreen" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_cscreen")
+
+[node name="Margin" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 12
+
+[node name="Root" type="VBoxContainer" parent="Margin"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="TopBar" type="HBoxContainer" parent="Margin/Root"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="BackButton" type="Button" parent="Margin/Root/TopBar"]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(90, 36)
+text = "< Back"
+
+[node name="TitleLabel" type="Label" parent="Margin/Root/TopBar"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 26
+text = "My Collection"
+
+[node name="CountLabel" type="Label" parent="Margin/Root/TopBar"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = ""
+
+[node name="Scroll" type="ScrollContainer" parent="Margin/Root"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="Grid" type="GridContainer" parent="Margin/Root/Scroll"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+columns = 4
+theme_override_constants/h_separation = 12
+theme_override_constants/v_separation = 12
+
+[node name="EmptyState" type="Label" parent="Margin/Root"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+size_flags_vertical = 3
+text = "No drawings yet.
+Give a kudos in-game, or flip on 'Save to collection' while drawing — they'll show up here."
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 2
+
+[node name="Viewer" parent="." instance=ExtResource("2_viewer")]
+unique_name_in_owner = true
+layout_mode = 1
+
+[node name="Confirm" parent="." instance=ExtResource("3_confirm")]
+unique_name_in_owner = true
+
+[node name="Toast" parent="." instance=ExtResource("4_toast")]
+unique_name_in_owner = true

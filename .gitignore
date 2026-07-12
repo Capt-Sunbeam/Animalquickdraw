@@ -1,0 +1,22 @@
+# Godot 4 standard (skeleton guide §2.5) — addons/ stays vendored/committed.
+.godot/
+*.translation
+export/
+exports/
+*.tmp
+
+# macOS
+.DS_Store
+
+# Art pipeline raw drops (phone photos/scans; processed PNGs go to assets/)
+art_drops/
+
+# Export artifacts
+builds/
+*.dmg
+*.zip
+*.pck
+*.exe
+*.x86_64
+*.app
+reports/

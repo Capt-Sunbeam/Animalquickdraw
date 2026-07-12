@@ -1,0 +1,97 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://ui/round/draw_screen.gd" id="1_draw"]
+[ext_resource type="PackedScene" path="res://ui/shared/phase_timer.tscn" id="2_ptimer"]
+[ext_resource type="PackedScene" path="res://ui/canvas/drawing_canvas.tscn" id="3_canvas"]
+
+[node name="DrawScreen" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_draw")
+
+[node name="Root" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 8
+
+[node name="TopArea" type="Control" parent="Root"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 52)
+
+[node name="PromptLabel" type="Label" parent="Root/TopArea"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_outline_color = Color(0.16, 0.13, 0.1, 1)
+theme_override_constants/outline_size = 3
+theme_override_font_sizes/font_size = 34
+text = ""
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Timer" parent="Root/TopArea" instance=ExtResource("2_ptimer")]
+unique_name_in_owner = true
+layout_mode = 1
+anchor_left = 1.0
+anchor_top = 0.5
+anchor_right = 1.0
+anchor_bottom = 0.5
+offset_left = -170.0
+offset_top = -16.0
+offset_bottom = 16.0
+grow_horizontal = 0
+grow_vertical = 2
+
+[node name="Body" type="HBoxContainer" parent="Root"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 10
+
+[node name="ReadyPanel" type="VBoxContainer" parent="Root/Body"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(150, 0)
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="ReadyTitle" type="Label" parent="Root/Body/ReadyPanel"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "Done drawing:"
+
+[node name="Canvas" parent="Root/Body" instance=ExtResource("3_canvas")]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+show_save_toggle = true
+
+[node name="ChatSlot" type="VBoxContainer" parent="Root/Body"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="BottomBar" type="HBoxContainer" parent="Root"]
+layout_mode = 2
+
+[node name="StatusLabel" type="Label" parent="Root/BottomBar"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = ""
+
+[node name="DoneButton" type="Button" parent="Root/BottomBar"]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(200, 52)
+theme_override_font_sizes/font_size = 22
+text = "Done!"

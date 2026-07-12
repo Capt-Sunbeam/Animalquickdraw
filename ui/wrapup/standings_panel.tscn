@@ -1,0 +1,19 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://ui/wrapup/standings_panel.gd" id="1_standpanel"]
+
+[node name="StandingsPanel" type="VBoxContainer"]
+custom_minimum_size = Vector2(460, 0)
+theme_override_constants/separation = 12
+script = ExtResource("1_standpanel")
+
+[node name="HeaderLabel" type="Label" parent="."]
+layout_mode = 2
+theme_override_font_sizes/font_size = 34
+horizontal_alignment = 1
+text = "Final Standings"
+
+[node name="Rows" type="VBoxContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 8

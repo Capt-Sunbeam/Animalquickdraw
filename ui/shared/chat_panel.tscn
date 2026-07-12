@@ -1,0 +1,65 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://ui/shared/chat_panel.gd" id="1_chat"]
+
+[node name="ChatPanel" type="PanelContainer"]
+script = ExtResource("1_chat")
+
+[node name="VBox" type="VBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="HeaderRow" type="HBoxContainer" parent="VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="ChatTitle" type="Label" parent="VBox/HeaderRow"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "💬 Chat"
+
+[node name="HeaderSpacer" type="Control" parent="VBox/HeaderRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="ToggleButton" type="Button" parent="VBox/HeaderRow"]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(36, 28)
+theme_type_variation = &"SmallButton"
+focus_mode = 0
+text = "Hide"
+
+[node name="CollapsedStrip" type="Label" parent="VBox"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+text = "Chat"
+text_overrun_behavior = 3
+mouse_filter = 1
+
+[node name="History" type="RichTextLabel" parent="VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(0, 160)
+size_flags_vertical = 3
+focus_mode = 2
+scroll_active = true
+scroll_following = true
+selection_enabled = true
+
+[node name="InputRow" type="HBoxContainer" parent="VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="MessageInput" type="LineEdit" parent="VBox/InputRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "type a message..."
+
+[node name="SendButton" type="Button" parent="VBox/InputRow"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"FlatButton"
+text = "Send"

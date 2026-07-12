@@ -1,0 +1,261 @@
+[gd_scene load_steps=7 format=3]
+
+[ext_resource type="Script" path="res://ui/lobby/lobby_screen.gd" id="1_lobby"]
+[ext_resource type="PackedScene" path="res://ui/shared/player_list.tscn" id="2_plist"]
+[ext_resource type="PackedScene" path="res://ui/shared/chat_panel.tscn" id="3_chat"]
+[ext_resource type="PackedScene" path="res://ui/shared/toast.tscn" id="4_toast"]
+[ext_resource type="PackedScene" path="res://ui/lobby/mode_settings_panel.tscn" id="5_mpanel"]
+[ext_resource type="PackedScene" path="res://ui/shared/confirm_dialog.tscn" id="6_kickconfirm"]
+
+[node name="LobbyScreen" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_lobby")
+
+[node name="Margin" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 12
+
+[node name="Root" type="VBoxContainer" parent="Margin"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="TopBar" type="HBoxContainer" parent="Margin/Root"]
+layout_mode = 2
+
+[node name="RoomCodeLabel" type="Label" parent="Margin/Root/TopBar"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "Room code:"
+
+[node name="InviteButton" type="Button" parent="Margin/Root/TopBar"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+tooltip_text = "Opens the Steam friend picker - or just share the room code"
+text = "Invite friends"
+
+[node name="TitleLabel" type="Label" parent="Margin/Root/TopBar"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 22
+text = "Animal Quickdraw — Lobby"
+horizontal_alignment = 1
+
+[node name="LeaveButton" type="Button" parent="Margin/Root/TopBar"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Leave"
+
+[node name="Main" type="HBoxContainer" parent="Margin/Root"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 12
+
+[node name="PlayerList" parent="Margin/Root/Main" instance=ExtResource("2_plist")]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(280, 0)
+size_flags_vertical = 3
+allow_kick = true
+
+[node name="SettingsPanel" type="PanelContainer" parent="Margin/Root/Main"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="SettingsMargin" type="MarginContainer" parent="Margin/Root/Main/SettingsPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 10
+
+[node name="SettingsBox" type="VBoxContainer" parent="Margin/Root/Main/SettingsPanel/SettingsMargin"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="SettingsHeader" type="HBoxContainer" parent="Margin/Root/Main/SettingsPanel/SettingsMargin/SettingsBox"]
+layout_mode = 2
+
+[node name="SettingsTitle" type="Label" parent="Margin/Root/Main/SettingsPanel/SettingsMargin/SettingsBox/SettingsHeader"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "Settings"
+
+[node name="SettingsNote" type="Label" parent="Margin/Root/Main/SettingsPanel/SettingsMargin/SettingsBox/SettingsHeader"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = ""
+
+[node name="Columns" type="HBoxContainer" parent="Margin/Root/Main/SettingsPanel/SettingsMargin/SettingsBox"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 24
+
+[node name="LeftCol" type="VBoxContainer" parent="Margin/Root/Main/SettingsPanel/SettingsMargin/SettingsBox/Columns"]
+layout_mode = 2
+size_flags_vertical = 0
+theme_override_constants/separation = 12
+
+[node name="Grid" type="GridContainer" parent="Margin/Root/Main/SettingsPanel/SettingsMargin/SettingsBox/Columns/LeftCol"]
+layout_mode = 2
+columns = 2
+theme_override_constants/h_separation = 10
+theme_override_constants/v_separation = 8
+
+[node name="RoundsLabel" type="Label" parent="Margin/Root/Main/SettingsPanel/SettingsMargin/SettingsBox/Columns/LeftCol/Grid"]
+layout_mode = 2
+size_flags_vertical = 4
+text = "Rounds:"
+
+[node name="RoundsBox" type="HBoxContainer" parent="Margin/Root/Main/SettingsPanel/SettingsMargin/SettingsBox/Columns/LeftCol/Grid"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="RoundsSpin" type="SpinBox" parent="Margin/Root/Main/SettingsPanel/SettingsMargin/SettingsBox/Columns/LeftCol/Grid/RoundsBox"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="RoundsValue" type="Label" parent="Margin/Root/Main/SettingsPanel/SettingsMargin/SettingsBox/Columns/LeftCol/Grid/RoundsBox"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+size_flags_vertical = 4
+text = "6"
+
+[node name="SuggestedTag" type="Label" parent="Margin/Root/Main/SettingsPanel/SettingsMargin/SettingsBox/Columns/LeftCol/Grid/RoundsBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_font_sizes/font_size = 13
+text = "(suggested)"
+
+[node name="DrawTimeLabel" type="Label" parent="Margin/Root/Main/SettingsPanel/SettingsMargin/SettingsBox/Columns/LeftCol/Grid"]
+layout_mode = 2
+size_flags_vertical = 4
+text = "Draw time:"
+
+[node name="DrawTimeBox" type="HBoxContainer" parent="Margin/Root/Main/SettingsPanel/SettingsMargin/SettingsBox/Columns/LeftCol/Grid"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="DrawTimeSpin" type="SpinBox" parent="Margin/Root/Main/SettingsPanel/SettingsMargin/SettingsBox/Columns/LeftCol/Grid/DrawTimeBox"]
+unique_name_in_owner = true
+layout_mode = 2
+suffix = "s"
+
+[node name="DrawTimeValue" type="Label" parent="Margin/Root/Main/SettingsPanel/SettingsMargin/SettingsBox/Columns/LeftCol/Grid/DrawTimeBox"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+size_flags_vertical = 4
+text = "30 s"
+
+[node name="PoolLabel" type="Label" parent="Margin/Root/Main/SettingsPanel/SettingsMargin/SettingsBox/Columns/LeftCol/Grid"]
+layout_mode = 2
+size_flags_vertical = 4
+text = "Prompt pool:"
+
+[node name="PoolOption" type="OptionButton" parent="Margin/Root/Main/SettingsPanel/SettingsMargin/SettingsBox/Columns/LeftCol/Grid"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="ModeLabel" type="Label" parent="Margin/Root/Main/SettingsPanel/SettingsMargin/SettingsBox/Columns/LeftCol/Grid"]
+layout_mode = 2
+size_flags_vertical = 4
+text = "Mode:"
+
+[node name="ModeOption" type="OptionButton" parent="Margin/Root/Main/SettingsPanel/SettingsMargin/SettingsBox/Columns/LeftCol/Grid"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="ConnectivityBox" type="HBoxContainer" parent="Margin/Root/Main/SettingsPanel/SettingsMargin/SettingsBox/Columns/LeftCol"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="PublicCheck" type="CheckBox" parent="Margin/Root/Main/SettingsPanel/SettingsMargin/SettingsBox/Columns/LeftCol/ConnectivityBox"]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "ON: listed in the public browser for anyone (unmoderated, 18+). OFF: private - invite & room code only"
+text = "Public lobby"
+
+[node name="FluidCheck" type="CheckBox" parent="Margin/Root/Main/SettingsPanel/SettingsMargin/SettingsBox/Columns/LeftCol/ConnectivityBox"]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "ON: drop-in/drop-out friendly. OFF: leaving near your judge turn forfeits it (-1)"
+text = "Fluid rejoin"
+
+[node name="ModeScroll" type="ScrollContainer" parent="Margin/Root/Main/SettingsPanel/SettingsMargin/SettingsBox/Columns"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="ModePanel" parent="Margin/Root/Main/SettingsPanel/SettingsMargin/SettingsBox/Columns/ModeScroll" instance=ExtResource("5_mpanel")]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Chat" parent="Margin/Root" instance=ExtResource("3_chat")]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="BottomBar" type="HBoxContainer" parent="Margin/Root"]
+layout_mode = 2
+alignment = 1
+theme_override_constants/separation = 12
+
+[node name="StartButton" type="Button" parent="Margin/Root/BottomBar"]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(220, 44)
+text = "START GAME"
+
+[node name="StartHint" type="Label" parent="Margin/Root/BottomBar"]
+unique_name_in_owner = true
+layout_mode = 2
+text = ""
+
+[node name="StartingOverlay" type="PanelContainer" parent="."]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -170.0
+offset_top = -62.0
+offset_right = 170.0
+offset_bottom = 62.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="StartingLabel" type="Label" parent="StartingOverlay"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+text = "Game starting…"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="KickConfirm" parent="." instance=ExtResource("6_kickconfirm")]
+unique_name_in_owner = true
+
+[node name="Toast" parent="." instance=ExtResource("4_toast")]
+unique_name_in_owner = true

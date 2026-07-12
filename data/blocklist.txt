@@ -1,0 +1,23 @@
+# Typed-text blocklist (skeleton guide §3.8; design brief §13).
+# One word per line; lines starting with # are comments. Matching is
+# case-insensitive with word boundaries. Starter list — expand before launch.
+fuck
+shit
+bitch
+cunt
+asshole
+dick
+pussy
+bastard
+slut
+whore
+faggot
+fag
+nigger
+nigga
+retard
+cock
+twat
+kike
+spic
+chink

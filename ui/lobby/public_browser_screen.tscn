@@ -1,0 +1,103 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://ui/lobby/public_browser_screen.gd" id="1_browser"]
+[ext_resource type="PackedScene" path="res://ui/lobby/public_notice_dialog.tscn" id="2_notice"]
+[ext_resource type="PackedScene" path="res://ui/shared/toast.tscn" id="3_toast"]
+
+[node name="PublicBrowserScreen" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_browser")
+
+[node name="Margin" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_bottom = 16
+
+[node name="VBox" type="VBoxContainer" parent="Margin"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="HeaderRow" type="HBoxContainer" parent="Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="BackButton" type="Button" parent="Margin/VBox/HeaderRow"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "< Back"
+
+[node name="TitleLabel" type="Label" parent="Margin/VBox/HeaderRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 28
+text = "Public Games"
+horizontal_alignment = 1
+
+[node name="RefreshButton" type="Button" parent="Margin/VBox/HeaderRow"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Refresh"
+
+[node name="BannerLabel" type="Label" parent="Margin/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "! Public lobbies are UNMODERATED - 18+, join at your own risk"
+horizontal_alignment = 1
+
+[node name="FilterRow" type="HBoxContainer" parent="Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="FilterLabel" type="Label" parent="Margin/VBox/FilterRow"]
+layout_mode = 2
+text = "Filters:"
+
+[node name="ModeOption" type="OptionButton" parent="Margin/VBox/FilterRow"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="SpaceCheck" type="CheckBox" parent="Margin/VBox/FilterRow"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Has space"
+
+[node name="ListScroll" type="ScrollContainer" parent="Margin/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="Rows" type="VBoxContainer" parent="Margin/VBox/ListScroll"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="StatusLabel" type="Label" parent="Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = ""
+horizontal_alignment = 1
+
+[node name="RetryButton" type="Button" parent="Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 4
+visible = false
+text = "Retry"
+
+[node name="NoticeDialog" parent="." instance=ExtResource("2_notice")]
+unique_name_in_owner = true
+
+[node name="Toast" parent="." instance=ExtResource("3_toast")]
+unique_name_in_owner = true

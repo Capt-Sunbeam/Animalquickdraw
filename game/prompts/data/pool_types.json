@@ -1,0 +1,14 @@
+{
+	"v": 1,
+	"types": [
+		{
+			"id": "animal_adjective",
+			"display_name": "Animal + Adjective",
+			"draws": [
+				{"pool": "adjectives", "count": 1},
+				{"pool": "animals", "count": 1}
+			],
+			"template": "{0} {1}"
+		}
+	]
+}

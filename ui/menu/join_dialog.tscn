@@ -1,0 +1,23 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://ui/menu/join_dialog.gd" id="1_join"]
+
+[node name="JoinDialog" type="ConfirmationDialog"]
+title = "Join Game"
+size = Vector2i(360, 140)
+script = ExtResource("1_join")
+
+[node name="VBox" type="VBoxContainer" parent="."]
+offset_left = 8.0
+offset_top = 8.0
+offset_right = 352.0
+offset_bottom = 92.0
+
+[node name="Prompt" type="Label" parent="VBox"]
+layout_mode = 2
+text = "Enter the room code:"
+
+[node name="CodeEdit" type="LineEdit" parent="VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+placeholder_text = "LOCAL"

@@ -1,0 +1,44 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://ui/round/round_intro_screen.gd" id="1_intro"]
+[ext_resource type="PackedScene" path="res://ui/shared/phase_timer.tscn" id="2_ptimer"]
+
+[node name="RoundIntroScreen" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_intro")
+
+[node name="Center" type="CenterContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Card" type="VBoxContainer" parent="Center"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="RoundLabel" type="Label" parent="Center/Card"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 44
+text = "Round 1 of 8"
+horizontal_alignment = 1
+
+[node name="JudgeLabel" type="Label" parent="Center/Card"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 26
+text = "♛ ??? is judging"
+horizontal_alignment = 1
+
+[node name="Timer" parent="Center/Card" instance=ExtResource("2_ptimer")]
+unique_name_in_owner = true
+layout_mode = 2
+horizontal_alignment = 1

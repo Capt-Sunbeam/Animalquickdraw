@@ -1,0 +1,98 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://ui/collection/collection_viewer.gd" id="1_viewer"]
+
+[node name="CollectionViewer" type="PanelContainer"]
+visible = false
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_viewer")
+
+[node name="Root" type="VBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="TopBar" type="HBoxContainer" parent="Root"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="BackButton" type="Button" parent="Root/TopBar"]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(90, 36)
+text = "< Back"
+
+[node name="TitleLabel" type="Label" parent="Root/TopBar"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 22
+text = ""
+text_overrun_behavior = 3
+
+[node name="DateLabel" type="Label" parent="Root/TopBar"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = ""
+
+[node name="DrawingRect" type="TextureRect" parent="Root"]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(520, 390)
+size_flags_vertical = 3
+expand_mode = 1
+stretch_mode = 5
+
+[node name="MissingLabel" type="Label" parent="Root"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+size_flags_vertical = 3
+text = "This drawing's file is missing or damaged.
+You can still delete the entry."
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="ReplayRow" type="HBoxContainer" parent="Root"]
+layout_mode = 2
+alignment = 1
+theme_override_constants/separation = 10
+
+[node name="ReplayButton" type="Button" parent="Root/ReplayRow"]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(120, 38)
+text = "Replay"
+
+[node name="SpeedButton" type="Button" parent="Root/ReplayRow"]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(110, 38)
+text = "Speed: 1x"
+
+[node name="ActionRow" type="HBoxContainer" parent="Root"]
+layout_mode = 2
+alignment = 1
+theme_override_constants/separation = 16
+
+[node name="ExportButton" type="Button" parent="Root/ActionRow"]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(130, 40)
+text = "Export PNG"
+
+[node name="ShareButton" type="Button" parent="Root/ActionRow"]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(130, 40)
+text = "Share"
+
+[node name="DeleteButton" type="Button" parent="Root/ActionRow"]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(130, 40)
+text = "Delete"

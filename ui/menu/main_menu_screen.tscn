@@ -1,0 +1,112 @@
+[gd_scene load_steps=7 format=3]
+
+[ext_resource type="Script" path="res://ui/menu/main_menu_screen.gd" id="1_menu"]
+[ext_resource type="PackedScene" path="res://ui/shared/toast.tscn" id="2_toast"]
+[ext_resource type="PackedScene" path="res://ui/menu/join_dialog.tscn" id="3_join"]
+[ext_resource type="PackedScene" path="res://ui/shared/avatar_chip.tscn" id="4_avchip"]
+[ext_resource type="Script" path="res://ui/menu/menu_wallpaper.gd" id="5_wall"]
+[ext_resource type="Texture2D" path="res://assets/ui/wallpaper_tile.png" id="6_walltex"]
+
+[node name="MainMenuScreen" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_menu")
+
+[node name="Wallpaper" type="TextureRect" parent="."]
+layout_mode = 1
+anchors_preset = 0
+texture = ExtResource("6_walltex")
+script = ExtResource("5_wall")
+
+[node name="CenterContainer" type="CenterContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="MenuBox" type="VBoxContainer" parent="CenterContainer"]
+layout_mode = 2
+custom_minimum_size = Vector2(420, 0)
+theme_override_constants/separation = 12
+
+[node name="TitleLabel" type="Label" parent="CenterContainer/MenuBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 40
+text = "Animal Quickdraw"
+horizontal_alignment = 1
+
+[node name="IdentityLabel" type="Label" parent="CenterContainer/MenuBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = ""
+horizontal_alignment = 1
+
+[node name="HostButton" type="Button" parent="CenterContainer/MenuBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Host (dev)"
+
+[node name="JoinButton" type="Button" parent="CenterContainer/MenuBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Join (dev)"
+
+[node name="PublicButton" type="Button" parent="CenterContainer/MenuBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Public Games"
+
+[node name="AvatarRow" type="HBoxContainer" parent="CenterContainer/MenuBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="MenuChip" parent="CenterContainer/MenuBox/AvatarRow" instance=ExtResource("4_avchip")]
+unique_name_in_owner = true
+layout_mode = 2
+chip_size = 32
+show_name_label = false
+
+[node name="AvatarButton" type="Button" parent="CenterContainer/MenuBox/AvatarRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Avatar"
+
+[node name="CollectionButton" type="Button" parent="CenterContainer/MenuBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Collection"
+
+[node name="SandboxButton" type="Button" parent="CenterContainer/MenuBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Canvas Sandbox (dev)"
+
+[node name="StatusLabel" type="Label" parent="CenterContainer/MenuBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = ""
+horizontal_alignment = 1
+
+[node name="PeersLabel" type="Label" parent="CenterContainer/MenuBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = "Connected peers:"
+
+[node name="PeerList" type="ItemList" parent="CenterContainer/MenuBox"]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(0, 140)
+
+[node name="JoinDialog" parent="." instance=ExtResource("3_join")]
+unique_name_in_owner = true
+
+[node name="Toast" parent="." instance=ExtResource("2_toast")]
+unique_name_in_owner = true
