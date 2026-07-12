@@ -50,6 +50,7 @@ func _ready() -> void:
 	add_child(VSeparator.new())
 	_expand_button = Button.new()
 	_expand_button.toggle_mode = true
+	_expand_button.theme_type_variation = &"EmojiButton"
 	_expand_button.focus_mode = Control.FOCUS_NONE
 	_expand_button.custom_minimum_size = Vector2(0, SWATCH_SIZE.y)
 	_expand_button.tooltip_text = "Show every color at once - drag favorites onto the + slots"

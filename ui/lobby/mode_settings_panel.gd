@@ -112,6 +112,8 @@ func _build_custom_grid() -> void:
 func _add_row(label_text: String, control: Control) -> void:
 	var label := Label.new()
 	label.text = label_text
+	label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	control.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_custom_grid.add_child(label)
 	_custom_grid.add_child(control)
 

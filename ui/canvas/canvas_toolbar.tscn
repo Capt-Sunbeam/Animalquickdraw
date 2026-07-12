@@ -8,6 +8,7 @@ script = ExtResource("1_toolbar")
 
 [node name="SizeSmall" type="Button" parent="."]
 unique_name_in_owner = true
+theme_type_variation = &"EmojiButton"
 custom_minimum_size = Vector2(36, 36)
 layout_mode = 2
 tooltip_text = "Small brush"
@@ -15,6 +16,7 @@ text = "S"
 
 [node name="SizeMedium" type="Button" parent="."]
 unique_name_in_owner = true
+theme_type_variation = &"EmojiButton"
 custom_minimum_size = Vector2(36, 36)
 layout_mode = 2
 tooltip_text = "Medium brush"
@@ -22,6 +24,7 @@ text = "M"
 
 [node name="SizeLarge" type="Button" parent="."]
 unique_name_in_owner = true
+theme_type_variation = &"EmojiButton"
 custom_minimum_size = Vector2(36, 36)
 layout_mode = 2
 tooltip_text = "Large brush"
@@ -32,6 +35,7 @@ layout_mode = 2
 
 [node name="BrushButton" type="Button" parent="."]
 unique_name_in_owner = true
+theme_type_variation = &"EmojiButton"
 custom_minimum_size = Vector2(64, 36)
 layout_mode = 2
 tooltip_text = "Brush tool"
@@ -39,6 +43,7 @@ text = "Brush"
 
 [node name="FillButton" type="Button" parent="."]
 unique_name_in_owner = true
+theme_type_variation = &"EmojiButton"
 custom_minimum_size = Vector2(64, 36)
 layout_mode = 2
 tooltip_text = "Bucket fill tool"
@@ -46,6 +51,7 @@ text = "Fill"
 
 [node name="EraserButton" type="Button" parent="."]
 unique_name_in_owner = true
+theme_type_variation = &"EmojiButton"
 custom_minimum_size = Vector2(64, 36)
 layout_mode = 2
 tooltip_text = "Eraser (paints canvas background)"
@@ -56,6 +62,7 @@ layout_mode = 2
 
 [node name="UndoButton" type="Button" parent="."]
 unique_name_in_owner = true
+theme_type_variation = &"EmojiButton"
 custom_minimum_size = Vector2(64, 36)
 layout_mode = 2
 tooltip_text = "Undo last action (Ctrl+Z)"
@@ -63,6 +70,7 @@ text = "Undo"
 
 [node name="ClearButton" type="Button" parent="."]
 unique_name_in_owner = true
+theme_type_variation = &"EmojiButton"
 custom_minimum_size = Vector2(64, 36)
 layout_mode = 2
 tooltip_text = "Clear the canvas (undoable)"
@@ -70,6 +78,7 @@ text = "Clear"
 
 [node name="RotateButton" type="Button" parent="."]
 unique_name_in_owner = true
+theme_type_variation = &"EmojiButton"
 custom_minimum_size = Vector2(72, 36)
 layout_mode = 2
 tooltip_text = "Rotate canvas (clears your drawing)"
@@ -81,6 +90,7 @@ size_flags_horizontal = 3
 
 [node name="ZoomOut" type="Button" parent="."]
 unique_name_in_owner = true
+theme_type_variation = &"EmojiButton"
 custom_minimum_size = Vector2(36, 36)
 layout_mode = 2
 tooltip_text = "Zoom out"
@@ -88,6 +98,7 @@ text = "-"
 
 [node name="ZoomLabel" type="Button" parent="."]
 unique_name_in_owner = true
+theme_type_variation = &"EmojiButton"
 custom_minimum_size = Vector2(64, 36)
 layout_mode = 2
 tooltip_text = "Zoom level - click to reset to fit"
@@ -96,6 +107,7 @@ text = "100%"
 
 [node name="ZoomIn" type="Button" parent="."]
 unique_name_in_owner = true
+theme_type_variation = &"EmojiButton"
 custom_minimum_size = Vector2(36, 36)
 layout_mode = 2
 tooltip_text = "Zoom in"

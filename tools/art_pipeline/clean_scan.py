@@ -84,6 +84,10 @@ def binary_dilate(mask: np.ndarray, iters: int) -> np.ndarray:
     return m
 
 
+def binary_erode(mask: np.ndarray, iters: int) -> np.ndarray:
+    return ~binary_dilate(~mask, iters)
+
+
 def gray_dilate(alpha: np.ndarray, iters: int) -> np.ndarray:
     """Max-filter dilation for the --bold knob (thickens strokes)."""
     a = alpha.copy()
@@ -121,6 +125,21 @@ def connected_components(mask: np.ndarray):
                 labels[ylo + dy, xlo + dx] = current
                 stack.append((ylo + dy, xlo + dx))
     return labels, current
+
+
+def fill_holes(mask: np.ndarray) -> np.ndarray:
+    """Fill regions not connected to the border (ink strokes, enclosed paper)."""
+    inv = ~mask
+    lbl, n = connected_components(inv)
+    if n == 0:
+        return mask
+    border = np.unique(np.concatenate(
+        [lbl[0, :], lbl[-1, :], lbl[:, 0], lbl[:, -1]]))
+    filled = mask.copy()
+    for j in range(1, n + 1):
+        if j not in border:
+            filled |= lbl == j
+    return filled
 
 
 def reading_order(boxes):
@@ -234,39 +253,80 @@ def extract_scraps(img: Image.Image, args):
     labels, count = connected_components(paper_mask)
     min_ds_area = int(0.002 * paper_mask.size)
 
-    pieces = []
+    # Largest first: enclosed paper islands (inside a drawn loop) come out as
+    # their own components — the containing piece is kept, the islands skipped.
+    comps = []
     for i in range(1, count + 1):
         ys, xs = np.nonzero(labels == i)
-        if len(ys) < min_ds_area:
-            continue
+        if len(ys) >= min_ds_area:
+            comps.append((len(ys), i, ys, xs))
+    comps.sort(key=lambda c: -c[0])
+
+    claimed = np.zeros(paper_mask.shape, dtype=bool)  # ds-space, filled pieces
+    pieces = []
+    for _, i, ys, xs in comps:
+        dy0, dy1 = ys.min(), ys.max() + 1
+        dx0, dx1 = xs.min(), xs.max() + 1
+        cy, cx = (dy0 + dy1) // 2, (dx0 + dx1) // 2
+        if claimed[cy, cx]:
+            continue  # nested inside an already-kept piece
+
+        # Hole-filled piece mask: keeps the ink and any enclosed paper.
+        local = fill_holes(labels[dy0:dy1, dx0:dx1] == i)
+        claimed[dy0:dy1, dx0:dx1] |= local
+
         pad = int(0.005 * max(full_w, full_h))
-        x0 = max(0, int(xs.min() * scale) - pad)
-        y0 = max(0, int(ys.min() * scale) - pad)
-        x1 = min(full_w, int((xs.max() + 1) * scale) + pad)
-        y1 = min(full_h, int((ys.max() + 1) * scale) + pad)
+        x0 = max(0, int(dx0 * scale) - pad)
+        y0 = max(0, int(dy0 * scale) - pad)
+        x1 = min(full_w, int(dx1 * scale) + pad)
+        y1 = min(full_h, int(dy1 * scale) + pad)
 
         crop = rgb[y0:y1, x0:x1]
-        crop_lum = lum_full[y0:y1, x0:x1]
 
-        # Paper color = median of the piece's bright pixels.
-        bright_sel = crop_lum > np.percentile(crop_lum, 60)
-        paper_rgb = np.median(crop[bright_sel], axis=0)
+        # Flat-field each channel against its local blur so paper ~= 1.0
+        # everywhere regardless of phone-lighting vignette. Clamp at 1.0:
+        # only darker-than-paper deviations count as ink (kills bright halos).
+        norm = np.empty_like(crop)
+        for c in range(3):
+            ch = crop[:, :, c]
+            bgc = box_blur(ch, max(ch.shape) // 6 + 1)
+            norm[:, :, c] = np.minimum(ch / np.maximum(bgc, 1e-3), 1.0)
 
-        # Alpha from distance to paper color -> keeps any pen color.
-        dist = np.sqrt(((crop - paper_rgb) ** 2).sum(axis=2))
+        # Alpha from distance below paper -> keeps any pen color.
+        dist = np.sqrt(((norm - 1.0) ** 2).sum(axis=2))
         alpha = np.clip((dist - args.paper_tol) / args.softness, 0.0, 1.0)
 
-        # Suppress light-blue grid residue: bluish AND light pixels.
-        bluish = (crop[:, :, 2] - crop[:, :, 0] > 0.03) & (crop_lum > 0.55)
-        alpha[bluish] *= 0.1
+        # Kill grid residue: distinctly blue-vs-red AND still light = grid
+        # lines, not pen (a dark blue pen stroke stays: its min channel is low).
+        grid = ((norm[:, :, 2] - norm[:, :, 0] > 0.08)
+                & (norm.min(axis=2) > 0.55))
+        alpha[grid] = 0.0
 
-        # Confine to the paper piece (dark background must not become "ink").
-        gy0, gy1 = int(y0 / scale), int(np.ceil(y1 / scale))
-        gx0, gx1 = int(x0 / scale), int(np.ceil(x1 / scale))
-        piece_ds = binary_dilate(labels[gy0:gy1, gx0:gx1] == i, 1)
-        piece_full = Image.fromarray((piece_ds * 255).astype(np.uint8)).resize(
+        # Confine to the (hole-filled) paper piece, eroded inward so the
+        # paper's cut edge and the dark background never read as ink.
+        # Build the mask in a ds-space window that matches the PADDED crop —
+        # resizing the raw bbox mask over the padded crop shifts it at edges.
+        wy0, wy1 = int(y0 / scale), int(np.ceil(y1 / scale))
+        wx0, wx1 = int(x0 / scale), int(np.ceil(x1 / scale))
+        window = np.zeros((wy1 - wy0, wx1 - wx0), dtype=bool)
+        window[dy0 - wy0:dy1 - wy0, dx0 - wx0:dx1 - wx0] = local
+        window = binary_erode(window, 3)
+        piece_full = Image.fromarray((window * 255).astype(np.uint8)).resize(
             (x1 - x0, y1 - y0), Image.NEAREST)
         alpha *= (np.asarray(piece_full, dtype=np.float32) / 255.0)
+
+        # Drop sub-visible residue so trimming works on real signal only.
+        alpha[alpha < args.noise_floor] = 0.0
+
+        # Despeckle: drop tiny alpha islands (grid-dash remnants). Real small
+        # features (an eye dot) are far bigger than min_ink at photo res.
+        amask = alpha > 0
+        lbl2, n2 = connected_components(amask)
+        if n2:
+            counts = np.bincount(lbl2.ravel())
+            tiny = counts < args.min_ink
+            tiny[0] = False
+            alpha[tiny[lbl2]] = 0.0
 
         pieces.append(((x0, y0, x1, y1), alpha, crop))
 
@@ -319,6 +379,8 @@ def main():
                     help="alpha ramp width (anti-aliasing)")
     ap.add_argument("--paper-tol", type=float, default=0.08, dest="paper_tol",
                     help="scraps: color distance from paper treated as paper")
+    ap.add_argument("--noise-floor", type=float, default=0.15, dest="noise_floor",
+                    help="scraps: zero alpha below this (kills grid residue)")
     args = ap.parse_args()
 
     args.out.mkdir(parents=True, exist_ok=True)

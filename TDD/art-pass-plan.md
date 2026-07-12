@@ -1,7 +1,18 @@
 # Art Pass Plan — Hand-Drawn UI Skin
 
-**Status:** PLANNED (rough plan approved by owner 2026-07-08, session 8). Not yet scheduled or numbered; becomes an owner-approved mini-TDD (Slice 16 precedent) when it starts.
+**Status:** PLANNED + REFINED (rough plan approved 2026-07-08, session 8; refined in the 2026-07-11 art discussion session — see the decision log entry of that date and **`TDD/art/pilot-brief.md`**). Not yet scheduled or numbered; becomes an owner-approved mini-TDD (Slice 16 precedent) when it starts. **A pilot is ACTIVE first** (see §Pilot below).
 **Agreed ordering (owner decision, 2026-07-08):** finish the remaining slices and the batched testing first, then the art pass — slotted **after Slice 14, before Slice 15 completes** (store assets and the release-candidate playtest pass must happen with the final look, not programmer art).
+
+## Refinements settled 2026-07-11 (owner + AI discussion)
+
+- **Style:** pure black-ink line art (ballpoint); color is digital (engine tint / fills under lines). Owner technique rules: double/triple-stroke outlines, no light ballpoint shading (solid fill or hatching instead), ~1.5–2× target size (not 3× — ballpoint lines are thin), breathing room for digital bolding.
+- **Paper:** owner's light-blue grid paper is CLEARED — blue-channel filtering drops the grid; the grid even helps draw straight 9-slice rectangles. (Friends' collage scraps on the more-saturated blue grid: also fine.)
+- **Capture:** phone photos, batched — many elements per sheet with margin IDs, big gaps (3–4 cm); collage scraps photographed on a **dark background** for automatic piece detection; HEIC handled.
+- **Pipeline:** `tools/art_pipeline/clean_scan.py` (built + synthetic-tested 2026-07-11): illumination flattening, blue-grid removal, soft-alpha ink extraction, gap-based element grouping, despeckle, `--bold` stroke-thickening knob; `scraps` mode with hole-filled piece masks preserving pen color. Raw drops: `art_drops/` (gitignored).
+- **Wallpaper:** extracted stickers → **seamless tileable texture** (owner idea) — wrap-around handled in scripted composition (never on paper); scatter generator with density/size/rotation knobs, seeded candidates, owner picks; line-art tile is engine-tintable (full-strength menu, faint watermark elsewhere). Compositor script: to be built after pilot validates extraction.
+- **Font:** owner has NO printer → **DIY printerless pipeline replaces Calligraphr** as the primary path: hand-drawn boxes on grid paper (grid line = shared baseline, descenders below), glyph extraction via the same script family, potrace + FontForge (Homebrew installs — ask owner first) → TTF. Unlimited characters, same bolding knob, free regeneration. Fallback: print the Calligraphr template at a library.
+- **Pilot-first (owner agreed):** nothing is drawn at scale until the pilot passes — see `TDD/art/pilot-brief.md` (B1 button + P1 panel + I1 icon + optional F1 font strip + one collage batch, through the whole pipeline, wired into the live theme, owner look-check as exit gate).
+- **Slice reality update:** Slices 12 + 13 are now implemented (sessions 10–11), so their screens (lobby browser, kick UI, public notice) exist for the UI inventory; only Slice 14's surfaces remain outstanding.
 
 ---
 
@@ -36,8 +47,8 @@ The game's architecture makes this an asset swap, not a rewrite: all styling flo
 
 **Custom font:**
 - Recommended path: a handwriting-font service (e.g. Calligraphr): print their template, draw the alphabet + digits + punctuation, scan, receive a TTF
-- The TTF drops into the theme as the default UI font — every label/button in the game changes in one place
-- ⚠️ **Carve-out:** the in-drawing text tool's `PixelFont` is part of the deterministic drawing wire format — its glyphs CANNOT casually change (it would silently re-render every saved drawing and break golden tests). If a hand-drawn text-tool font is wanted, that is a separate, versioned, golden-rebaking change — decide explicitly at art-pass time. **(Open decision.)**
+- The TTF drops into the theme as the default UI font — every label/button in the game changes in one place, with a bundled simple sans chained as fallback for any character not drawn (Godot font-fallback)
+- **Carve-out — RESOLVED (owner, 2026-07-11):** the in-drawing text tool's `PixelFont` stays AS-IS (it's part of the deterministic drawing wire format; changing it would re-render every saved drawing and break goldens — and the pixel-vs-handwriting contrast reads as intentional)
 
 **Wallpaper:**
 - Scan the existing hand-drawn animals (phone photos fine; flat, even light)
@@ -64,7 +75,7 @@ The game's architecture makes this an asset swap, not a rewrite: all styling flo
 - The drawing **palette** and **PixelFont** are versioned wire-format constants — art pass never touches them (palette is append-only forever)
 - Layout stays anchor/container-based and resizable; no fixed-resolution art assumptions
 - Exports must include the new asset types (PNG/TTF are standard imports — verify the 3-platform export presets after integration)
-- **Sound** remains a separate open item (the original deferred decision was "art & sound") — not in this plan's scope; decide at art-pass time whether to bundle it
+- **Sound — RESOLVED (owner, 2026-07-11): OUT of the art pass.** It gets its own dedicated session later; this plan's scope is visual only
 - Assets are cheap to iterate: the pipeline means a redrawn button is a rescan, not a code change
 
 ---

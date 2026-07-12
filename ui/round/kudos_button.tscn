@@ -3,5 +3,6 @@
 [ext_resource type="Script" path="res://ui/round/kudos_button.gd" id="1_kbtn"]
 
 [node name="KudosButton" type="Button"]
+theme_type_variation = &"EmojiButton"
 text = "🏅 Kudos"
 script = ExtResource("1_kbtn")

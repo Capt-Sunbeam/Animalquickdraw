@@ -102,101 +102,111 @@ layout_mode = 2
 theme_override_font_sizes/font_size = 13
 text = ""
 
-[node name="Grid" type="GridContainer" parent="Margin/Root/Main/SettingsPanel/SettingsMargin/SettingsBox"]
+[node name="Columns" type="HBoxContainer" parent="Margin/Root/Main/SettingsPanel/SettingsMargin/SettingsBox"]
 layout_mode = 2
-columns = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 24
+
+[node name="LeftCol" type="VBoxContainer" parent="Margin/Root/Main/SettingsPanel/SettingsMargin/SettingsBox/Columns"]
+layout_mode = 2
+size_flags_vertical = 0
+theme_override_constants/separation = 12
+
+[node name="Grid" type="GridContainer" parent="Margin/Root/Main/SettingsPanel/SettingsMargin/SettingsBox/Columns/LeftCol"]
+layout_mode = 2
+columns = 2
 theme_override_constants/h_separation = 10
 theme_override_constants/v_separation = 8
 
-[node name="RoundsLabel" type="Label" parent="Margin/Root/Main/SettingsPanel/SettingsMargin/SettingsBox/Grid"]
+[node name="RoundsLabel" type="Label" parent="Margin/Root/Main/SettingsPanel/SettingsMargin/SettingsBox/Columns/LeftCol/Grid"]
 layout_mode = 2
+size_flags_vertical = 4
 text = "Rounds:"
 
-[node name="RoundsSpin" type="SpinBox" parent="Margin/Root/Main/SettingsPanel/SettingsMargin/SettingsBox/Grid"]
+[node name="RoundsBox" type="HBoxContainer" parent="Margin/Root/Main/SettingsPanel/SettingsMargin/SettingsBox/Columns/LeftCol/Grid"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="RoundsSpin" type="SpinBox" parent="Margin/Root/Main/SettingsPanel/SettingsMargin/SettingsBox/Columns/LeftCol/Grid/RoundsBox"]
 unique_name_in_owner = true
 layout_mode = 2
 
-[node name="RoundsTagBox" type="HBoxContainer" parent="Margin/Root/Main/SettingsPanel/SettingsMargin/SettingsBox/Grid"]
-layout_mode = 2
-
-[node name="RoundsValue" type="Label" parent="Margin/Root/Main/SettingsPanel/SettingsMargin/SettingsBox/Grid/RoundsTagBox"]
+[node name="RoundsValue" type="Label" parent="Margin/Root/Main/SettingsPanel/SettingsMargin/SettingsBox/Columns/LeftCol/Grid/RoundsBox"]
 unique_name_in_owner = true
 visible = false
 layout_mode = 2
+size_flags_vertical = 4
 text = "6"
 
-[node name="SuggestedTag" type="Label" parent="Margin/Root/Main/SettingsPanel/SettingsMargin/SettingsBox/Grid/RoundsTagBox"]
+[node name="SuggestedTag" type="Label" parent="Margin/Root/Main/SettingsPanel/SettingsMargin/SettingsBox/Columns/LeftCol/Grid/RoundsBox"]
 unique_name_in_owner = true
 layout_mode = 2
+size_flags_vertical = 4
 theme_override_font_sizes/font_size = 13
 text = "(suggested)"
 
-[node name="DrawTimeLabel" type="Label" parent="Margin/Root/Main/SettingsPanel/SettingsMargin/SettingsBox/Grid"]
+[node name="DrawTimeLabel" type="Label" parent="Margin/Root/Main/SettingsPanel/SettingsMargin/SettingsBox/Columns/LeftCol/Grid"]
 layout_mode = 2
+size_flags_vertical = 4
 text = "Draw time:"
 
-[node name="DrawTimeSpin" type="SpinBox" parent="Margin/Root/Main/SettingsPanel/SettingsMargin/SettingsBox/Grid"]
+[node name="DrawTimeBox" type="HBoxContainer" parent="Margin/Root/Main/SettingsPanel/SettingsMargin/SettingsBox/Columns/LeftCol/Grid"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="DrawTimeSpin" type="SpinBox" parent="Margin/Root/Main/SettingsPanel/SettingsMargin/SettingsBox/Columns/LeftCol/Grid/DrawTimeBox"]
 unique_name_in_owner = true
 layout_mode = 2
 suffix = "s"
 
-[node name="DrawTimeValue" type="Label" parent="Margin/Root/Main/SettingsPanel/SettingsMargin/SettingsBox/Grid"]
+[node name="DrawTimeValue" type="Label" parent="Margin/Root/Main/SettingsPanel/SettingsMargin/SettingsBox/Columns/LeftCol/Grid/DrawTimeBox"]
 unique_name_in_owner = true
 visible = false
 layout_mode = 2
+size_flags_vertical = 4
 text = "30 s"
 
-[node name="PoolLabel" type="Label" parent="Margin/Root/Main/SettingsPanel/SettingsMargin/SettingsBox/Grid"]
+[node name="PoolLabel" type="Label" parent="Margin/Root/Main/SettingsPanel/SettingsMargin/SettingsBox/Columns/LeftCol/Grid"]
 layout_mode = 2
+size_flags_vertical = 4
 text = "Prompt pool:"
 
-[node name="PoolOption" type="OptionButton" parent="Margin/Root/Main/SettingsPanel/SettingsMargin/SettingsBox/Grid"]
+[node name="PoolOption" type="OptionButton" parent="Margin/Root/Main/SettingsPanel/SettingsMargin/SettingsBox/Columns/LeftCol/Grid"]
 unique_name_in_owner = true
 layout_mode = 2
 
-[node name="PoolSpacer" type="Control" parent="Margin/Root/Main/SettingsPanel/SettingsMargin/SettingsBox/Grid"]
+[node name="ModeLabel" type="Label" parent="Margin/Root/Main/SettingsPanel/SettingsMargin/SettingsBox/Columns/LeftCol/Grid"]
 layout_mode = 2
-
-[node name="ModeLabel" type="Label" parent="Margin/Root/Main/SettingsPanel/SettingsMargin/SettingsBox/Grid"]
-layout_mode = 2
+size_flags_vertical = 4
 text = "Mode:"
 
-[node name="ModeOption" type="OptionButton" parent="Margin/Root/Main/SettingsPanel/SettingsMargin/SettingsBox/Grid"]
+[node name="ModeOption" type="OptionButton" parent="Margin/Root/Main/SettingsPanel/SettingsMargin/SettingsBox/Columns/LeftCol/Grid"]
 unique_name_in_owner = true
 layout_mode = 2
 
-[node name="ModeSpacer" type="Control" parent="Margin/Root/Main/SettingsPanel/SettingsMargin/SettingsBox/Grid"]
-layout_mode = 2
-
-[node name="ConnectivityLabel" type="Label" parent="Margin/Root/Main/SettingsPanel/SettingsMargin/SettingsBox/Grid"]
-layout_mode = 2
-text = "Connectivity:"
-
-[node name="ConnectivityBox" type="HBoxContainer" parent="Margin/Root/Main/SettingsPanel/SettingsMargin/SettingsBox/Grid"]
+[node name="ConnectivityBox" type="HBoxContainer" parent="Margin/Root/Main/SettingsPanel/SettingsMargin/SettingsBox/Columns/LeftCol"]
 layout_mode = 2
 theme_override_constants/separation = 12
 
-[node name="PublicCheck" type="CheckBox" parent="Margin/Root/Main/SettingsPanel/SettingsMargin/SettingsBox/Grid/ConnectivityBox"]
+[node name="PublicCheck" type="CheckBox" parent="Margin/Root/Main/SettingsPanel/SettingsMargin/SettingsBox/Columns/LeftCol/ConnectivityBox"]
 unique_name_in_owner = true
 layout_mode = 2
 tooltip_text = "ON: listed in the public browser for anyone (unmoderated, 18+). OFF: private - invite & room code only"
 text = "Public lobby"
 
-[node name="FluidCheck" type="CheckBox" parent="Margin/Root/Main/SettingsPanel/SettingsMargin/SettingsBox/Grid/ConnectivityBox"]
+[node name="FluidCheck" type="CheckBox" parent="Margin/Root/Main/SettingsPanel/SettingsMargin/SettingsBox/Columns/LeftCol/ConnectivityBox"]
 unique_name_in_owner = true
 layout_mode = 2
 tooltip_text = "ON: drop-in/drop-out friendly. OFF: leaving near your judge turn forfeits it (-1)"
 text = "Fluid rejoin"
 
-[node name="ConnectivitySpacer" type="Control" parent="Margin/Root/Main/SettingsPanel/SettingsMargin/SettingsBox/Grid"]
+[node name="ModeScroll" type="ScrollContainer" parent="Margin/Root/Main/SettingsPanel/SettingsMargin/SettingsBox/Columns"]
 layout_mode = 2
-
-[node name="ModeScroll" type="ScrollContainer" parent="Margin/Root/Main/SettingsPanel/SettingsMargin/SettingsBox"]
-layout_mode = 2
+size_flags_horizontal = 3
 size_flags_vertical = 3
 horizontal_scroll_mode = 0
 
-[node name="ModePanel" parent="Margin/Root/Main/SettingsPanel/SettingsMargin/SettingsBox/ModeScroll" instance=ExtResource("5_mpanel")]
+[node name="ModePanel" parent="Margin/Root/Main/SettingsPanel/SettingsMargin/SettingsBox/Columns/ModeScroll" instance=ExtResource("5_mpanel")]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
@@ -230,10 +240,10 @@ anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -140.0
-offset_top = -40.0
-offset_right = 140.0
-offset_bottom = 40.0
+offset_left = -170.0
+offset_top = -62.0
+offset_right = 170.0
+offset_bottom = 62.0
 grow_horizontal = 2
 grow_vertical = 2
 

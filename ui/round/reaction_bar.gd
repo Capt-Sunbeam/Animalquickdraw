@@ -28,6 +28,7 @@ func _ready() -> void:
 	for i: int in EMOJI.size():
 		var btn := Button.new()
 		btn.toggle_mode = true
+		btn.theme_type_variation = &"EmojiButton"
 		btn.focus_mode = Control.FOCUS_NONE
 		btn.custom_minimum_size = Vector2(46, 40)
 		btn.add_theme_font_size_override("font_size", 19)

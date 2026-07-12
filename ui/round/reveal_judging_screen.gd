@@ -111,7 +111,10 @@ func _build_grid(entries: Array[Dictionary]) -> void:
 
 func _build_cell(drawing_id: String, doc_dict: Variant) -> Button:
 	var cell := Button.new()
+	cell.theme_type_variation = &"CardButton"
 	cell.custom_minimum_size = CELL_MIN_SIZE
+	cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	cell.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	cell.disabled = true   # pickable only for the judge at JUDGING
 	cell.pressed.connect(_on_cell_pressed.bind(drawing_id))
 	var layout := VBoxContainer.new()

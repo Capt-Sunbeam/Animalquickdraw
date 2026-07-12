@@ -12,6 +12,17 @@
 
 ---
 
+### Art pass: style + pipeline decisions (discussion session) — pure line art, DIY printerless font, tileable wallpaper, pilot-first
+**Date:** 2026-07-11 | **Slice:** Art pass (unnumbered; plan doc `TDD/art-pass-plan.md`) | **Decided by:** Owner + AI discussion | **Type:** Quick
+
+**Decision:** (1) **UI style = pure black-ink line art** (ballpoint), color added digitally (engine tint / fills under lines); owner draws with breathing room so digital bolding stays viable. (2) **Capture = phone photos, batched** — multiple elements per sheet with margin IDs; collage scraps laid on a **dark background** for auto-segmentation; owner's light-blue grid paper is fine (blue-channel filtering; grid even helps draw straight 9-slice boxes). (3) **Wallpaper = extracted stickers composed into a seamless TILEABLE texture** (wrap-around composition is scripted, not physical) — scripted scatter with density/size/rotation knobs, owner picks from seeded candidates; line-art tile enables in-engine tinting (full-strength on menu, faint watermark elsewhere). (4) **Font = DIY printerless pipeline** (owner has no printer): hand-drawn grid boxes on grid paper with a grid-line baseline → glyph extraction → potrace + FontForge → TTF. Calligraphr-at-a-library is the fallback. (5) **Pilot before scale:** one button + one panel + one icon (+ optional font strip) + one collage batch through the WHOLE pipeline into the live theme, owner look-check as exit gate — validates the risky stack (ballpoint + grid paper + phone light) before the full drawing checklist is generated. Brief: `TDD/art/pilot-brief.md`; pipeline: `tools/art_pipeline/clean_scan.py` (elements + scraps modes, validated on synthetic photos); `art_drops/` gitignored.
+
+**Resolved same day (owner, 2026-07-11):** (a) the in-drawing text tool KEEPS PixelFont as-is (wire-format; deliberate contrast with the UI handwriting font); (b) sound is OUT of the art pass — it gets its own session later. (c) **Font charset (owner-prepped sheets):** owner pre-drew 80 boxes (4×4 grid squares each) → 26 uppercase + 26 lowercase + 10 digits + 18 punctuation/symbols; any character NOT drawn falls back to a bundled simple sans via Godot's font-fallback chain (so arbitrary Steam names/chat always render). Character order + writing rules: `TDD/art/font-sheet-guide.md`.
+
+**Status:** [x] Pipeline script built + synthetic-tested [ ] Pilot photos [ ] Pilot in-game look-check
+
+---
+
 ### Slice 13: security audit fix - control chars stripped from ALL broadcast text (chat line spoofing)
 **Date:** 2026-07-11 | **Slice:** 13 (touches 2's chat + 7's pool words) | **Decided by:** Owner directive ("make sure no commands can get through the chat") + AI audit | **Type:** Quick
 
