@@ -3,7 +3,7 @@ extends Control
 ## Spectator banner (Slice 9 TDD §7): floats over the phase screen while
 ## this peer watches rather than draws - a late joiner waiting for their
 ## activation round, or a mid-DRAWING rejoiner sitting the round out.
-## Never blocks input; reactions/kudos/chat stay live underneath (§9:
+## Never blocks input; kudos/chat stay live underneath (§9:
 ## spectators participate socially right away).
 
 @onready var _label: Label = %BannerLabel

@@ -27,11 +27,16 @@ func _ready() -> void:
 
 
 ## standings: the bundle standings array (rank order, ties already ordered).
-func present(standings: Array) -> void:
+## titles_by_player (Slice 19): platform_id -> Array of title display names;
+## rendered as a badge line under each name whenever titles are enabled
+## (empty map = no badge lines, e.g. titles off or the fallback bundle).
+func present(standings: Array, titles_by_player: Dictionary = {}) -> void:
 	for raw: Variant in standings:
 		if not raw is Dictionary:
 			continue
-		var row: Control = _build_row(raw)
+		var titles: Array = titles_by_player.get(
+				str((raw as Dictionary).get("player_id", "")), [])
+		var row: Control = _build_row(raw, titles)
 		row.visible = false
 		_rows.append(row)
 		_rows_box.add_child(row)
@@ -89,7 +94,7 @@ func _pulse_winner(row: Control) -> void:
 	tween.tween_property(row, "scale", Vector2.ONE, 0.25)
 
 
-func _build_row(entry: Dictionary) -> HBoxContainer:
+func _build_row(entry: Dictionary, titles: Array = []) -> HBoxContainer:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 12)
 	var rank_label := Label.new()
@@ -106,15 +111,31 @@ func _build_row(entry: Dictionary) -> HBoxContainer:
 	row.add_child(chip)
 	chip.set_player(str(entry.get("display_name", pid)), pid,
 			player.avatar_doc if player != null else {})
+	# Slice 19: name cell = name + a badge line listing every title the
+	# player earned (titles stack). Empty list = single-line name, no gap.
+	var name_cell := VBoxContainer.new()
+	name_cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	name_cell.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	name_cell.add_theme_constant_override("separation", 0)
+	row.add_child(name_cell)
 	var name_label := Label.new()
 	name_label.name = "NameLabel"
 	name_label.text = str(entry.get("display_name", entry.get("player_id", "?")))
 	if not bool(entry.get("connected", true)):
 		name_label.text += " (left early)"
 		name_label.modulate = Color(1.0, 1.0, 1.0, 0.55)
-	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	name_label.add_theme_font_size_override("font_size", 22)
-	row.add_child(name_label)
+	name_cell.add_child(name_label)
+	if not titles.is_empty():
+		var badges := Label.new()
+		badges.name = "BadgesLabel"
+		var names: PackedStringArray = PackedStringArray()
+		for t: Variant in titles:
+			names.append(str(t))
+		badges.text = "🏅 " + " · ".join(names)
+		badges.add_theme_font_size_override("font_size", 13)
+		badges.modulate = Color(1.0, 1.0, 1.0, 0.75)
+		name_cell.add_child(badges)
 	var score_label := Label.new()
 	score_label.name = "ScoreLabel"
 	score_label.text = str(int(entry.get("final_score", 0)))   # negatives keep their minus

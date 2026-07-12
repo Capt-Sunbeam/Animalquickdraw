@@ -1,8 +1,10 @@
 # Slice 14: Achievements & Stats
 ## Local lifetime stats in user://stats.json, EventBus-driven StatsService, and Steam achievement mirroring
 
-**Version:** 1.0
-**Last Updated:** 2026-07-04
+> **SUPERSEDED IN PART (2026-07-12, session 14):** implemented against the post-Slice-19 reality. (1) The §2 achievement table (12) is replaced by the owner-frozen **27-id set** — see decision log 2026-07-12 + `achievement_defs.gd` (the code IS the table). (2) §6's `requestCurrentStats` guard predates SDK 1.64 — the API is gone; `is_stats_ready()` = init success (decision log 2026-07-11, ClassDB-verified). (3) `titles_awarded` carries pid → **Array** of title ids (titles stack). (4) The blocking toast check moved to the Slice 15 App-ID swap (Spacewar can't carry custom achievement names). Full record: `14-achievements-stats-implementation-notes.md`.
+
+**Version:** 1.1
+**Last Updated:** 2026-07-12
 **Dependencies:**
 - Slice 10 (`titles_awarded` / `game_ended` EventBus signals + wrap-up bundle kudos summary)
 - Slice 12 (GodotSteam init via SteamBackend — achievement mirroring when available)
@@ -410,5 +412,11 @@ N/A — no UI in this slice (Section 7).
 - [ ] Batchable: offline accrual + delete-and-relaunch scenarios confirmed
 
 ### Documentation
-- [ ] Update WHERE_WE_ARE; Implementation Notes
-- [ ] File the Slice 15 owner task: configure all 12 achievements on the Steamworks partner site with the exact API names from Section 2
+- [x] Update WHERE_WE_ARE; Implementation Notes
+- [x] File the Slice 15 owner task: configure all **27** achievements on the Steamworks partner site with the exact API names from `achievement_defs.gd`
+
+---
+
+## COMPLETION STATUS (2026-07-12, session 14)
+
+**IMPLEMENTED + machine-verified** (Chunk 17). 26 new tests (frozen-id pin, threshold sweep, accumulation, persistence, 3-layer idempotency, recording-mock Steam reconcile); 572 total green; all 3 gates PASS. Stats sandboxed in every harness/gate run. **Blocking owner check (live unlock toast) deferred to Slice 15's App-ID swap** — Spacewar cannot carry our achievement API names; batchables (offline accrual, delete-and-relaunch) in qa-backlog Slice 14 section. Deviations + reconciliations: `14-achievements-stats-implementation-notes.md`.

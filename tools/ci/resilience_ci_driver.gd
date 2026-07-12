@@ -42,6 +42,9 @@ var _spectated_after_rejoin: bool = false
 func _ready() -> void:
 	get_tree().create_timer(TIMEOUT_SEC).timeout.connect(_fail.bind("timeout"))
 	CollectionStore.root_dir = "ci_collection_%d" % OS.get_process_id()
+	# Slice 14: sandbox lifetime stats too (never bump the real profile).
+	Stats.path = "ci_stats_%d.json" % OS.get_process_id()
+	Stats.reset_for_test()
 	EventBus.roster_updated.connect(_on_roster_updated)
 	EventBus.phase_changed.connect(_on_phase_changed)
 	EventBus.reveal_entries_received.connect(func(entries: Array) -> void:

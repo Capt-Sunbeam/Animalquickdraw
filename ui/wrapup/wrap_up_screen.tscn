@@ -52,6 +52,13 @@ size_flags_horizontal = 3
 theme_override_font_sizes/font_size = 15
 text = ""
 
+[node name="SkipCeremonyButton" type="Button" parent="Layout/Footer"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+custom_minimum_size = Vector2(0, 44)
+text = "Skip ceremony"
+
 [node name="PostGame" type="HBoxContainer" parent="Layout/Footer"]
 unique_name_in_owner = true
 visible = false

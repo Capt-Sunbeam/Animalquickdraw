@@ -450,7 +450,7 @@ func _begin_key_draw() -> void:
 	if _minimap != null and _minimap.visible \
 			and _minimap.get_global_rect().has_point(get_global_mouse_position()):
 		return   # the minimap's hold-D pan owns this pointer
-	if _viewport_box.get_global_rect().has_point(_viewport_box.get_global_mouse_position()):
+	if _pointer_over_canvas(get_viewport().gui_get_hovered_control()):
 		if not _tools_enabled or _input_state != InputState.IDLE:
 			return
 		var pos: Vector2 = _display_to_internal(_viewport_box.get_local_mouse_position())
@@ -463,6 +463,25 @@ func _begin_key_draw() -> void:
 	if Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
 		return   # a real press is in flight - don't double-click
 	_key_click_at(get_viewport().get_mouse_position())
+
+
+## The canvas-rect test alone lies when another control floats OVER the
+## canvas - the expanded palette overlay does exactly that (owner D-click
+## find, 2026-07-12): the pointer sits inside the canvas rect but the
+## overlay swatch should win the click. Cross-check the ACTUAL hovered
+## control.
+func _pointer_over_canvas(hovered: Control) -> bool:
+	if not _viewport_box.get_global_rect().has_point(_viewport_box.get_global_mouse_position()):
+		return false
+	return _hover_allows_canvas(hovered)
+
+
+## A null hover (headless / no motion yet) trusts the rect, preserving the
+## pre-fix behavior everywhere nothing floats on top.
+func _hover_allows_canvas(hovered: Control) -> bool:
+	if hovered == null:
+		return true
+	return hovered == _viewport_box or _viewport_box.is_ancestor_of(hovered)
 
 
 ## Synthesized full press+release pair (no held-button state to get

@@ -3,19 +3,21 @@ extends Node
 ## Automated Slice 3+4 gate driver (debug builds; tools/verify_round.sh) -
 ## the scripted equivalent of the Chunk 6/7 blocking playtests: a full
 ## 3-player 2-round game over ENet. Round 1 the judge picks (winner +2) and
-## the Slice 4 social layer runs live: judge reacts/un-reacts/re-reacts and
-## spends a kudos (collection write + wallet verified on the judge peer);
-## drawers cross-react. Round 2 the judge deliberately lets the window lapse
-## (judge -1). Verifies per-peer phase sequences, role views, converged
-## reaction counts/kudos totals, and the results bundle. Owner playtests
-## remain the formal gate.
+## the Slice 4 social layer runs live: EVERY peer spends its one kudos
+## (allotment AUTO = 1 for 2 rounds), so the collection write + wallet are
+## verified on all three peers and the totals converge deterministically
+## (entry0 always ends at 2, entry1 at 1, regardless of the shuffle).
+## Round 2 the judge deliberately lets the window lapse (judge -1).
+## Verifies per-peer phase sequences, role views, converged kudos totals,
+## and the results bundle. (Emoji reactions retired by Slice 19.) Owner
+## playtests remain the formal gate.
 
 const TIMEOUT_SEC: float = 150.0
 const EXPECT_PLAYERS: int = 3
 const ROUNDS: int = 2
 const HOST_LINGER_SEC: float = 2.5
 const CLIENT_LINGER_SEC: float = 1.0
-const JUDGE_PICK_DELAY_SEC: float = 2.0   # lets every peer's reactions land first
+const JUDGE_PICK_DELAY_SEC: float = 2.0   # lets every peer's kudos land first
 
 var role: String = "join"   # "host" | "join"
 var room_code: String = "LOCAL"
@@ -27,11 +29,9 @@ var _entries: Array = []
 var _results: Dictionary = {}
 # Slice 4 observations (every peer):
 var _r0_entry_ids: Array[String] = []     # round 0 reveal order (broadcast order)
-var _reaction_counts: Dictionary = {}     # drawing_id -> last synced counts
 var _kudos_totals: Dictionary = {}        # drawing_id -> last synced total
-var _saw_laugh_removed: bool = false      # un-react decrement observed
-var _kudos_remaining: int = -1            # judge peer: from the private confirm
-var _kudos_saved_id: String = ""          # judge peer: collection item id
+var _kudos_remaining: int = -1            # this peer: from the private confirm
+var _kudos_saved_id: String = ""          # this peer: collection item id
 # Slice 5 observations:
 var _beats: Array[Dictionary] = []        # {"index", "drawing_id"} in arrival order
 var _gathers: int = 0
@@ -42,12 +42,15 @@ func _ready() -> void:
 	# Sandbox the collection: instances share user://, and CI must never
 	# touch a real player collection.
 	CollectionStore.root_dir = "ci_collection_%d" % OS.get_process_id()
+	# Slice 14: the Stats autoload listens to this full game - sandbox it
+	# too (a gate run must never bump the owner's real lifetime stats).
+	Stats.path = "ci_stats_%d.json" % OS.get_process_id()
+	Stats.reset_for_test()
 	EventBus.roster_updated.connect(_on_roster_updated)
 	EventBus.phase_changed.connect(_on_phase_changed)
 	EventBus.reveal_entries_received.connect(_on_entries)
 	EventBus.session_results_ready.connect(_on_results)
 	EventBus.session_closed.connect(_on_session_closed)
-	EventBus.reaction_counts_changed.connect(_on_reaction_counts)
 	EventBus.kudos_total_changed.connect(_on_kudos_total)
 	EventBus.kudos_given.connect(_on_kudos_given)
 	EventBus.reveal_beat_started.connect(func(index: int, id: String, _secs: float) -> void:
@@ -178,9 +181,11 @@ func _maybe_submit() -> void:
 	client.request_set_ready(true)
 
 
-## Slice 4 social script, round 0 JUDGING only. Judge: LAUGH on -> off -> on
-## (net 1; the off must sync a decrement) + one kudos on entry 0. Drawers:
-## FIRE on every non-own entry (each entry ends with exactly 1 FIRE).
+## Slice 4 social script, round 0 JUDGING only. Judge: one kudos on entry 0.
+## Drawers: one kudos on the FIRST non-own entry. With 2 entries the totals
+## are deterministic whichever drawer authored entry 0: the non-author
+## drawer and the judge both hit entry 0 (total 2), the author of entry 0
+## hits entry 1 (total 1).
 func _maybe_social() -> void:
 	if _finished:
 		return
@@ -191,17 +196,14 @@ func _maybe_social() -> void:
 		_fail("round 0 entry count %d != %d" % [_r0_entry_ids.size(), EXPECT_PLAYERS - 1])
 		return
 	if _is_local_judge():
-		var target: String = _r0_entry_ids[0]
-		client.request_react(target, NetIds.Reaction.LAUGH, true)
-		client.request_react(target, NetIds.Reaction.LAUGH, false)
-		client.request_react(target, NetIds.Reaction.LAUGH, true)
-		client.request_give_kudos(target)
+		client.request_give_kudos(_r0_entry_ids[0])
 	else:
 		for id: String in _r0_entry_ids:
 			if not client.is_own_drawing(id):
-				client.request_react(id, NetIds.Reaction.FIRE, true)
-		# Slice 17: drawers ready up after their reactions (ordered channel:
-		# every FIRE lands before this peer counts toward the early end).
+				client.request_give_kudos(id)
+				break
+		# Slice 17: drawers ready up after their kudos (ordered channel: the
+		# kudos lands before this peer counts toward the early end).
 		client.request_set_ready(true)
 
 
@@ -215,7 +217,7 @@ func _maybe_pick() -> void:
 		if _entries.is_empty():
 			_fail("judge has no reveal entries")
 			return
-		# Delay the pick so every peer's reactions/kudos land inside the
+		# Delay the pick so every peer's kudos land inside the
 		# window (the gate closes at RESOLUTION).
 		await get_tree().create_timer(JUDGE_PICK_DELAY_SEC).timeout
 		if _finished:
@@ -228,19 +230,12 @@ func _maybe_pick() -> void:
 	# (drawers' readies alone never end JUDGING; the judge is required).
 
 
-func _on_reaction_counts(drawing_id: String, counts: Dictionary) -> void:
-	_reaction_counts[drawing_id] = counts
-	# The judge's un-react must arrive as a sync where LAUGH dropped out.
-	if not _r0_entry_ids.is_empty() and drawing_id == _r0_entry_ids[0] \
-			and int(counts.get(int(NetIds.Reaction.LAUGH), 0)) == 0:
-		_saw_laugh_removed = true
-
-
 func _on_kudos_total(drawing_id: String, total: int) -> void:
 	_kudos_totals[drawing_id] = total
 
 
-## Judge peer only: private confirm -> the local collection write happened.
+## Every peer gives one kudos: private confirm -> the local collection
+## write happened (kudos=save verified on all three peers since Slice 19).
 func _on_kudos_given(drawing_id: String, remaining: int) -> void:
 	_kudos_remaining = remaining
 	if not CollectionStore.has_session_drawing(drawing_id):
@@ -288,18 +283,20 @@ func _verify() -> void:
 	var total: int = 0
 	for pid: Variant in scores:
 		total += int(scores[pid])
-	# Slice 4: the judge's kudos adds +1 to round 0's winner (same drawing).
-	var expected_total: int = GameConstants.WINNER_POINTS + GameConstants.KUDOS_POINTS \
+	# Slice 4/19: all three peers spend their kudos in round 0 (+1 each).
+	var expected_total: int = GameConstants.WINNER_POINTS \
+			+ EXPECT_PLAYERS * GameConstants.KUDOS_POINTS \
 			+ GameConstants.JUDGE_NO_PICK_POINTS
 	if total != expected_total:
 		_fail("final scores sum %d != %d" % [total, expected_total])
 		return
-	# The no-pick judge's exact score is deterministic given round 1's winner.
+	# The no-pick judge's exact score is deterministic given round 1's winner:
+	# entry0's author (= round-0 winner) took 2 kudos, entry1's author took 1.
 	var winner: String = str((rounds[0] as Dictionary).get("winner_player_id", ""))
 	var lapsed_judge: String = str((rounds[1] as Dictionary).get("judge_player_id", ""))
 	var expected: int = GameConstants.JUDGE_NO_PICK_POINTS \
-			+ (GameConstants.WINNER_POINTS + GameConstants.KUDOS_POINTS \
-			if winner == lapsed_judge else 0)
+			+ (GameConstants.WINNER_POINTS + 2 * GameConstants.KUDOS_POINTS \
+			if winner == lapsed_judge else GameConstants.KUDOS_POINTS)
 	if int(scores.get(lapsed_judge, 9999)) != expected:
 		_fail("no-pick -1 not applied to judge (got %s, want %d)"
 				% [str(scores.get(lapsed_judge)), expected])
@@ -316,51 +313,33 @@ func _verify() -> void:
 	if _phase_log != expected_phases:
 		_fail("phase sequence mismatch: %s" % str(_phase_log))
 		return
-	_pass("2 rounds, pick + no-pick, reactions/kudos converged, scores consistent")
+	_pass("2 rounds, pick + no-pick, kudos converged on all peers, scores consistent")
 
 
-## Slice 4 convergence: every peer must have observed identical final
-## reaction counts and kudos totals for round 0 (host truth, one sync each).
+## Slice 4 convergence: every peer must have observed identical final kudos
+## totals for round 0 (host truth, one sync each), and every peer's own
+## kudos must have confirmed (wallet emptied + collection written).
 func _verify_social() -> bool:
 	if _r0_entry_ids.size() != EXPECT_PLAYERS - 1:
 		_fail("round 0 entry ids were never captured")
 		return false
 	var e0: String = _r0_entry_ids[0]
 	var e1: String = _r0_entry_ids[1]
-	var c0: Dictionary = _reaction_counts.get(e0, {})
-	var c1: Dictionary = _reaction_counts.get(e1, {})
-	if int(c0.get(int(NetIds.Reaction.LAUGH), 0)) != 1 \
-			or int(c0.get(int(NetIds.Reaction.FIRE), 0)) != 1:
-		_fail("entry0 final counts wrong: %s (want LAUGH 1, FIRE 1)" % str(c0))
-		return false
-	if int(c1.get(int(NetIds.Reaction.FIRE), 0)) != 1 \
-			or c1.has(int(NetIds.Reaction.LAUGH)):
-		_fail("entry1 final counts wrong: %s (want FIRE 1 only)" % str(c1))
-		return false
-	if not _saw_laugh_removed:
-		_fail("un-react decrement was never observed")
-		return false
-	if int(_kudos_totals.get(e0, 0)) != 1 or int(_kudos_totals.get(e1, 0)) != 0:
-		_fail("kudos totals wrong: %s (want entry0=1 only)" % str(_kudos_totals))
+	if int(_kudos_totals.get(e0, 0)) != 2 or int(_kudos_totals.get(e1, 0)) != 1:
+		_fail("kudos totals wrong: %s (want entry0=2, entry1=1)" % str(_kudos_totals))
 		return false
 	var kudos_stats: Dictionary = _results.get("kudos_stats", {})
 	var received: Dictionary = kudos_stats.get("received_by_author", {})
-	if received.size() != 1:
+	if received.size() != 2:
 		_fail("results kudos_stats.received_by_author wrong: %s" % str(received))
 		return false
-	if _is_local_judge_platform_round0():
-		if _kudos_remaining != 0:
-			_fail("judge wallet after kudos: %d, want 0 (allotment 1)" % _kudos_remaining)
-			return false
-		if _kudos_saved_id.is_empty():
-			_fail("judge kudos confirm never arrived / collection not written")
-			return false
+	if _kudos_remaining != 0:
+		_fail("wallet after kudos: %d, want 0 (allotment 1)" % _kudos_remaining)
+		return false
+	if _kudos_saved_id.is_empty():
+		_fail("kudos confirm never arrived / collection not written")
+		return false
 	return true
-
-
-## Round 0's judge is the first-joined player - the host in this script.
-func _is_local_judge_platform_round0() -> bool:
-	return role == "host"
 
 
 ## Slice 5: default settings run ONE_AT_A_TIME - every peer must see one

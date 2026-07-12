@@ -1,9 +1,10 @@
 class_name TestGameSessionReveal
 extends GdUnitTestSuite
 ## Slice 5 on the state machine: beat chain drives REVEAL -> JUDGING, the
-## gate follows the staged drawing (with cross-beat grace), in-image text is
-## censored in the submit path (Slice 16), and the failsafe deadline can
-## never double-advance. Headless via the Slice 3/4 rig pattern.
+## kudos gate follows the staged drawing (Slice 19: emoji reactions retired;
+## SocialGate's own grace windows are covered by TestSocialGate), in-image
+## text is censored in the submit path (Slice 16), and the failsafe deadline
+## can never double-advance. Headless via the Slice 3/4 rig pattern.
 
 const FIXTURE_DIR: String = "res://tests/fixtures/prompts/"
 
@@ -112,7 +113,7 @@ func test_reveal_deadline_is_schedule_plus_failsafe() -> void:
 	assert_int(int(data["deadline_ms"])).is_equal(expected_ms)
 
 
-func test_gate_open_only_for_staged_drawing_with_cross_beat_grace() -> void:
+func test_kudos_during_beat_allowed_only_for_staged_drawing() -> void:
 	var rig: Rig = _make_rig()
 	rig.session.start_game()
 	rig.session.on_phase_deadline()
@@ -122,26 +123,9 @@ func test_gate_open_only_for_staged_drawing_with_cross_beat_grace() -> void:
 	for entry: Dictionary in rig.entries():
 		if str(entry["drawing_id"]) != staged:
 			other = str(entry["drawing_id"])
-	# Judge (p0) can react to the staged drawing only.
-	assert_bool(rig.session.react("p0", staged, NetIds.Reaction.LAUGH, true)).is_true()
-	assert_bool(rig.session.react("p0", other, NetIds.Reaction.LAUGH, true)).is_false()
-	# Next beat: previous drawing still accepted inside the close grace...
-	rig.session.on_reveal_beat_deadline()
-	assert_bool(rig.session.react("p0", staged, NetIds.Reaction.WOW, true)).is_true()
-	# ...but not once the grace has elapsed.
-	rig.clock.advance(GameConstants.REACTION_CLOSE_GRACE_MSEC + 1)
-	assert_bool(rig.session.react("p0", staged, NetIds.Reaction.FIRE, true)).is_false()
-	# The newly staged drawing is live.
-	var now_staged: String = str(rig.beats[1]["drawing_id"])
-	assert_bool(rig.session.react("p0", now_staged, NetIds.Reaction.LAUGH, true)).is_true()
-
-
-func test_kudos_during_beat_allowed() -> void:
-	var rig: Rig = _make_rig()
-	rig.session.start_game()
-	rig.session.on_phase_deadline()
-	_submit_all(rig)
-	var staged: String = str(rig.beats[0]["drawing_id"])
+	# Judge (p0) can kudos the staged drawing only; the rest of the set stays
+	# gated until its own beat (JUDGING later reopens the whole set).
+	assert_bool(rig.session.give_kudos("p0", other)).is_false()
 	assert_bool(rig.session.give_kudos("p0", staged)).is_true()
 
 

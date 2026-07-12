@@ -74,6 +74,27 @@ func is_stats_ready() -> bool:
 	return false
 
 
+# --- Slice 14: achievement mirror (ENet keeps the no-ops - dev builds
+# exercise the full local stats pipeline with Steam calls silently skipped;
+# reconcile-from-counters pushes everything on the next Steam launch). ---
+
+
+## True when the achievement is already set on Steam (guards redundant calls).
+@warning_ignore("unused_parameter")
+func steam_achievement_is_set(achievement_id: String) -> bool:
+	return false
+
+
+@warning_ignore("unused_parameter")
+func steam_set_achievement(achievement_id: String) -> void:
+	pass
+
+
+## One storeStats per unlock batch (StatsService calls after its loop).
+func steam_store_stats() -> void:
+	pass
+
+
 ## Short reason key for the last failed host/join ("full", "not_found",
 ## "version_mismatch", "" = none/generic). UI maps to friendly toasts.
 func get_last_failure_reason() -> String:

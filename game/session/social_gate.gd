@@ -1,10 +1,12 @@
-class_name ReactionGate
+class_name SocialGate
 extends RefCounted
-## Host-side gate deciding which drawings accept reaction/kudos requests
-## right now (Slice 4 TDD §5). This slice wires JUDGING (open_all) and
-## RESOLUTION (close); Slice 5's one-at-a-time reveal beats will call
-## open_for per revealed drawing. close() honors a short grace window so a
-## request racing the phase flip is accepted, not punished (§10 - favor flow).
+## Host-side gate deciding which drawings accept kudos requests right now
+## (Slice 4 TDD §5; renamed from ReactionGate when Slice 19 retired emoji
+## reactions - kudos was always gated here too). Slice 4 wires JUDGING
+## (open_all) and RESOLUTION (close); Slice 5's one-at-a-time reveal beats
+## call open_for per revealed drawing. close() honors a short grace window
+## so a request racing the phase flip is accepted, not punished (§10 -
+## favor flow).
 
 var _open_ids: Dictionary = {}      # drawing_id -> true while open
 var _closed_at_ms: int = 0          # 0 = currently open (or never opened)
@@ -13,7 +15,7 @@ var _now_ms: Callable
 
 
 func _init(now_ms: Callable = Callable()) -> void:
-	_now_ms = now_ms if now_ms.is_valid() else Callable(ReactionGate, "_system_now_ms")
+	_now_ms = now_ms if now_ms.is_valid() else Callable(SocialGate, "_system_now_ms")
 
 
 ## Slice 5: open exactly these drawings (one reveal beat). Deliberately
@@ -44,7 +46,7 @@ func is_open_for(drawing_id: String) -> bool:
 		return true
 	# In-flight requests inside the grace window still count (§10).
 	if _closed_at_ms > 0 and _grace_ids.has(drawing_id) \
-			and int(_now_ms.call()) - _closed_at_ms <= GameConstants.REACTION_CLOSE_GRACE_MSEC:
+			and int(_now_ms.call()) - _closed_at_ms <= GameConstants.SOCIAL_CLOSE_GRACE_MSEC:
 		return true
 	return false
 

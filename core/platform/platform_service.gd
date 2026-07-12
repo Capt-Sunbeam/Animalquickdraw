@@ -86,6 +86,21 @@ func is_stats_ready() -> bool:
 	return backend.is_stats_ready()
 
 
+# --- Slice 14: achievement mirror (ENet: silent no-ops) ---
+
+
+func steam_achievement_is_set(achievement_id: String) -> bool:
+	return backend.steam_achievement_is_set(achievement_id)
+
+
+func steam_set_achievement(achievement_id: String) -> void:
+	backend.steam_set_achievement(achievement_id)
+
+
+func steam_store_stats() -> void:
+	backend.steam_store_stats()
+
+
 ## Short reason key for the last failed host/join ("" = none/generic).
 func get_last_failure_reason() -> String:
 	return backend.get_last_failure_reason()

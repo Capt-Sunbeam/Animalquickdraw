@@ -1,9 +1,11 @@
 class_name TestWrapUpCalculator
 extends GdUnitTestSuite
-## Slice 10 (TDD §11): superlative mapping, the v1 title set with priority
-## assignment / minimums / tie-breaks / evidence, standings with title
-## points, bundle embedding, and determinism. Pure static math over the
-## shipped RoundRecord/SessionStats structures - no session, no network.
+## Slice 10 (TDD §11) reworked by Slice 19: the title set with stacking /
+## minimums / tie-breaks / evidence, standings with title points, bundle
+## embedding, titles_enabled gating, and determinism. Pure static math over
+## the shipped RoundRecord/SessionStats structures - no session, no network.
+## (Superlatives and every reaction-based input retired with the emoji
+## system - see TDD 19 + decision log 2026-07-12.)
 
 const ROTATION: Array[String] = ["p0", "p1", "p2", "p3"]
 const DRAW_TIME: float = 30.0
@@ -62,12 +64,6 @@ func _stats_for(records: Array[RoundRecord]) -> SessionStats:
 	return stats
 
 
-func _react_n(stats: SessionStats, drawing_id: String, reaction: NetIds.Reaction,
-		count: int, round_index: int = 0) -> void:
-	for i: int in range(count):
-		stats.record_reaction(round_index, drawing_id, reaction, "reactor-%d" % i, true)
-
-
 func _meta(pid: String, connected: bool = true, granted: int = 2, spent: int = 0) -> Dictionary:
 	return {"platform_id": pid, "display_name": pid.to_upper(),
 			"connected": connected, "kudos_granted": granted, "kudos_spent": spent}
@@ -102,52 +98,6 @@ func _title_holder(titles: Array[Dictionary], title_id: String) -> String:
 	return ""
 
 
-# --- superlatives ---
-
-
-func test_superlative_per_reaction_maps_to_max_count_drawing() -> void:
-	var records: Array[RoundRecord] = _base_records()
-	var stats: SessionStats = _stats_for(records)
-	_react_n(stats, "d0", NetIds.Reaction.LAUGH, 3, 0)
-	_react_n(stats, "d3", NetIds.Reaction.LAUGH, 5, 1)
-	_react_n(stats, "d1", NetIds.Reaction.FIRE, 2, 0)
-	var infos: Array[Dictionary] = WrapUpCalculator.drawing_infos(records, stats)
-	var supers: Array[Dictionary] = WrapUpCalculator.compute_superlatives(infos, true)
-	assert_int(supers.size()).is_equal(2)
-	assert_str(str(supers[0]["id"])).is_equal("funniest")
-	assert_str(str(supers[0]["drawing_id"])).is_equal("d3")   # 5 beats 3
-	assert_int(int(supers[0]["count"])).is_equal(5)
-	assert_str(str(supers[0]["author_id"])).is_equal("p2")
-	assert_str(str(supers[0]["prompt"])).is_equal("round one")
-	assert_int(int(supers[0]["points"])).is_equal(1)
-	assert_str(str(supers[1]["id"])).is_equal("straight_fire")
-	assert_str(str(supers[1]["drawing_id"])).is_equal("d1")
-
-
-func test_superlative_tie_breaks_earlier_round_then_reveal_index() -> void:
-	# Same count everywhere: the round-0 drawing wins; within round 0 the
-	# earlier REVEAL-ORDER drawing wins even when submitted later.
-	var r0 := _record(0, [_sub("a", "p1", _doc(1)), _sub("b", "p2", _doc(1))])
-	r0.reveal_order = PackedStringArray(["b", "a"])   # shuffle put b on stage first
-	var r1 := _record(1, [_sub("c", "p0", _doc(1))])
-	var records: Array[RoundRecord] = [r0, r1]
-	var stats: SessionStats = _stats_for(records)
-	_react_n(stats, "a", NetIds.Reaction.LOVE, 2, 0)
-	_react_n(stats, "b", NetIds.Reaction.LOVE, 2, 0)
-	_react_n(stats, "c", NetIds.Reaction.LOVE, 2, 1)
-	var infos: Array[Dictionary] = WrapUpCalculator.drawing_infos(records, stats)
-	var supers: Array[Dictionary] = WrapUpCalculator.compute_superlatives(infos, true)
-	assert_int(supers.size()).is_equal(1)
-	assert_str(str(supers[0]["drawing_id"])).is_equal("b")
-
-
-func test_superlative_omitted_when_max_count_zero() -> void:
-	var records: Array[RoundRecord] = _base_records()
-	var stats: SessionStats = _stats_for(records)
-	var infos: Array[Dictionary] = WrapUpCalculator.drawing_infos(records, stats)
-	assert_array(WrapUpCalculator.compute_superlatives(infos, true)).is_empty()
-
-
 # --- titles ---
 
 
@@ -167,9 +117,9 @@ func test_hotshot_most_kudos_received_with_evidence_drawing() -> void:
 			assert_int(int(t["points"])).is_equal(1)
 
 
-func test_titles_priority_order_prevents_second_card_for_same_player() -> void:
-	# p2 leads BOTH hotshot (kudos) and judges_darling (2 wins). Priority
-	# gives p2 hotshot; judges_darling has no other 2-win player -> omitted.
+func test_titles_stack_one_player_can_hold_several() -> void:
+	# Slice 19: p2 leads BOTH hotshot (kudos) and judges_darling (2 wins) and
+	# takes BOTH cards - the one-title-per-player rule is gone.
 	var records: Array[RoundRecord] = [
 		_record(0, [_sub("d0", "p1", _doc(2)), _sub("d1", "p2", _doc(3))], "d1"),
 		_record(1, [_sub("d2", "p0", _doc(1)), _sub("d3", "p2", _doc(4))], "d3"),
@@ -178,27 +128,23 @@ func test_titles_priority_order_prevents_second_card_for_same_player() -> void:
 	stats.record_kudos(0, "d1", "p0")
 	var titles: Array[Dictionary] = _titles_of(records, stats)
 	assert_str(_title_holder(titles, TitleIds.HOTSHOT)).is_equal("p2")
-	assert_str(_title_holder(titles, TitleIds.JUDGES_DARLING)).is_equal("")
-	var holders: Dictionary = {}
-	for t: Dictionary in titles:
-		assert_bool(holders.has(str(t["player_id"]))).is_false()   # one card max
-		holders[str(t["player_id"])] = true
+	assert_str(_title_holder(titles, TitleIds.JUDGES_DARLING)).is_equal("p2")
 
 
-func test_title_passes_to_next_eligible_player_when_leader_already_titled() -> void:
-	# p2: most kudos AND most wins; p1 also has 2 wins. Hotshot -> p2;
-	# judges_darling passes to p1 (best eligible remaining).
+func test_stacked_titles_stack_title_points_in_standings() -> void:
+	# Same double-title fixture: p2's two cards are worth 2 title points.
 	var records: Array[RoundRecord] = [
 		_record(0, [_sub("d0", "p1", _doc(2)), _sub("d1", "p2", _doc(3))], "d1"),
-		_record(1, [_sub("d2", "p1", _doc(1)), _sub("d3", "p2", _doc(4))], "d3"),
-		_record(2, [_sub("d4", "p1", _doc(1)), _sub("d5", "p0", _doc(2))], "d4"),
-		_record(3, [_sub("d6", "p1", _doc(1)), _sub("d7", "p0", _doc(2))], "d6"),
+		_record(1, [_sub("d2", "p0", _doc(1)), _sub("d3", "p2", _doc(4))], "d3"),
 	]
 	var stats: SessionStats = _stats_for(records)
 	stats.record_kudos(0, "d1", "p0")
-	var titles: Array[Dictionary] = _titles_of(records, stats)
-	assert_str(_title_holder(titles, TitleIds.HOTSHOT)).is_equal("p2")
-	assert_str(_title_holder(titles, TitleIds.JUDGES_DARLING)).is_equal("p1")
+	var bundle: Dictionary = WrapUpCalculator.build_bundle(records, stats,
+			_metas(["p0", "p1", "p2"]), {"p0": 0, "p1": 0, "p2": 4},
+			["p0", "p1", "p2"], DRAW_TIME, true, false)
+	for row: Variant in bundle["standings"]:
+		if str((row as Dictionary)["player_id"]) == "p2":
+			assert_int(int((row as Dictionary)["title_points"])).is_greater_equal(2)
 
 
 func test_title_omitted_when_no_player_meets_minimum() -> void:
@@ -210,22 +156,42 @@ func test_title_omitted_when_no_player_meets_minimum() -> void:
 	var stats: SessionStats = _stats_for(records)
 	var titles: Array[Dictionary] = _titles_of(records, stats)
 	assert_str(_title_holder(titles, TitleIds.JUDGES_DARLING)).is_equal("")
-	# No kudos anywhere: hotshot/generous_soul also omitted.
+	# No kudos anywhere: hotshot/generous_soul/peoples_champion also omitted.
 	assert_str(_title_holder(titles, TitleIds.HOTSHOT)).is_equal("")
 	assert_str(_title_holder(titles, TitleIds.GENEROUS_SOUL)).is_equal("")
+	assert_str(_title_holder(titles, TitleIds.PEOPLES_CHAMPION)).is_equal("")
 
 
-func test_peoples_champion_excluded_by_any_round_win() -> void:
-	# p2 has the most reactions but won a round; p1 has fewer reactions and
-	# zero wins -> p1 is the People's Champion.
+func test_peoples_champion_most_kudos_among_zero_win_players() -> void:
+	# Slice 19 rebase: p2 has the most kudos but won a round; p1 has fewer
+	# kudos and zero wins -> p1 is the People's Champion (and Hotshot still
+	# goes to p2 - titles stack, PC just has its own zero-wins pool).
 	var records: Array[RoundRecord] = [
 		_record(0, [_sub("d0", "p1", _doc(2)), _sub("d1", "p2", _doc(3))], "d1"),
 	]
 	var stats: SessionStats = _stats_for(records)
-	_react_n(stats, "d1", NetIds.Reaction.WOW, 5, 0)
-	_react_n(stats, "d0", NetIds.Reaction.WOW, 2, 0)
+	stats.record_kudos(0, "d1", "x1")
+	stats.record_kudos(0, "d1", "x2")
+	stats.record_kudos(0, "d1", "x3")   # p2: 3 kudos, but a winner
+	stats.record_kudos(0, "d0", "x1")   # p1: 1 kudos, zero wins
 	var titles: Array[Dictionary] = _titles_of(records, stats)
+	assert_str(_title_holder(titles, TitleIds.HOTSHOT)).is_equal("p2")
 	assert_str(_title_holder(titles, TitleIds.PEOPLES_CHAMPION)).is_equal("p1")
+	for t: Dictionary in titles:
+		if str(t["id"]) == TitleIds.PEOPLES_CHAMPION:
+			assert_int(int(t["stat_value"])).is_equal(1)
+			assert_str(str(t["stat_label"])).is_equal("1 kudos received, zero wins")
+
+
+func test_peoples_champion_omitted_when_every_kudosed_player_won() -> void:
+	# Only the round winner received kudos -> nobody in the zero-wins pool.
+	var records: Array[RoundRecord] = [
+		_record(0, [_sub("d0", "p1", _doc(2)), _sub("d1", "p2", _doc(3))], "d1"),
+	]
+	var stats: SessionStats = _stats_for(records)
+	stats.record_kudos(0, "d1", "x1")
+	var titles: Array[Dictionary] = _titles_of(records, stats)
+	assert_str(_title_holder(titles, TitleIds.PEOPLES_CHAMPION)).is_equal("")
 
 
 func test_generous_soul_most_kudos_spent_with_spend_order_evidence() -> void:
@@ -260,25 +226,6 @@ func test_speed_demon_ignores_empty_drawings_and_requires_two() -> void:
 			assert_array(t["evidence_drawing_ids"]).contains_exactly(["d0"])  # lowest fraction
 
 
-func test_worst_drawer_counts_empty_submissions() -> void:
-	# p0's cards (incl. a synthesized blank) got nothing; p1 got a reaction.
-	var records: Array[RoundRecord] = [
-		_record(0, [_sub("d0", "p0", Submission.blank_doc(), true),
-				_sub("d1", "p1", _doc(2, 3.0))]),
-		_record(1, [_sub("d2", "p0", Submission.blank_doc(), true),
-				_sub("d3", "p1", _doc(2, 4.0))]),
-	]
-	var stats: SessionStats = _stats_for(records)
-	_react_n(stats, "d1", NetIds.Reaction.CRY, 1, 0)
-	_react_n(stats, "d3", NetIds.Reaction.CRY, 1, 1)
-	var titles: Array[Dictionary] = _titles_of(records, stats)
-	assert_str(_title_holder(titles, TitleIds.WORST_DRAWER)).is_equal("p0")
-	for t: Dictionary in titles:
-		if str(t["id"]) == TitleIds.WORST_DRAWER:
-			assert_int(int(t["stat_value"])).is_equal(0)
-			assert_str(str(t["stat_label"])).is_equal("not a single reaction or kudos")
-
-
 func test_minimalist_excludes_zero_op_docs_da_vinci_takes_most_marks() -> void:
 	# p1 heavy (5+7 ops), p2 light (1+2 ops), p0 has a zero-op submission
 	# that must not count toward Minimalist.
@@ -301,8 +248,7 @@ func test_minimalist_excludes_zero_op_docs_da_vinci_takes_most_marks() -> void:
 
 func test_title_tie_breaks_stat_then_round_then_rotation_index() -> void:
 	# p1 and p3 tie on kudos received (2 each). p3's best evidence is round 0,
-	# p1's is round 1 -> earlier round wins for p3. Then a pure tie (same
-	# stat, same round) between p1 and p2 on worst drawer... rotation decides.
+	# p1's is round 1 -> earlier round wins for p3.
 	var records: Array[RoundRecord] = [
 		_record(0, [_sub("d0", "p3", _doc(1)), _sub("d1", "p1", _doc(1))]),
 		_record(1, [_sub("d2", "p3", _doc(1)), _sub("d3", "p1", _doc(1))]),
@@ -314,9 +260,7 @@ func test_title_tie_breaks_stat_then_round_then_rotation_index() -> void:
 	stats.record_kudos(1, "d3", "x2")   # p1: 2 kudos, evidence round 1
 	var titles: Array[Dictionary] = _titles_of(records, stats)
 	assert_str(_title_holder(titles, TitleIds.HOTSHOT)).is_equal("p3")
-	# Worst drawer: p3 and p1 both hold 2 social total... p3 already titled.
-	# Between the remaining candidates the rotation index breaks pure ties:
-	# only p1 remains here, so assert the rotation rule directly instead.
+	# Pure tie (same stat, same round): the rotation index decides.
 	var a: Dictionary = {"player_id": "p2", "stat_value": 0,
 			"evidence_round": 0, "stat_label": "", "evidence_ids": []}
 	var b: Dictionary = {"player_id": "p1", "stat_value": 0,
@@ -330,15 +274,32 @@ func test_points_zeroed_when_title_points_disabled() -> void:
 		_record(0, [_sub("d0", "p1", _doc(2)), _sub("d1", "p2", _doc(3))], "d1"),
 	]
 	var stats: SessionStats = _stats_for(records)
-	_react_n(stats, "d0", NetIds.Reaction.LAUGH, 2, 0)
 	stats.record_kudos(0, "d0", "p2")
 	var bundle: Dictionary = WrapUpCalculator.build_bundle(records, stats,
 			_metas(["p0", "p1", "p2"]), {"p0": 0, "p1": 1, "p2": 2},
 			["p0", "p1", "p2"], DRAW_TIME, false, false)
-	for s: Variant in bundle["superlatives"]:
-		assert_int(int((s as Dictionary)["points"])).is_equal(0)
+	assert_bool((bundle["titles"] as Array).is_empty()).is_false()
 	for t: Variant in bundle["titles"]:
 		assert_int(int((t as Dictionary)["points"])).is_equal(0)
+	for row: Variant in bundle["standings"]:
+		assert_int(int((row as Dictionary)["title_points"])).is_equal(0)
+		assert_int(int((row as Dictionary)["final_score"]))\
+				.is_equal(int((row as Dictionary)["base_score"]))
+
+
+func test_titles_disabled_yields_empty_titles_and_base_standings() -> void:
+	# Slice 19: titles_enabled=false -> no titles computed at all, standings
+	# are pure base scores, and no evidence drawings are embedded.
+	var records: Array[RoundRecord] = [
+		_record(0, [_sub("d0", "p1", _doc(2)), _sub("d1", "p2", _doc(3))], "d1"),
+	]
+	var stats: SessionStats = _stats_for(records)
+	stats.record_kudos(0, "d1", "p0")   # would earn Hotshot if titles were on
+	var bundle: Dictionary = WrapUpCalculator.build_bundle(records, stats,
+			_metas(["p0", "p1", "p2"]), {"p0": 0, "p1": 1, "p2": 2},
+			["p0", "p1", "p2"], DRAW_TIME, true, false, false)
+	assert_array(bundle["titles"]).is_empty()
+	assert_dict(bundle["drawings"]).is_empty()
 	for row: Variant in bundle["standings"]:
 		assert_int(int((row as Dictionary)["title_points"])).is_equal(0)
 		assert_int(int((row as Dictionary)["final_score"]))\
@@ -350,7 +311,7 @@ func test_points_zeroed_when_title_points_disabled() -> void:
 
 func test_standings_competition_ranking_with_ties_and_negatives() -> void:
 	var standings: Array[Dictionary] = WrapUpCalculator.compute_standings(
-			{"p0": -3, "p1": 4, "p2": 4, "p3": -3}, [], [],
+			{"p0": -3, "p1": 4, "p2": 4, "p3": -3}, [],
 			_metas(["p0", "p1", "p2", "p3"]), ROTATION)
 	assert_int(standings.size()).is_equal(4)
 	assert_str(str(standings[0]["player_id"])).is_equal("p1")   # tie order = rotation
@@ -363,16 +324,17 @@ func test_standings_competition_ranking_with_ties_and_negatives() -> void:
 
 func test_standings_include_disconnected_players_and_apply_title_points() -> void:
 	var metas: Array[Dictionary] = [_meta("p0"), _meta("p1", false), _meta("p2")]
-	var superlatives: Array[Dictionary] = [{"id": "funniest", "reaction": 0,
-			"drawing_id": "d0", "author_id": "p1", "count": 3, "round": 0,
-			"prompt": "x", "points": 1}]
-	var titles: Array[Dictionary] = [{"id": TitleIds.HOTSHOT, "player_id": "p1",
-			"stat_value": 2, "stat_label": "2 kudos received",
-			"evidence_drawing_ids": ["d0"], "points": 1}]
+	var titles: Array[Dictionary] = [
+		{"id": TitleIds.HOTSHOT, "player_id": "p1", "stat_value": 2,
+				"stat_label": "2 kudos received", "evidence_drawing_ids": ["d0"],
+				"points": 1},
+		{"id": TitleIds.SPEED_DEMON, "player_id": "p1", "stat_value": 0.3,
+				"stat_label": "done with 70% of the clock to spare",
+				"evidence_drawing_ids": ["d0"], "points": 1},
+	]
 	var standings: Array[Dictionary] = WrapUpCalculator.compute_standings(
-			{"p0": 2, "p1": 1, "p2": 2}, superlatives, titles, metas,
-			["p0", "p1", "p2"])
-	# p1 (disconnected): 1 base + 2 title points = 3 -> outright first.
+			{"p0": 2, "p1": 1, "p2": 2}, titles, metas, ["p0", "p1", "p2"])
+	# p1 (disconnected): 1 base + 2 stacked title points = 3 -> outright first.
 	assert_str(str(standings[0]["player_id"])).is_equal("p1")
 	assert_bool(bool(standings[0]["connected"])).is_false()
 	assert_int(int(standings[0]["title_points"])).is_equal(2)
@@ -385,13 +347,11 @@ func test_standings_include_disconnected_players_and_apply_title_points() -> voi
 
 
 func test_bundle_embeds_each_referenced_drawing_once() -> void:
-	# d1 wins two superlatives AND is hotshot evidence - embedded exactly once.
+	# d1 is evidence for BOTH hotshot and peoples_champion... embedded once.
 	var records: Array[RoundRecord] = [
 		_record(0, [_sub("d0", "p1", _doc(2)), _sub("d1", "p2", _doc(3))]),
 	]
 	var stats: SessionStats = _stats_for(records)
-	_react_n(stats, "d1", NetIds.Reaction.LAUGH, 3, 0)
-	_react_n(stats, "d1", NetIds.Reaction.FIRE, 2, 0)
 	stats.record_kudos(0, "d1", "p0")
 	var bundle: Dictionary = WrapUpCalculator.build_bundle(records, stats,
 			_metas(["p0", "p1", "p2"]), {"p0": 0, "p1": 0, "p2": 0},
@@ -401,11 +361,8 @@ func test_bundle_embeds_each_referenced_drawing_once() -> void:
 	var entry: Dictionary = drawings["d1"]
 	assert_str(str(entry["prompt"])).is_equal("prompt")
 	assert_bool((entry["doc"] as Dictionary).has("ops")).is_true()
-	# Only referenced drawings are embedded (d0 earned nothing... except
-	# possibly worst-drawer evidence - verify every embedded id is referenced).
+	# Every embedded id must be referenced by some title's evidence.
 	var referenced: Dictionary = {}
-	for s: Variant in bundle["superlatives"]:
-		referenced[str((s as Dictionary)["drawing_id"])] = true
 	for t: Variant in bundle["titles"]:
 		for id: Variant in (t as Dictionary)["evidence_drawing_ids"]:
 			referenced[str(id)] = true
@@ -421,7 +378,7 @@ func test_empty_session_produces_standings_only_bundle() -> void:
 	assert_int(int(bundle["v"])).is_equal(1)
 	assert_bool(bool(bundle["early_end"])).is_true()
 	assert_int(int(bundle["rounds_completed"])).is_equal(0)
-	assert_array(bundle["superlatives"]).is_empty()
+	assert_bool(bundle.has("superlatives")).is_false()   # retired key stays gone
 	assert_array(bundle["titles"]).is_empty()
 	assert_dict(bundle["drawings"]).is_empty()
 	var standings: Array = bundle["standings"]
@@ -437,8 +394,6 @@ func test_same_inputs_produce_identical_bundle() -> void:
 		_record(1, [_sub("d2", "p0", _doc(1, 2.0)), _sub("d3", "p2", _doc(4, 20.0))], "d3"),
 	]
 	var stats: SessionStats = _stats_for(records)
-	_react_n(stats, "d0", NetIds.Reaction.LAUGH, 2, 0)
-	_react_n(stats, "d3", NetIds.Reaction.DISGUST, 4, 1)
 	stats.record_kudos(0, "d0", "p2")
 	stats.record_kudos(1, "d2", "p2")
 	var a: Dictionary = WrapUpCalculator.build_bundle(records, stats,

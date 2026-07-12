@@ -49,7 +49,7 @@ A game consists of a **pre-game setup**, then a fixed number of **rounds**, then
 3. **Drawing phase:** the draw timer runs. Drawers draw on their canvases. The judge waits (does *not* watch live strokes) but sees the prompt prominently and has a prominent chat for heckling.
 4. **Submission:** when the timer ends, whatever is on each canvas is auto-submitted. (A drawer who ticked "save to my collection" gets the final submitted version saved — see §6.)
 5. **Reveal:** drawings are shown anonymously, either **one-at-a-time** then gathered into a grid, or **straight to a grid**, depending on mode/setting (see §7).
-6. **Reaction / kudos / judging window:** a timed window during which drawers react with emojis and spend kudos, and the judge picks a winner. The judge may pick at any point during this window.
+6. **Kudos / judging window:** a timed window during which drawers spend kudos, and the judge picks a winner. The judge may pick at any point during this window. *(Emoji reactions removed — Slice 19, 2026-07-12.)*
 7. **Resolution:** at window's end, the winner is revealed with a larger, prominent view (optionally replaying its strokes, per setting). Points are tallied and shown.
 8. **Advance** to the next judge and repeat until the final round.
 
@@ -62,8 +62,8 @@ A game consists of a **pre-game setup**, then a fixed number of **rounds**, then
 
 - **Drawing phase — drawer:** their own canvas and tools, the prompt, the draw timer, a collapsible chat (small/out of the way during drawing).
 - **Drawing phase — judge:** the current prompt shown clearly, a "players are drawing…" state, and a **prominent** chat for heckling. No live view of anyone's strokes.
-- **Reveal — everyone:** anonymized drawings, per the reveal style in effect. In one-at-a-time reveal, each drawing gets a short individual reveal-and-react moment (optionally animating its strokes) before all drawings settle into a grid.
-- **Reaction/judging window — everyone:** the full grid of drawings; reaction emojis and kudos available; the judge additionally has the winner-pick control. Chat is more prominent during reveal/judging so people can riff.
+- **Reveal — everyone:** anonymized drawings, per the reveal style in effect. In one-at-a-time reveal, each drawing gets a short individual reveal moment (optionally animating its strokes) before all drawings settle into a grid.
+- **Kudos/judging window — everyone:** the full grid of drawings; kudos available; the judge additionally has the winner-pick control. Chat is more prominent during reveal/judging so people can riff.
 
 Canvas orientation (landscape or portrait, see §7) is preserved in all reveal and judging views.
 
@@ -95,7 +95,7 @@ Deliberately **middle-ground** tooling: powerful enough to draw fast, simple eno
 Two reveal styles, selected by mode/setting:
 
 - **Grid reveal (Streamlined):** all drawings appear at once in a grid. No per-drawing moment.
-- **One-at-a-time reveal (Social):** each drawing comes up individually, animating its strokes as it's "drawn," giving everyone a beat to react, before all drawings gather into a grid for the judge's final pick.
+- **One-at-a-time reveal (Social):** each drawing comes up individually, animating its strokes as it's "drawn," giving everyone a beat to take it in (and spend kudos), before all drawings gather into a grid for the judge's final pick.
 
 **Stroke replay** (animating a drawing being drawn) is available because drawings are stored as strokes. It's controlled by settings:
 - **Off:** drawings appear instantly (fastest).
@@ -128,7 +128,7 @@ The goal is **fluid, forgiving** play that favors flow over strict fairness ("it
 **Disconnect / quit:** treated the same whether it's a temporary disconnect or a permanent quit.
 - While disconnected, the player's involvement is **paused**: they're skipped for judge, and their card doesn't appear.
 - If they **rejoin**, the game remembers them and restores their score.
-- A drawing already submitted into an in-progress round **stays** in that round: it's still judged and still eligible for reactions/kudos even if its author drops before judging finishes.
+- A drawing already submitted into an in-progress round **stays** in that round: it's still judged and still eligible for kudos even if its author drops before judging finishes.
 
 **Anti-gaming (best-effort, not high priority):** the fluid late-join/rejoin model is intended for **private lobbies** and can be toggled. It defaults **on in private lobbies** and **off in public lobbies**. In public lobbies, prevent obvious abuse such as leaving right before/after one's own judge turn to dodge or repeat it. Perfect fairness is not required; keep the safeguard simple.
 
@@ -142,7 +142,7 @@ Three preset modes plus **Custom**. Selecting a preset locks all settings **exce
 
 - **Default:** the playtested happy medium.
 - **Streamlined:** cuts between-round and in-round overhead. Grid reveal, replay off, quick judging. Fewer theatrics, more rounds.
-- **Social:** slower and sillier. One-at-a-time reveal with stroke animation, longer reaction windows, more chat time.
+- **Social:** slower and sillier. One-at-a-time reveal with stroke animation, longer social windows, more chat time.
 - **Custom:** exposes the full settings surface (reveal style, replay on/off and speeds, judging-window length, comments on/off, kudos allotment, title-points on/off, etc.).
 
 **Draw-time defaults** are per-mode **code constants** (easily tuned in playtesting) and are always host-adjustable.
@@ -157,36 +157,33 @@ Three preset modes plus **Custom**. Selecting a preset locks all settings **exce
 
 ---
 
-## 11. Scoring, Kudos, Reactions & Wrap-Up
+## 11. Scoring, Kudos & Wrap-Up
+
+> **Update (2026-07-12, Slice 19):** the **emoji reaction system is removed entirely** (owner decision — weakest reward surface, cluttered the judging grid). Kudos remains the social currency; chat remains the riffing layer. Superlatives (reaction-derived) are gone; titles were reworked: **no one-title-per-player rule** (titles stack), **Worst Drawer cut**, **People's Champion is kudos-based**. New host settings control whether titles exist and whether the awards ceremony plays one-at-a-time; title badges always show next to final scores when titles are on, and players can **majority-vote to skip the ceremony**. See `TDD/19-title-ceremony-rework.md` + decision log.
 
 ### Scoring
 - **Judge's winner pick:** **+2** to the winning drawing's author.
 - **Each kudos:** **+1** to the recipient.
 - **Judge no-pick penalty:** if the judging window ends with no pick, **no round winner** and the judge loses **−1**.
-- **End-game titles/superlatives:** **+1 each** by default; value is a **backend code constant** (tunable by the developers, not exposed to players) and can be toggled on/off only in Custom mode.
+- **End-game titles:** **+1 each** by default; value is a **backend code constant** (tunable by the developers, not exposed to players) and can be toggled on/off only in Custom mode.
 
 **Negative scores are legal.** They must be handled cleanly everywhere they appear — display, sorting, tie-breaks, and the wrap-up. There is **no floor**.
 
 ### Kudos economy
-- Kudos can be spent **anytime reactions are active** (during a per-drawing reveal moment or on the grid).
+- Kudos can be spent **anytime the social window is open** (during a per-drawing reveal moment or on the grid).
 - Kudos are for **other players' drawings only** — you cannot kudos your own.
 - Giving a kudos **also saves that drawing to your collection** (kudos and save-to-collection are the same action). This naturally limits collection bloat and keeps kudos from being spent frivolously.
 - **Default allotment:** 1 kudo per player per 4 rounds, computed at game start and rounded to nearest (**.5 rounds up**). Examples: 4–5 rounds → 1; 6–8 rounds → 2; 10 rounds → 3 (10÷4=2.5→3). Host can change the allotment in lobby settings.
 - **Late joiners** get the **full standard allotment** the match started with. Re-joiners are **not** topped up again — the game remembers what each player was granted and spent, so leaving and rejoining never nets extra kudos.
   > **Update (2026-07-07):** was "half the standard allotment, floored at a minimum of 1" — owner simplified during the Slice 9 playtest: kudos benefit the recipient, not the giver, so a full wallet gives no scoring advantage, and gifting is the late joiner's main verb while they spectate. See decision log.
 
-### Reaction emojis
-- Available during reveal and on the grid.
-- **Anonymous** — you can see reaction counts but not who reacted. (Keeps the UI clean and encourages honesty.)
-- You **cannot** react to your own drawing.
-- Reactions award **no points**. Their aggregate stats feed the end-game wrap-up.
-- The **judge** may also use reactions and kudos (and save drawings), giving the judge autonomy and involvement, especially in text-only public play.
+### ~~Reaction emojis~~ (REMOVED — Slice 19, 2026-07-12)
+The anonymous six-emoji reaction system was cut in full (owner decision). The judge keeps kudos + saves for autonomy and involvement, especially in text-only public play.
 
 ### End-game wrap-up
 A full, mildly animated closing sequence — a "your game, wrapped" moment that rewards staying to the end:
-- **Superlatives** derived from emoji reaction stats (e.g. most-laughed-at drawing, most-disgusted-at drawing, etc.).
-- **Per-player title cards** — silly session titles (e.g. "Worst Drawer," "Hotshot") shown with **evidence**: the drawing(s) that earned the title.
-- **Final standings** (1st, 2nd, 3rd, etc.), accounting for any title points and negative scores.
+- **Per-player title cards** — silly session titles (e.g. "Hotshot," "Speed Demon") shown with **evidence**: the drawing(s) that earned the title. Titles **stack** (one player can earn several); the one-at-a-time awards ceremony is a host setting and can be **majority-vote skipped**.
+- **Final standings** (1st, 2nd, 3rd, etc.), accounting for any title points and negative scores, with **title badges** beside each player whenever titles are enabled.
 - Titles are **per-game** and awarded fresh each session (a player may earn the same title across many sessions over their play "career").
 
 ### Avatars
@@ -195,7 +192,7 @@ A full, mildly animated closing sequence — a "your game, wrapped" moment that 
 
 ### Steam achievements (permanent) vs. session titles (per-game)
 Two tiers:
-- **Session titles** — the fun, per-game superlatives above; ephemeral to that game's results.
+- **Session titles** — the fun, per-game awards above; ephemeral to that game's results.
 - **Steam achievements** — permanent, account-tied unlocks, mirrored to Steam via its SDK. Examples: earning a given title for the first time; earning a title many times (e.g. Hotshot ×10); saving N drawings to your collection; spending all your kudos in a game; playing 100 rounds / 100 games.
 
 ---

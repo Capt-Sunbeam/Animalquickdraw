@@ -422,3 +422,18 @@ func test_key_click_presses_the_button_under_the_pointer() -> void:
 	await await_idle_frame()
 	assert_int(_canvas.get_doc().ops.size()).is_equal(1)
 	assert_int(_canvas.get_doc().ops[0].type).is_equal(DrawingOp.Type.CLEAR)
+
+
+func test_key_draw_yields_to_controls_floating_over_the_canvas() -> void:
+	# Owner find (2026-07-12): the expanded palette overlay floats over the
+	# canvas rect, so the geometric test alone inked under it instead of
+	# clicking the hovered swatch. The hover cross-check must yield to any
+	# control that isn't the canvas viewport box or one of its children.
+	assert_bool(_canvas._hover_allows_canvas(null)).is_true()   # headless fallback
+	assert_bool(_canvas._hover_allows_canvas(_canvas._viewport_box)).is_true()
+	assert_bool(_canvas._hover_allows_canvas(_canvas._minimap)).is_true()   # canvas child
+	var overlay := PanelContainer.new()   # stand-in for the palette overlay
+	add_child(overlay)
+	assert_bool(_canvas._hover_allows_canvas(overlay)).is_false()
+	remove_child(overlay)
+	overlay.free()

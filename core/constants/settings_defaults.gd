@@ -27,6 +27,8 @@ const PRESET_DEFAULT: Dictionary = {
 	"judging_window_sec": 25.0,
 	"kudos_allotment": -1,       # AUTO (round_count/4, .5 up - Slice 4)
 	"title_points_enabled": true,
+	"titles_enabled": true,      # Slice 19
+	"title_ceremony": true,      # Slice 19: one-at-a-time awards act
 	"draw_time_sec": 30.0,
 }
 
@@ -39,6 +41,8 @@ const PRESET_STREAMLINED: Dictionary = {
 	"judging_window_sec": 15.0,
 	"kudos_allotment": -1,
 	"title_points_enabled": true,
+	"titles_enabled": true,      # Slice 19
+	"title_ceremony": false,     # Slice 19: badges only - pace is the identity
 	"draw_time_sec": 20.0,
 }
 
@@ -51,6 +55,8 @@ const PRESET_SOCIAL: Dictionary = {
 	"judging_window_sec": 40.0,
 	"kudos_allotment": -1,
 	"title_points_enabled": true,
+	"titles_enabled": true,      # Slice 19
+	"title_ceremony": true,      # Slice 19: full awards show
 	"draw_time_sec": 45.0,
 }
 

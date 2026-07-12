@@ -48,6 +48,9 @@ var kudos_allotment: int = KUDOS_AUTO  # per-player kudos budget; AUTO = derive 
 # Slice 6 additions:
 var judging_window_sec: float = 25.0   # was a Slice 3 constant; host-tunable from Slice 6
 var title_points_enabled: bool = true  # consumed by Slice 10; Custom-only edit (§11)
+# Slice 19 additions (title/ceremony rework):
+var titles_enabled: bool = true        # master: titles computed + badges + ceremony at all
+var title_ceremony: bool = true        # one-at-a-time awards act (badges show regardless)
 # Slice 5 defaults (TDD 05 §2 table, updated 2026-07-06 — the Slice 6 contract):
 var reveal_style: RevealStyle = RevealStyle.ONE_AT_A_TIME
 var replay_mode: ReplayMode = ReplayMode.WINNER_ONLY
@@ -178,6 +181,8 @@ func _assign(key: StringName, value: Variant) -> bool:
 		&"judging_window_sec": judging_window_sec = float(value)
 		&"kudos_allotment": kudos_allotment = int(value)
 		&"title_points_enabled": title_points_enabled = bool(value)
+		&"titles_enabled": titles_enabled = bool(value)
+		&"title_ceremony": title_ceremony = bool(value)
 		&"draw_time_sec": draw_time_sec = float(value)
 		&"round_count": round_count = int(value)
 		&"pool_source": pool_source = int(value) as PoolSource
@@ -194,6 +199,8 @@ func to_dict() -> Dictionary:
 		"v": SETTINGS_VERSION,
 		"judging_window_sec": judging_window_sec,
 		"title_points_enabled": title_points_enabled,
+		"titles_enabled": titles_enabled,
+		"title_ceremony": title_ceremony,
 		"mode": mode,
 		"round_count": round_count,
 		"draw_time_sec": draw_time_sec,
@@ -220,6 +227,8 @@ static func from_dict(d: Dictionary) -> GameSettings:
 		return s
 	s.judging_window_sec = float(d.get("judging_window_sec", 25.0))
 	s.title_points_enabled = bool(d.get("title_points_enabled", true))
+	s.titles_enabled = bool(d.get("titles_enabled", true))
+	s.title_ceremony = bool(d.get("title_ceremony", true))
 	s.mode = int(d.get("mode", SettingsDefaults.Mode.DEFAULT))
 	s.round_count = int(d.get("round_count", 6))
 	s.draw_time_sec = float(d.get("draw_time_sec", SettingsDefaults.DEFAULT_DRAW_TIME_SEC))

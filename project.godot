@@ -24,6 +24,7 @@ Net="*res://core/network/network_manager.gd"
 Save="*res://core/save/save_service.gd"
 Session="*res://game/session/session_manager.gd"
 Nav="*res://core/nav/scene_manager.gd"
+Stats="*res://core/stats/stats_service.gd"
 
 [debug]
 

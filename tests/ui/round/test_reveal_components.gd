@@ -75,8 +75,8 @@ func test_stage_mode_hides_cells_then_beats_reveal_them() -> void:
 		assert_float(cell.modulate.a).is_equal(1.0)
 	# JUDGING proceeds exactly as before (same screen, no swap).
 	screen.enter_judging({"deadline_ms": _now_ms() + 30000})
-	for bar: ReactionBar in screen._reaction_bars.values():
-		assert_bool(bar.interactive).is_true()
+	for kudos: KudosButton in screen._kudos_buttons.values():
+		assert_bool(kudos.gate_open).is_true()
 
 
 func test_grid_cells_render_docs_with_text_ops() -> void:

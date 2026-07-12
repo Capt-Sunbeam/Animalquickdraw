@@ -529,9 +529,9 @@ func test_results_bundle_shape_rounds_scores_standings_reserved_keys() -> void:
 	# p2/p3 tie at 0 (rank 1); p0/p1 tie at -1 (rank 3).
 	assert_int(int((standings[0] as Dictionary)["rank"])).is_equal(1)
 	assert_int(int((standings[2] as Dictionary)["rank"])).is_equal(3)
-	# Slice 4 fills the formerly-reserved keys with uid-keyed aggregates;
-	# a game with no reactions/kudos carries empty rollups.
-	assert_dict(results["reaction_stats"]).is_equal({"totals_by_author": {}})
+	# Slice 4 fills the formerly-reserved key with uid-keyed aggregates;
+	# a game with no kudos carries empty rollups (reaction_stats retired
+	# with the emoji system, Slice 19).
 	assert_dict(results["kudos_stats"]).is_equal(
 			{"received_by_author": {}, "drawing_totals": {}})
 
@@ -557,13 +557,10 @@ func test_results_carry_valid_wrap_up_bundle_on_natural_end() -> void:
 				"final_score", "connected"])
 		assert_int(int(row["final_score"]))\
 				.is_equal(int(row["base_score"]) + int(row["title_points"]))
-	# All-blank game: no reactions -> zero superlatives; Worst Drawer still
-	# lands (empty submissions count, §10) and its point shifts the standings.
-	assert_array(wrap["superlatives"]).is_empty()
-	var title_ids: Array[String] = []
-	for t: Variant in wrap["titles"]:
-		title_ids.append(str((t as Dictionary)["id"]))
-	assert_array(title_ids).contains(["worst_drawer"])
+	# All-blank game with no kudos and no picks: no title has a qualifier
+	# (Slice 19: superlatives and Worst Drawer retired with the reaction
+	# system) - the bundle carries an empty title set.
+	assert_array(wrap["titles"]).is_empty()
 
 
 func test_end_game_early_carries_early_bundle_and_is_idempotent() -> void:
@@ -624,7 +621,7 @@ func test_reveal_order_recorded_matches_broadcast_entry_order() -> void:
 			break
 	var wrap: Dictionary = rig.results["wrap_up"]
 	assert_int(int(wrap["rounds_completed"])).is_equal(1)
-	# The recorded reveal order (superlative tie-break key) is exactly the
+	# The recorded reveal order (title-evidence tie-break key) is exactly the
 	# broadcast entry order.
 	var broadcast_ids: Array[String] = []
 	for entry: Variant in entries:

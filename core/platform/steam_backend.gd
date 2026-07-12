@@ -137,6 +137,30 @@ func is_stats_ready() -> bool:
 	return _init_ok
 
 
+# --- Slice 14: achievement mirror. All three verified against the vendored
+# GodotSteam 4.20 binary via ClassDB probe (session 14): setAchievement /
+# getAchievement / storeStats are synchronous; requestCurrentStats is GONE
+# (SDK 1.64), so callers gate on is_stats_ready() = init success. ---
+
+
+func steam_achievement_is_set(achievement_id: String) -> bool:
+	if not _init_ok:
+		return false
+	# getAchievement returns {"ret": bool, "achieved": bool}.
+	var result: Dictionary = Steam.getAchievement(achievement_id)
+	return bool(result.get("ret", false)) and bool(result.get("achieved", false))
+
+
+func steam_set_achievement(achievement_id: String) -> void:
+	if _init_ok:
+		Steam.setAchievement(achievement_id)
+
+
+func steam_store_stats() -> void:
+	if _init_ok:
+		Steam.storeStats()
+
+
 func get_last_failure_reason() -> String:
 	return _last_failure_reason
 

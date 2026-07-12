@@ -4,21 +4,20 @@ extends Control
 ## cached ImageTexture (cg §12); the grid shows textures, never live
 ## canvases, in the broadcast (already shuffled) order with orientation
 ## preserved. No names anywhere. Judge gets a pick affordance at JUDGING.
-## Extension points: Slice 4 hangs reactions/kudos off cells by drawing_id;
-## Slice 5 swaps the entry animation per settings.reveal_style.
+## Extension points: Slice 4 hangs kudos off cells by drawing_id; Slice 5
+## swaps the entry animation per settings.reveal_style. (Emoji reaction
+## bars retired by Slice 19 - the social row is yours-hint + kudos only.)
 
 const CELL_MIN_SIZE: Vector2 = Vector2(340, 310)   # roomy social row (owner feedback)
 const SOCIAL_HINT_WIDTH: float = 64.0              # "🔒 yours" slot, reserved in every cell
 const KUDOS_BUTTON_SIZE: Vector2 = Vector2(116, 36)
 const SELECTED_COLOR: Color = Color(1.0, 0.85, 0.3)
-const REACTION_BAR_SCENE: PackedScene = preload("res://ui/round/reaction_bar.tscn")
 const KUDOS_BUTTON_SCENE: PackedScene = preload("res://ui/round/kudos_button.tscn")
 
 var _client: SessionClient = null
 var _judging: bool = false
 var _selected_id: String = ""
 var _cells: Dictionary = {}          # drawing_id -> Button
-var _reaction_bars: Dictionary = {}  # drawing_id -> ReactionBar (Slice 4)
 var _kudos_buttons: Dictionary = {}  # drawing_id -> KudosButton (Slice 4)
 
 # Slice 5 one-at-a-time stage state. The stage is an overlay INSIDE this
@@ -99,7 +98,6 @@ func _build_grid(entries: Array[Dictionary]) -> void:
 	for child: Node in _grid.get_children():
 		child.queue_free()
 	_cells.clear()
-	_reaction_bars.clear()
 	_kudos_buttons.clear()
 	_grid.columns = clampi(ceili(sqrt(float(entries.size()))), 1, 4)
 	for entry: Dictionary in entries:
@@ -133,18 +131,12 @@ func _build_cell(drawing_id: String, doc_dict: Variant) -> Button:
 	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	layout.add_child(rect)
 	# Slice 4 social block. FIXED shape in every cell so the grid lines up
-	# (owner feedback 2026-07-06: rows aligned terribly): row 1 = centered
-	# reactions, row 2 = yours-hint | spacer | kudos (center slot was the
-	# caption until Slice 16; the spacer keeps alignment). Empty slots keep
-	# their space - ownership never reflows a cell. Own-cell state is LOCAL
-	# knowledge only - nothing on the wire marks authorship.
+	# (owner feedback 2026-07-06: rows aligned terribly): one row =
+	# yours-hint | spacer | kudos. Empty slots keep their space - ownership
+	# never reflows a cell. Own-cell state is LOCAL knowledge only - nothing
+	# on the wire marks authorship. (Reaction row retired, Slice 19 - the
+	# drawing gets the freed height.)
 	var own: bool = _client != null and _client.is_own_drawing(drawing_id)
-	var bar: ReactionBar = REACTION_BAR_SCENE.instantiate()
-	bar.drawing_id = drawing_id
-	bar.interactive = false   # gate opens with JUDGING
-	bar.alignment = BoxContainer.ALIGNMENT_CENTER
-	bar.reaction_toggled.connect(_on_reaction_toggled.bind(drawing_id))
-	layout.add_child(bar)
 	var info_row := HBoxContainer.new()
 	info_row.custom_minimum_size = Vector2(0, KUDOS_BUTTON_SIZE.y)
 	layout.add_child(info_row)
@@ -165,7 +157,6 @@ func _build_cell(drawing_id: String, doc_dict: Variant) -> Button:
 	kudos.custom_minimum_size = KUDOS_BUTTON_SIZE
 	kudos.kudos_requested.connect(_on_kudos_requested.bind(drawing_id))
 	info_row.add_child(kudos)
-	_reaction_bars[drawing_id] = bar
 	_kudos_buttons[drawing_id] = kudos
 	return cell
 
@@ -232,11 +223,6 @@ func _build_stage_social(drawing_id: String) -> void:
 	for child: Node in _stage_social.get_children():
 		child.queue_free()
 	var own: bool = _client != null and _client.is_own_drawing(drawing_id)
-	var bar: ReactionBar = REACTION_BAR_SCENE.instantiate()
-	bar.drawing_id = drawing_id
-	bar.reaction_toggled.connect(_on_reaction_toggled.bind(drawing_id))
-	_stage_social.add_child(bar)
-	bar.interactive = not own
 	var kudos: KudosButton = KUDOS_BUTTON_SCENE.instantiate()
 	kudos.drawing_id = drawing_id
 	kudos.custom_minimum_size = KUDOS_BUTTON_SIZE
@@ -277,18 +263,11 @@ func _process(delta: float) -> void:
 	_replay_texture.update(_replay.get_image())
 
 
-## Slice 4: flips the social controls when the reaction gate opens/closes
+## Slice 4: flips the kudos buttons when the social gate opens/closes
 ## (client-side mirror of the host gate - the host still validates).
 func _set_social_open(open: bool) -> void:
-	for id: String in _reaction_bars.keys():
-		var own: bool = _client != null and _client.is_own_drawing(id)
-		(_reaction_bars[id] as ReactionBar).interactive = open and not own
+	for id: String in _kudos_buttons.keys():
 		(_kudos_buttons[id] as KudosButton).gate_open = open
-
-
-func _on_reaction_toggled(reaction: NetIds.Reaction, active: bool, drawing_id: String) -> void:
-	if _client != null:
-		_client.request_react(drawing_id, reaction, active)
 
 
 func _on_kudos_requested(drawing_id: String) -> void:

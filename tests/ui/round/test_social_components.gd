@@ -1,12 +1,12 @@
 class_name TestSocialComponents
 extends GdUnitTestSuite
-## Slice 4 UI smoke tests (TDD §11): ReactionBar / KudosButton / KudosWallet
-## instantiate and respond to EventBus syncs; the reveal grid grows a social
-## row per cell that enables at JUDGING; the draw screen's retire path
-## honors the self-save toggle. Multiplayer behavior is covered by the
-## headless social suite + the automated round gate + owner playtests.
+## Slice 4 UI smoke tests (TDD §11; emoji reactions retired by Slice 19):
+## KudosButton / KudosWallet instantiate and respond to EventBus syncs; the
+## reveal grid grows a kudos info row per cell that enables at JUDGING; the
+## draw screen's retire path honors the self-save toggle. Multiplayer
+## behavior is covered by the headless social suite + the automated round
+## gate + owner playtests.
 
-const REACTION_BAR: PackedScene = preload("res://ui/round/reaction_bar.tscn")
 const KUDOS_BUTTON: PackedScene = preload("res://ui/round/kudos_button.tscn")
 const KUDOS_WALLET: PackedScene = preload("res://ui/round/kudos_wallet.tscn")
 const REVEAL: PackedScene = preload("res://ui/round/reveal_judging_screen.tscn")
@@ -50,24 +50,6 @@ func _find_all_of(node: Node, type_check: Callable, found: Array) -> void:
 		_find_all_of(child, type_check, found)
 
 
-func test_reaction_bar_six_buttons_interactive_and_counts() -> void:
-	var bar: ReactionBar = _instantiate(REACTION_BAR)
-	bar.drawing_id = "d1"
-	var buttons: Array = []
-	_find_all_of(bar, func(n: Node) -> bool: return n is Button, buttons)
-	assert_int(buttons.size()).is_equal(6)
-	for btn: Button in buttons:
-		assert_bool(btn.disabled).is_true()   # gate closed by default
-	bar.interactive = true
-	for btn: Button in buttons:
-		assert_bool(btn.disabled).is_false()
-	# Host count sync updates the badge; other drawings' syncs are ignored.
-	EventBus.reaction_counts_changed.emit("d1", {NetIds.Reaction.LAUGH: 3})
-	EventBus.reaction_counts_changed.emit("other", {NetIds.Reaction.LAUGH: 9})
-	assert_str((buttons[NetIds.Reaction.LAUGH] as Button).text).contains("3")
-	assert_str((buttons[NetIds.Reaction.LAUGH] as Button).text).not_contains("9")
-
-
 func test_kudos_button_pending_confirm_flow_no_optimistic_spend() -> void:
 	var kudos: KudosButton = _instantiate(KUDOS_BUTTON)
 	kudos.drawing_id = "d1"
@@ -109,19 +91,16 @@ func test_reveal_cells_gain_social_row_that_enables_at_judging() -> void:
 			{"entries": entries, "deadline_ms": _now_ms() + 5000})
 	var screen: Control = _instantiate(REVEAL)
 	screen.setup({"entries": entries, "deadline_ms": _now_ms() + 5000}, client)
-	var bars: Array = []
-	_find_all_of(screen, func(n: Node) -> bool: return n is ReactionBar, bars)
+	# Slice 19: the social block is a single info row per cell - yours-hint |
+	# spacer | kudos. Exactly one kudos button per cell, gated until JUDGING.
 	var kudos_buttons: Array = []
 	_find_all_of(screen, func(n: Node) -> bool: return n is KudosButton, kudos_buttons)
-	assert_int(bars.size()).is_equal(2)
 	assert_int(kudos_buttons.size()).is_equal(2)
-	for bar: ReactionBar in bars:
-		assert_bool(bar.interactive).is_false()   # REVEAL: gate closed
-	screen.enter_judging({"deadline_ms": _now_ms() + 30_000})
-	for bar: ReactionBar in bars:
-		assert_bool(bar.interactive).is_true()    # JUDGING: reactions live
 	for kb: KudosButton in kudos_buttons:
-		assert_bool(kb.gate_open).is_true()
+		assert_bool(kb.gate_open).is_false()      # REVEAL: gate closed
+	screen.enter_judging({"deadline_ms": _now_ms() + 30_000})
+	for kb: KudosButton in kudos_buttons:
+		assert_bool(kb.gate_open).is_true()       # JUDGING: kudos live
 
 
 func test_sim_start_rebroadcasts_fresh_kudos_budgets() -> void:

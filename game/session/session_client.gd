@@ -33,6 +33,10 @@ var _pool_setup: Dictionary = {}
 var _active_from_round: int = 0
 var _sit_out_round: int = -1
 
+# Slice 19: ceremony skip vote (host-counted; one game = one ceremony).
+var _ceremony_votes: Dictionary = {}       # host: platform_id -> true
+var _ceremony_skipped: bool = false        # host: majority reached, latched
+
 var _phase_timer: Timer = null             # host-only authoritative deadline
 var _beat_timer: Timer = null              # host-only Slice 5 reveal metronome
 
@@ -51,7 +55,6 @@ func _ready() -> void:
 		# never lobby state.
 		_session = GameSession.new(Session.game_settings.duplicate_settings(), Session.roster)
 		_session.phase_entered.connect(_on_phase_entered)
-		_session.reaction_counts_changed.connect(_on_reaction_counts_changed)
 		_session.kudos_total_changed.connect(_on_kudos_total_changed)
 		_session.kudos_confirmed.connect(_on_kudos_confirmed)
 		_session.reveal_beat_started.connect(_on_reveal_beat_started)
@@ -59,6 +62,8 @@ func _ready() -> void:
 		_session.pool_setup_progress_changed.connect(_on_pool_setup_progress_changed)
 		_session.pool_words_rejected.connect(_on_pool_words_rejected)
 		_session.ready_state_changed.connect(_on_ready_state_changed)
+		# Slice 19: a mid-ceremony departure can tip the skip vote.
+		EventBus.roster_updated.connect(_on_roster_changed_for_ceremony_vote)
 		_ready_peers[1] = true
 		# Clients navigate into RoundRoot a beat after the host; start when
 		# every connected peer reports ready, or on the failsafe - a broken
@@ -167,7 +172,7 @@ func get_drawing_doc(drawing_id: String) -> Dictionary:
 ## Slice 4: local-only authorship check - compares the reveal entry against
 ## the doc this peer last submitted. Nothing on the wire marks authorship;
 ## a drawer who never submitted (synthesized blank) matches nothing, which
-## is safe: the host rejects self-reactions regardless (UI hint only).
+## is safe: the host rejects self-kudos regardless (UI hint only).
 func is_own_drawing(drawing_id: String) -> bool:
 	if _my_submitted_doc.is_empty():
 		return false
@@ -187,16 +192,6 @@ func request_submit_drawing(payload: Dictionary) -> void:
 			_session.submit_drawing(me.platform_id, payload)
 	else:
 		rpc_request_submit_drawing.rpc_id(1, payload)
-
-
-## Slice 4: toggle a reaction on a revealed drawing.
-func request_react(drawing_id: String, reaction: NetIds.Reaction, active: bool) -> void:
-	if multiplayer.is_server():
-		var me: Roster.PlayerState = Session.local_player()
-		if _session != null and me != null:
-			_session.react(me.platform_id, drawing_id, reaction, active)
-	else:
-		rpc_request_react.rpc_id(1, drawing_id, int(reaction), active)
 
 
 ## Slice 6: host-only game pause/resume (the Esc menu calls these; clients
@@ -248,6 +243,18 @@ func request_set_ready(ready: bool) -> void:
 			_session.set_ready(me.platform_id, ready)
 	else:
 		rpc_request_set_ready.rpc_id(1, ready)
+
+
+## Slice 19: vote to skip the title ceremony (WRAP_UP only). First press
+## latches; the host recounts against currently-connected players and
+## broadcasts progress; strict majority -> every peer jumps to standings.
+func request_skip_ceremony() -> void:
+	if multiplayer.is_server():
+		var me: Roster.PlayerState = Session.local_player()
+		if me != null:
+			_handle_ceremony_vote(me.platform_id)
+	else:
+		rpc_request_skip_ceremony.rpc_id(1)
 
 
 ## Slice 7: submit one pool's complete share of words.
@@ -349,10 +356,6 @@ func _on_beat_deadline() -> void:
 # --- Host side: Slice 4 simulation-signal translators ---
 
 
-func _on_reaction_counts_changed(drawing_id: String, counts: Dictionary) -> void:
-	rpc_sync_reaction_counts.rpc(drawing_id, counts)
-
-
 func _on_kudos_total_changed(drawing_id: String, total: int) -> void:
 	rpc_sync_kudos_total.rpc(drawing_id, total)
 
@@ -365,6 +368,43 @@ func _on_pool_setup_progress_changed(progress: Array) -> void:
 ## Slice 17 host translator: ready-up set -> broadcast.
 func _on_ready_state_changed(ready_ids: PackedStringArray) -> void:
 	rpc_sync_ready_state.rpc(ready_ids)
+
+
+# --- Slice 19: ceremony skip vote (host side) ---
+
+
+func _handle_ceremony_vote(platform_id: String) -> void:
+	if _phase != NetIds.Phase.WRAP_UP or _ceremony_skipped:
+		return
+	if _ceremony_votes.has(platform_id):
+		return   # one vote per player; re-presses are no-ops
+	_ceremony_votes[platform_id] = true
+	_evaluate_ceremony_vote()
+
+
+## Counts only currently-connected voters (a leaver's vote dies with them,
+## and a departure can tip the remaining majority - re-run on roster syncs).
+func _evaluate_ceremony_vote() -> void:
+	if _ceremony_skipped or _ceremony_votes.is_empty():
+		return
+	var connected: int = 0
+	var votes: int = 0
+	for p: Roster.PlayerState in Session.roster.players_in_join_order():
+		if not p.is_connected:
+			continue
+		connected += 1
+		if _ceremony_votes.has(p.platform_id):
+			votes += 1
+	var needed: int = connected / 2 + 1   # strictly more than half
+	_ceremony_skipped = connected > 0 and votes >= needed
+	rpc_sync_ceremony_skip.rpc(votes, needed, _ceremony_skipped)
+
+
+## Slice 19 (host): a departure during the ceremony can tip the vote.
+func _on_roster_changed_for_ceremony_vote(_players: Array) -> void:
+	if _phase == NetIds.Phase.WRAP_UP and not _ceremony_votes.is_empty() \
+			and not _ceremony_skipped:
+		_evaluate_ceremony_vote()
 
 
 ## Slice 7 host translator: relays an honest rejection to the submitting
@@ -427,11 +467,13 @@ func _emit_wrap_up_signals(results: Dictionary) -> void:
 		return
 	var bundle: Dictionary = raw
 	EventBus.wrap_up_started.emit(bundle)
-	var titles_by_player: Dictionary = {}
+	# Slice 19: titles stack - the map carries EVERY title a player earned.
+	var titles_by_player: Dictionary = {}   # platform_id -> Array[String]
 	for entry: Variant in bundle.get("titles", []):
 		if entry is Dictionary:
-			titles_by_player[str((entry as Dictionary).get("player_id", ""))] = \
-					str((entry as Dictionary).get("id", ""))
+			var pid: String = str((entry as Dictionary).get("player_id", ""))
+			var ids: Array = titles_by_player.get_or_add(pid, [])
+			ids.append(str((entry as Dictionary).get("id", "")))
 	EventBus.titles_awarded.emit(titles_by_player)
 	EventBus.game_ended.emit(bundle.get("standings", []), bundle)
 
@@ -442,7 +484,7 @@ static func is_valid_wrap_up_bundle(raw: Variant) -> bool:
 	var bundle: Dictionary = raw
 	if int(bundle.get("v", 0)) != WrapUpCalculator.BUNDLE_VERSION:
 		return false
-	return bundle.get("superlatives") is Array and bundle.get("titles") is Array \
+	return bundle.get("titles") is Array \
 			and bundle.get("standings") is Array and bundle.get("drawings") is Dictionary \
 			and bundle.get("kudos") is Dictionary
 
@@ -614,16 +656,22 @@ func rpc_sync_ready_state(ready_ids: PackedStringArray) -> void:
 	EventBus.ready_state_changed.emit(ready_ids)
 
 
-## reactor client -> host (Slice 4). Steps 3-5 live in GameSession.react.
+## voter client -> host (Slice 19). Validation lives in _handle_ceremony_vote.
 @rpc("any_peer", "call_remote", "reliable")
-func rpc_request_react(drawing_id: String, reaction_value: int, active: bool) -> void:
+func rpc_request_skip_ceremony() -> void:
 	if not multiplayer.is_server():
 		return                                             # 1. authority
 	var sender: int = multiplayer.get_remote_sender_id()
 	var player: Roster.PlayerState = Session.roster.get_by_peer(sender)
-	if player == null or _session == null:
+	if player == null:
 		return                                             # 2. resolve sender
-	_session.react(player.platform_id, drawing_id, reaction_value, active)
+	_handle_ceremony_vote(player.platform_id)
+
+
+## host -> all (Slice 19): ceremony skip vote progress / result.
+@rpc("authority", "call_local", "reliable")
+func rpc_sync_ceremony_skip(votes: int, needed: int, skipped: bool) -> void:
+	EventBus.ceremony_skip_updated.emit(votes, needed, skipped)
 
 
 ## giver client -> host (Slice 4). Steps 3-5 live in GameSession.give_kudos.
@@ -650,13 +698,6 @@ func rpc_sync_reveal_beat(index: int, drawing_id: String, beat_secs: float) -> v
 @rpc("authority", "call_local", "reliable")
 func rpc_sync_reveal_gather() -> void:
 	EventBus.reveal_gathered.emit()
-
-
-## host -> all (Slice 4): one drawing's aggregate reaction counts
-## (nonzero keys only - a key dropping out means it hit zero).
-@rpc("authority", "call_local", "reliable")
-func rpc_sync_reaction_counts(drawing_id: String, counts: Dictionary) -> void:
-	EventBus.reaction_counts_changed.emit(drawing_id, counts)
 
 
 ## host -> all (Slice 4): one drawing's public kudos total.

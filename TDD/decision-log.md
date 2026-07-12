@@ -12,6 +12,24 @@
 
 ---
 
+### Slice 19 (mini): emoji reaction system RETIRED; title stacking; Worst Drawer cut; People's Champion rebased on kudos; ceremony settings + majority skip
+**Date:** 2026-07-12 | **Slice:** 19 (touches shipped 4/5/10/6/17 surfaces) | **Decided by:** Owner ("ive decided to get rid of the emoji system entirely") | **Type:** Structural
+
+**Decision:** (1) **The six-emoji reaction system is removed entirely** — owner verdict: weakest reward surface AND judging-grid clutter. Bar UI, `NetIds.Reaction`, react RPC path, host gate/ledger, `SessionStats` reaction tracking, `reaction_stats` bundle aggregates, and ALL superlatives (incl. the never-shipped aggregated-weights design) go. **Kudos is untouched** — it remains the social economy (give/receive, kudos=save, wallet). Chat remains the riffing layer. (2) **No one-title-per-player rule** — titles stack; `TitleIds.PRIORITY` = display order only; stacked title points accepted (owner call). (3) **Worst Drawer removed** (title + planned achievements). (4) **People's Champion** = most kudos received among zero-round-win players (min 1) — consolation semantics preserved on existing data. (5) **New settings** `titles_enabled` (master; badges + awards exist at all) and `title_ceremony` (one-at-a-time act vs straight-to-standings; Streamlined preset: off). Title badges always show next to final scores when titles are enabled. (6) **Majority ready-up skip** of the ceremony: >50% of connected players (host-validated, recounted on departures); presser still advances locally at once (Slice 10 per-peer skip kept). Brief §11 amended. Full contract: `TDD/19-title-ceremony-rework.md`.
+
+**Status:** [x] Implemented (572 tests green; SocialGate rename + titles_awarded Array-shape deviations logged in impl notes) [x] Gates PASS ×3 (kudos-only round driver — stronger: all-peer kudos-save verification) [ ] Owner feel-check (batchable: skip vote, badges, Streamlined pacing)
+
+---
+
+### Slice 14: v1 achievement set FROZEN at 27 ids (per-title first/tenth pattern); stats-API section reconciled
+**Date:** 2026-07-12 | **Slice:** 14 | **Decided by:** Owner (list shaped + names picked in-session) | **Type:** Quick
+
+**Decision:** Ids are the permanent Steamworks API names (Slice 15 configures them verbatim). Set: per-title first+tenth for the 7 post-rework titles (`first_hotshot`/`hotshot_x10`, `first_judges_darling`/`judges_darling_x10`, `first_peoples_champion`/`peoples_champion_x10`, `first_generous_soul`/`generous_soul_x10`, `first_speed_demon`/`speed_demon_x10`, `first_da_vinci`/`da_vinci_x10`, `first_minimalist`/`minimalist_x10`); milestones `first_game`, `first_win`, `games_10`, `games_100`, `rounds_100`, `round_wins_25`; collection/kudos `save_10`, `save_50`, **`save_100` (owner add: "Animal Hoarder")**, `all_kudos_spent`; special `title_collector` (all 7 ≥1), `full_lobby` (finish an 8-player game), `clean_sweep` (win every round, min 3 rounds). Owner display names: Renaissance **Mammal** (`first_da_vinci`), Animal Aficionado (`games_10`), Animal Enthusiast (`save_50`); superlative/emoji achievements are void with the Slice 19 retirement; `win_streak_3` considered and dropped. Display names/descriptions remain tunable working copy until partner-site setup. **Stats-API reconciliation confirmed against the vendored binary (ClassDB probe this session):** `requestCurrentStats`/`current_stats_received` gone; `setAchievement`/`getAchievement`/`storeStats` present and synchronous → unlock logic guards on `is_stats_ready()` = init success, exactly as the 2026-07-11 Slice 12 decision anticipated. TDD 14's §2 table + §6 guard wording superseded accordingly; new stats: `games_full_lobby`, `clean_sweeps`, and `save_100` reads `drawings_saved`.
+
+**Status:** [x] Ids frozen (pinned by test) [x] Implemented (26 tests; stats sandboxed in all harness/gate runs) [x] Slice 15 partner-site task filed (qa-backlog) — blocking toast check rides the App-ID swap
+
+---
+
 ### Art pass: wallpaper + font SHIPPED (concurrent session 13) — capture standard, loop-field tile, class-normalized metrics
 **Date:** 2026-07-12 | **Slice:** Art pass (unnumbered) | **Decided by:** Owner + AI, iterating on live builds | **Type:** Quick
 

@@ -94,7 +94,7 @@ func remove_by_peer(peer_id: int) -> void:
 
 
 ## Slice 9 in-game disconnect: the entry - score, kudos ledger, rotation
-## slot, reaction stats - is the "memory" §9/§11 require. peer_id resets to
+## slot, session stats - is the "memory" §9/§11 require. peer_id resets to
 ## 0 so a stale transport id can never match a future peer. Returns the
 ## entry (null for unknown peers). now_ms uses the caller's clock (the
 ## GameSession-injectable one in practice) so the dodge bookkeeping is

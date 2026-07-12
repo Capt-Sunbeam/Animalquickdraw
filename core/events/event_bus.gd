@@ -48,11 +48,8 @@ signal scores_updated(scores: Dictionary)
 ## consumes).
 signal session_results_ready(results: Dictionary)
 
-# --- Slice 4: Reactions, Kudos & Saving ---
+# --- Slice 4: Kudos & Saving (emoji reactions retired, Slice 19) ---
 
-## Emitted on all peers when a drawing's aggregate reaction counts change.
-## counts: Dictionary[NetIds.Reaction -> int], nonzero entries only.
-signal reaction_counts_changed(drawing_id: String, counts: Dictionary)
 ## Emitted on all peers when a drawing's public kudos total changes.
 signal kudos_total_changed(drawing_id: String, total: int)
 ## Emitted locally on the giver when their kudos is confirmed by the host.
@@ -132,8 +129,9 @@ signal local_avatar_changed()
 ## phase; the local sequence starts. bundle = results["wrap_up"] (TDD 10 §2).
 signal wrap_up_started(bundle: Dictionary)
 ## Emitted on all peers immediately after wrap_up_started. Keys: platform_id
-## (String); values: title id (String, see TitleIds). Players without a card
-## are absent. Slice 14 keys its titles_earned counters off this.
+## (String); values: Array of title ids (Slice 19: titles stack, so a player
+## can hold several - see TitleIds). Players without a card are absent.
+## Slice 14 keys its titles_earned counters off this.
 signal titles_awarded(titles_by_player: Dictionary)
 ## Emitted on all peers after titles_awarded with the final standings (incl.
 ## title points) and the full bundle (kudos summary, rounds_completed).
@@ -142,6 +140,16 @@ signal game_ended(standings: Array, bundle: Dictionary)
 ## Emitted locally when this player's wrap-up sequence completes or is
 ## skipped to the end; the post-game buttons unlock.
 signal wrap_up_sequence_finished()
+## Slice 19: the ceremony skip vote changed (host-counted, broadcast to all).
+## skipped=true = majority reached, every peer jumps to standings.
+signal ceremony_skip_updated(votes: int, needed: int, skipped: bool)
+
+# --- Slice 14: Achievements & Stats ---
+
+## Emitted locally when an achievement unlocks for the first time (local
+## cache transition locked -> unlocked). Steam shows its own overlay toast;
+## this is for logs and any future in-game achievement browser.
+signal achievement_unlocked(achievement_id: String)
 
 # --- Slice 17: Ready-Up ---
 

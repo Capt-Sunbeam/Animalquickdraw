@@ -72,10 +72,8 @@ const REVEAL_REPLAY_BUDGET_SECS: float = 30.0  # total replay budget across all 
 const REVEAL_BEAT_FAILSAFE_SECS: float = 1.5   # main REVEAL deadline margin past the beat schedule
 const REPLAY_STILL_HOLD_SECS: float = 2.0      # finished replay holds the still this long (owner, 2026-07-06)
 
-# --- Slice 4: Reactions, Kudos & Saving ---
-const REACTION_EVENT_CAP: int = 24             # changed-toggles per (player, drawing); bounds SessionStats
-const REACTION_CLOSE_GRACE_MSEC: int = 250     # requests landing just after gate close still count (§10)
-const REACTION_DEBOUNCE_MSEC: int = 150        # client-side reaction button debounce
+# --- Slice 4: Kudos & Saving (emoji reactions retired, Slice 19) ---
+const SOCIAL_CLOSE_GRACE_MSEC: int = 250       # kudos landing just after gate close still count (§10)
 const COLLECTION_THUMB_MAX_PX: int = 200       # long-edge cap for the regenerable thumbnail cache
 
 # --- Slice 1: Drawing Canvas & Stroke Engine ---
@@ -107,8 +105,7 @@ const HOUSE_AVATAR_COUNT: int = 6                    # size of the shipped fallb
 const HOUSE_AVATAR_DIR: String = "res://data/house_avatars/"  # house_00.json .. house_05.json
 
 # --- Slice 10: End-Game Wrap-Up (sequence pacing; TITLE_POINTS_VALUE is
-# in the scoring block above) ---
-const WRAPUP_SUPERLATIVE_CARD_SECONDS: float = 4.0   # hold after the replay flourish
+# in the scoring block above; superlatives retired with Slice 19) ---
 const WRAPUP_TITLE_CARD_SECONDS: float = 5.0
 const WRAPUP_STANDINGS_STEP_SECONDS: float = 0.8
 const WRAPUP_EVIDENCE_REPLAY_MAX_SECONDS: float = 3.0  # evidence replays are capped hard

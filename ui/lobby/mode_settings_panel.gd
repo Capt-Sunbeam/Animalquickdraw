@@ -20,6 +20,8 @@ var _reveal_secs: SpinBox
 var _winner_secs: SpinBox
 var _judging_spin: SpinBox
 var _title_points_check: CheckBox
+var _titles_check: CheckBox
+var _ceremony_check: CheckBox
 var _kudos_option: OptionButton
 var _kudos_hint: Label
 
@@ -45,6 +47,11 @@ func render(s: GameSettings) -> void:
 		_winner_secs.value = s.winner_replay_secs
 		_judging_spin.value = s.judging_window_sec
 		_title_points_check.button_pressed = s.title_points_enabled
+		_titles_check.button_pressed = s.titles_enabled
+		_ceremony_check.button_pressed = s.title_ceremony
+		# Slice 19: no titles = nothing to award or point at (honest UI).
+		_ceremony_check.disabled = not _host or not s.titles_enabled
+		_title_points_check.disabled = not _host or not s.titles_enabled
 		_kudos_option.select(_kudos_option.get_item_index(s.kudos_allotment + 1))
 		_kudos_hint.text = "Auto = %d for %d rounds" \
 				% [KudosLedger.compute_allotment(s.round_count), s.round_count]
@@ -66,8 +73,11 @@ func _summary_text(s: GameSettings) -> String:
 			"full (%ds each, winner %ds)" % [int(s.reveal_replay_secs), int(s.winner_replay_secs)]][s.replay_mode]
 	var kudos: String = "auto (%d)" % KudosLedger.compute_allotment(s.round_count) \
 			if s.kudos_allotment == GameSettings.KUDOS_AUTO else str(s.kudos_allotment)
-	return "Reveal: %s  ·  Replay: %s\nJudging: %d s  ·  Kudos: %s  ·  Title points: %s" % [
-		reveal, replay, int(s.judging_window_sec), kudos,
+	var titles: String = "off"
+	if s.titles_enabled:
+		titles = "ceremony" if s.title_ceremony else "badges only"
+	return "Reveal: %s  ·  Replay: %s\nJudging: %d s  ·  Kudos: %s  ·  Titles: %s  ·  Title points: %s" % [
+		reveal, replay, int(s.judging_window_sec), kudos, titles,
 		"on" if s.title_points_enabled else "off",
 	]
 
@@ -91,6 +101,8 @@ func _build_custom_grid() -> void:
 	_judging_spin = _add_spin("Judging window:", GameConstants.JUDGING_WINDOW_MIN_SEC,
 			GameConstants.JUDGING_WINDOW_MAX_SEC, GameConstants.SETTING_STEP_SEC, "s",
 			&"judging_window_sec")
+	_titles_check = _add_check("End-game titles:", &"titles_enabled")
+	_ceremony_check = _add_check("Awards ceremony:", &"title_ceremony")
 	_title_points_check = _add_check("Title points:", &"title_points_enabled")
 	# Kudos: item id = value + 1 so AUTO (-1) is a valid id (0).
 	var kudos_pairs: Array = [["Auto", GameSettings.KUDOS_AUTO]]

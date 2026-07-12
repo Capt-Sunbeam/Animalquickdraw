@@ -1,9 +1,13 @@
 class_name WrapUpCalculator
 extends RefCounted
-## Host-only wrap-up bundle math (Slice 10 TDD §6): superlatives, the v1
-## title set, title/superlative points, and final standings, computed ONCE
-## into a single immutable bundle. Pure static functions, zero UI/network
+## Host-only wrap-up bundle math (Slice 10 TDD §6, reworked by Slice 19):
+## the title set, title points, and final standings, computed ONCE into a
+## single immutable bundle. Pure static functions, zero UI/network
 ## references (headless-testable, consistency guide §3/§9).
+##
+## Slice 19 (owner, 2026-07-12): superlatives removed with the emoji
+## reaction system; titles STACK (no one-per-player rule - PRIORITY is
+## display order only); Worst Drawer cut; People's Champion is kudos-based.
 ##
 ## Inputs are the shipped Slice 3/4/9 structures (decision log 2026-07-07:
 ## the TDD-10 draft's round_results contract maps onto RoundRecord +
@@ -17,7 +21,7 @@ const BUNDLE_VERSION: int = 1
 
 ## Flattens completed rounds into one ordered drawing-info list (rounds
 ## ascending, reveal order ascending) - the working set every award reads.
-## Blanks are included (they are reactable cards); stats-less drawings
+## Blanks are included (they can take kudos); stats-less drawings
 ## (defensive - never happens) carry zero counts.
 static func drawing_infos(records: Array[RoundRecord], stats: SessionStats) -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
@@ -29,10 +33,6 @@ static func drawing_infos(records: Array[RoundRecord], stats: SessionStats) -> A
 			if reveal_index < 0:
 				reveal_index = i   # pre-Slice-10 record (tests) - drawer order
 			var ds: SessionStats.DrawingStats = stats.drawings.get(sub.drawing_id)
-			var reaction_counts: Dictionary = ds.reaction_counts.duplicate() if ds != null else {}
-			var reactions_total: int = 0
-			for reaction: Variant in reaction_counts.keys():
-				reactions_total += int(reaction_counts[reaction])
 			round_infos.append({
 				"drawing_id": sub.drawing_id,
 				"round": record.round_index,
@@ -42,8 +42,6 @@ static func drawing_infos(records: Array[RoundRecord], stats: SessionStats) -> A
 				"reveal_index": reveal_index,
 				"prompt": record.prompt.display_text if record.prompt != null else "",
 				"kudos": ds.kudos_received if ds != null else 0,
-				"reaction_counts": reaction_counts,
-				"reactions_total": reactions_total,
 				"won": not record.winner_drawing_id.is_empty() \
 						and record.winner_drawing_id == sub.drawing_id,
 			})
@@ -53,57 +51,25 @@ static func drawing_infos(records: Array[RoundRecord], stats: SessionStats) -> A
 	return out
 
 
-## One award per NetIds.Reaction: the drawing with the highest final count of
-## that reaction. Ties: earlier round, then earlier reveal index - which the
-## ordered info list encodes, so strictly-greater comparison IS the
-## tie-break. Zero-count awards are omitted (§2: no award for nothing).
-static func compute_superlatives(infos: Array[Dictionary], points_on: bool) -> Array[Dictionary]:
-	var out: Array[Dictionary] = []
-	for reaction: int in NetIds.Reaction.size():
-		var best: Dictionary = {}
-		var best_count: int = 0
-		for info: Dictionary in infos:
-			var count: int = int((info["reaction_counts"] as Dictionary).get(reaction, 0))
-			if count > best_count:
-				best_count = count
-				best = info
-		if best_count > 0:
-			out.append({
-				"id": TitleIds.SUPERLATIVE_IDS[reaction],
-				"reaction": reaction,
-				"drawing_id": str(best["drawing_id"]),
-				"author_id": str(best["author_id"]),
-				"count": best_count,
-				"round": int(best["round"]),
-				"prompt": str(best["prompt"]),
-				"points": GameConstants.TITLE_POINTS_VALUE if points_on else 0,
-			})
-	return out
-
-
-## The v1 title set in priority order (TDD §2 table). Each title goes to the
-## best ELIGIBLE player (not already titled, minimum met); no qualifier =
-## title omitted. Player tie-break chain: stat -> earlier best-evidence
-## round -> lower rotation index.
+## The title set in ceremony order (TDD 19 §3). Every title goes to its top
+## qualifier - titles STACK (Slice 19: no one-per-player exclusion); no
+## qualifier = title omitted. Player tie-break chain: stat -> earlier
+## best-evidence round -> lower rotation index.
 static func compute_titles(infos: Array[Dictionary], kudos_events: Array[Dictionary],
 		rotation_order: Array[String], draw_time_sec: float,
 		points_on: bool) -> Array[Dictionary]:
-	var titled: Dictionary = {}          # player_id -> true
 	var out: Array[Dictionary] = []
 	for title_id: String in TitleIds.PRIORITY:
 		var candidates: Array[Dictionary] = _candidates_for(
 				title_id, infos, kudos_events, draw_time_sec)
-		var higher_is_better: bool = not [TitleIds.SPEED_DEMON, TitleIds.MINIMALIST,
-				TitleIds.WORST_DRAWER].has(title_id)
+		var higher_is_better: bool = not [TitleIds.SPEED_DEMON,
+				TitleIds.MINIMALIST].has(title_id)
 		var best: Dictionary = {}
 		for c: Dictionary in candidates:
-			if titled.has(str(c["player_id"])):
-				continue
 			if best.is_empty() or _beats(c, best, higher_is_better, rotation_order):
 				best = c
 		if best.is_empty():
 			continue
-		titled[str(best["player_id"])] = true
 		out.append({
 			"id": title_id,
 			"player_id": str(best["player_id"]),
@@ -115,17 +81,14 @@ static func compute_titles(infos: Array[Dictionary], kudos_events: Array[Diction
 	return out
 
 
-## Final standings: base + title/superlative points, standard competition
+## Final standings: base + title points, standard competition
 ## ranking (1, 2, 2, 4), negatives unclamped (§11 - no floor anywhere).
 ## Display order within a tie = rotation index. Every rostered player
 ## appears, connected or not.
-static func compute_standings(scores: Dictionary, superlatives: Array[Dictionary],
+static func compute_standings(scores: Dictionary,
 		titles: Array[Dictionary], players_meta: Array[Dictionary],
 		rotation_order: Array[String]) -> Array[Dictionary]:
 	var title_points: Dictionary = {}    # player_id -> int
-	for s: Dictionary in superlatives:
-		var author: String = str(s["author_id"])
-		title_points[author] = int(title_points.get(author, 0)) + int(s["points"])
 	for t: Dictionary in titles:
 		var pid: String = str(t["player_id"])
 		title_points[pid] = int(title_points.get(pid, 0)) + int(t["points"])
@@ -162,12 +125,15 @@ static func compute_standings(scores: Dictionary, superlatives: Array[Dictionary
 static func build_bundle(records: Array[RoundRecord], stats: SessionStats,
 		players_meta: Array[Dictionary], scores: Dictionary,
 		rotation_order: Array[String], draw_time_sec: float,
-		points_on: bool, early: bool) -> Dictionary:
+		points_on: bool, early: bool, titles_on: bool = true) -> Dictionary:
 	var infos: Array[Dictionary] = drawing_infos(records, stats)
-	var superlatives: Array[Dictionary] = compute_superlatives(infos, points_on)
-	var titles: Array[Dictionary] = compute_titles(infos, stats.kudos_events,
-			rotation_order, draw_time_sec, points_on)
-	var standings: Array[Dictionary] = compute_standings(scores, superlatives,
+	# Slice 19: titles_enabled=false -> empty titles, zero title points -
+	# standings degrade to pure base scores; no badges, no ceremony.
+	var titles: Array[Dictionary] = []
+	if titles_on:
+		titles = compute_titles(infos, stats.kudos_events,
+				rotation_order, draw_time_sec, points_on)
+	var standings: Array[Dictionary] = compute_standings(scores,
 			titles, players_meta, rotation_order)
 	var kudos: Dictionary = {}
 	for meta: Dictionary in players_meta:
@@ -179,8 +145,6 @@ static func build_bundle(records: Array[RoundRecord], stats: SessionStats,
 	for info: Dictionary in infos:
 		by_id[str(info["drawing_id"])] = info
 	var drawings: Dictionary = {}
-	for s: Dictionary in superlatives:
-		_embed_drawing(drawings, by_id, str(s["drawing_id"]))
 	for t: Dictionary in titles:
 		for id: Variant in t["evidence_drawing_ids"]:
 			_embed_drawing(drawings, by_id, str(id))
@@ -188,7 +152,6 @@ static func build_bundle(records: Array[RoundRecord], stats: SessionStats,
 		"v": BUNDLE_VERSION,
 		"early_end": early,
 		"rounds_completed": records.size(),
-		"superlatives": superlatives,
 		"titles": titles,
 		"standings": standings,
 		"kudos": kudos,
@@ -231,14 +194,17 @@ static func _candidates_for(title_id: String, infos: Array[Dictionary],
 					out.append(_candidate(str(pid), wins.size(),
 							"%d round wins" % wins.size(), evidence, int(wins[0]["round"])))
 		TitleIds.PEOPLES_CHAMPION:
+			# Slice 19 rebase (owner): the reaction criterion died with the
+			# emoji system - now the most-kudos'd player who never won a round
+			# (consolation semantics preserved on kudos data).
 			for pid: Variant in by_author.keys():
 				if _sum_int(by_author[pid], "won") > 0:
 					continue   # any round win excludes (§2)
-				var total: int = _sum_int(by_author[pid], "reactions_total")
+				var total: int = _sum_int(by_author[pid], "kudos")
 				if total >= 1:
-					var best: Dictionary = _best_info(by_author[pid], "reactions_total", true)
+					var best: Dictionary = _best_info(by_author[pid], "kudos", true)
 					out.append(_candidate(str(pid), total,
-							"%d reactions received, zero wins" % total,
+							"%d kudos received, zero wins" % total,
 							[str(best["drawing_id"])], int(best["round"])))
 		TitleIds.GENEROUS_SOUL:
 			var known_ids: Dictionary = {}
@@ -317,22 +283,6 @@ static func _candidates_for(title_id: String, infos: Array[Dictionary],
 					out.append(_candidate(str(pid), mean,
 							"just %.1f marks per drawing" % mean,
 							[str(best["drawing_id"])], int(best["round"])))
-		TitleIds.WORST_DRAWER:
-			# Counts every card incl. synthesized blanks (§10 - fitting).
-			for pid: Variant in by_author.keys():
-				var total: int = _sum_int(by_author[pid], "reactions_total") \
-						+ _sum_int(by_author[pid], "kudos")
-				var best: Dictionary = {}
-				var best_social: int = 0
-				for info: Dictionary in by_author[pid]:
-					var social: int = int(info["reactions_total"]) + int(info["kudos"])
-					if best.is_empty() or social < best_social:
-						best_social = social
-						best = info
-				var label: String = "not a single reaction or kudos" if total == 0 \
-						else "%d reactions + kudos, total" % total
-				out.append(_candidate(str(pid), total, label,
-						[str(best["drawing_id"])], int(best["round"])))
 	return out
 
 

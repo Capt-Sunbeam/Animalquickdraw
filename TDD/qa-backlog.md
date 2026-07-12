@@ -80,17 +80,17 @@ Two owner-directed fix batches this session (decision log 2026-07-06 "Judging = 
 
 ## Slice 4 — Reactions, Kudos & Saving
 
-- [ ] Emoji bar feel/legibility at high grid density (7 drawings = 8 players; smallest cells) ✅ AUTO (mechanics)
+- [ ] ~~Emoji bar feel/legibility at high grid density~~ (OBSOLETE 2026-07-12: emoji reaction system removed by Slice 19)
 - [ ] Wallet pips readable; pending "…" state visible on slow networks; "Saved to your collection!" toast wording feels right
 - [ ] Self-save toggle: draw with toggle ON → after the round, `user://collection/` has the drawing (source "self") ✅ AUTO (unit-tested) — human check is the toggle UX itself
 - [ ] "🔒 yours" hint appears ONLY on your own cell, on your machine (anonymity: confirm other players never see it) ✅ AUTO by design (local-only knowledge)
 - [ ] Kudos button correctly disabled: own drawing / wallet empty / already given ✅ AUTO (validators) — human check is that the disabled states read clearly
-- [ ] Rapid reaction spam feels OK (150 ms debounce; host drops no-ops) ✅ AUTO (cap + no-op logic)
-- [ ] Reaction count badges update within ~1 s on all peers ✅ AUTO (CI verifies convergence) — human check is perceived latency
-- [ ] Emoji glyphs render on Windows/Linux exports (dev machine is macOS; font fallback differs)
+- [ ] ~~Rapid reaction spam feels OK~~ (OBSOLETE 2026-07-12: Slice 19)
+- [ ] ~~Reaction count badges update within ~1 s~~ (OBSOLETE 2026-07-12: Slice 19)
+- [ ] Emoji glyphs still in use (🔒 yours, 🏅 badges, chat text) render on Windows/Linux exports (dev machine is macOS; font fallback differs)
 - [ ] Score at RESOLUTION visibly includes kudos +1 (winner who also got kudos shows +3 total) ✅ AUTO (scoring)
-- [ ] Judge can react AND kudos while deciding (by design §11) — feels right, not distracting
-- [ ] Grid cell layout with the new social row at 2–7 drawings and window resizes (cells grew 60 px taller)
+- [ ] Judge can kudos while deciding (by design §11) — feels right, not distracting
+- [ ] Grid cell layout at 2–7 drawings and window resizes (Slice 19: reaction row removed — the drawing got the freed height; re-look at density)
 
 ## Slice 5 — Reveal Styles & Replay
 
@@ -102,7 +102,7 @@ Two owner-directed fix batches this session (decision log 2026-07-06 "Judging = 
 - [ ] Victory lap: winner replay speed feels right (default 3×, 10 s cap); author reveal moment lands ✅ AUTO (cap math)
 - [ ] Full reveal replay (replay_mode FULL) — batch with Slice 6 Social preset testing (not reachable via UI until the settings surface lands)
 - [ ] GRID style still snappy: single 0.25 s fade, straight to judging ✅ AUTO
-- [ ] Reaction/kudos on the staged card during its beat; racing the beat boundary still lands (250 ms grace) ✅ AUTO (gate logic + CI)
+- [ ] Kudos on the staged card during its beat; racing the beat boundary still lands (250 ms grace) ✅ AUTO (gate logic + CI)
 - [ ] Slow-client hard-snap: hitch a client mid-beat → it snaps to the next beat cleanly (hard to reproduce by hand)
 - [ ] Save-toggle now visible on the round canvas (Slice 4 fix) — placement/wording feels right
 
@@ -182,7 +182,7 @@ Two owner-directed fix batches this session (decision log 2026-07-06 "Judging = 
 *Machine coverage: 24-test resilience suite + `verify_resilience.sh` (drop → below-min pause → rejoin → resume → kept submission wins, per-role phase logs, wrap-up contract keys). Blocking owner checks listed in WHERE_WE_ARE. Batchables:*
 
 - [ ] Toasts for join/drop/rejoin read correctly and don't stack absurdly (3 s same-message coalescing implemented — flapping check) ✅ AUTO (coalescing logic; human feel check remains)
-- [ ] Judge drops during JUDGING: window completes, reactions/kudos still spendable, "couldn't decide" resolution shows; fluid ON → no −1 ✅ AUTO (penalty matrix + seat-hold tests; human look remains)
+- [ ] Judge drops during JUDGING: window completes, kudos still spendable, "couldn't decide" resolution shows; fluid ON → no −1 ✅ AUTO (penalty matrix + seat-hold tests; human look remains)
 - [ ] `fluid_rejoin` OFF: quit as next-judge inside the 30 s window, stay away → round intro announces "dodged judging: −1", next player judges ✅ AUTO (forfeit tests; toast/intro copy human check)
 - [ ] Host End-game-now → (placeholder until Slice 10) standings incl. the disconnected player's remembered score ✅ AUTO (contract keys; screen look human check)
 - [ ] Late joiner can react/kudos during the round they joined into (spectator banner doesn't block the grid)
@@ -195,20 +195,20 @@ Two owner-directed fix batches this session (decision log 2026-07-06 "Judging = 
 
 ## Slice 10 — End-Game Wrap-Up
 
-*Machine coverage: 18-test calculator suite (superlatives/titles/tie-breaks/standings/determinism) + relay signal-order tests + scene smokes; `verify_round.sh` drives a full game into WRAP_UP on 3 peers. NOTE: the TDD's normally-blocking check (early-end wrap-up) is in the END-OF-SESSION batched list per owner instruction 2026-07-07 — test it first. Batchables:*
+*Machine coverage: 18-test calculator suite (titles/stacking/tie-breaks/standings/determinism — reworked by Slice 19) + relay signal-order tests + scene smokes; `verify_round.sh` drives a full game into WRAP_UP on 3 peers. NOTE: the TDD's normally-blocking check (early-end wrap-up) is in the END-OF-SESSION batched list per owner instruction 2026-07-07 — test it first. Batchables:*
 
-- [ ] Full wrap-up sequence feel after a reaction/kudos-heavy 3-player game: superlatives → titles → standings pacing (4 s/5 s/0.8 s constants — tune if draggy) ✅ AUTO (mechanics)
+- [ ] Full wrap-up sequence feel after a kudos-heavy 3-player game: titles → standings pacing (5 s/0.8 s constants — tune if draggy; superlatives act removed by Slice 19) ✅ AUTO (mechanics)
 - [ ] Skip isolation: skipping on one client does not affect the others ✅ AUTO by design (skip is purely local)
 - [ ] Skip semantics feel: first press finishes the replay flourish, second advances — intuitive or annoying on static title cards (which advance on first press)?
 - [ ] Negative score display in final standings (judge with only no-pick penalties) — true minus, podium still plays ✅ AUTO (render values)
 - [ ] Title-point breakdown tooltip on standings scores (hover) — discoverable enough?
-- [ ] Superlative card replay flourish: ≤ 3 s cap feels right; author reveal ("drawn by X") lands as a moment
+- [ ] ~~Superlative card replay flourish~~ (OBSOLETE 2026-07-12: superlatives removed by Slice 19)
 - [ ] Title card evidence fan at 1–3 drawings incl. portrait orientation (letterboxed, not stretched)
 - [ ] "(left early)" dimming on disconnected players' title cards + standings rows
 - [ ] Progress dots + "That's a wrap!" header + rounds badge (incl. "ended early • N rounds" wording)
 - [ ] Host quit mid-sequence on a client: sequence finishes, then Leave-only post-game (no toast currently — is one wanted?)
 - [ ] `title_points_enabled` OFF (Custom): no "+1" chips anywhere, standings = base scores ✅ AUTO (points zeroed)
-- [ ] Stat label wording pass: "done with N% of the clock to spare", "just N.N marks per drawing", "not a single reaction or kudos" — funny or confusing?
+- [ ] Stat label wording pass: "done with N% of the clock to spare", "just N.N marks per drawing", "N kudos received, zero wins" — funny or confusing?
 - [ ] Chat stays usable (NORMAL prominence) through the whole sequence
 
 ## Slice 11 — Avatars
@@ -275,6 +275,27 @@ Two owner-directed fix batches this session (decision log 2026-07-06 "Judging = 
 - [ ] 18+ banner wording/placement on the browser (placeholder text - final wording is Slice 15's legal pass with the `PUBLIC_NOTICE_VERSION` bump)
 - [ ] Public toggle tooltips in the lobby settings read clearly (private default)
 - [ ] Try a blocklisted word as a Steam persona name hosting a public lobby: browser row shows it censored (double-censor path)
+
+## Slice 19 — Title & Ceremony Rework + Emoji Retirement (added 2026-07-12)
+
+*Machine coverage: reworked 18-test calculator suite (stacking, kudos-based People's Champion, titles_enabled gating), 7-test ceremony-vote suite (strict majority, dedupe, departure recount, phase guard), Slice 19 settings tests (round-trip, preset lock, Streamlined identity), updated UI smokes; all 3 gates PASS with the kudos-only CI driver (every peer's kudos-save now verified). Batchables:*
+
+- [ ] Ceremony skip vote feel on 3+ instances: button label progress `(1/2)`, voter jumps immediately, majority jumps everyone; a mid-ceremony leaver tips a pending vote
+- [ ] Standings badge line legibility: stacked titles (2–3 badges on one player), long title names at 960×540, "🏅 A · B" separator readability
+- [ ] Streamlined preset: badges-only wrap-up pacing feels right (straight to standings)
+- [ ] Custom panel: End-game titles / Awards ceremony / Title points rows — ceremony+points grey out when titles are off (honest-disable), wording clear
+- [ ] Judging grid after the reaction-row removal: drawings visibly larger; density at 5–7 entries re-eyeballed (owner's grid concern — partially relieved, full layout rework still a candidate for polish)
+- [ ] Titles-off game end-to-end: wrap-up goes straight to plain standings, nothing references titles anywhere
+
+## Slice 14 — Achievements & Stats (added 2026-07-12)
+
+*Machine coverage: 26 tests across two suites — frozen 27-id table pin, per-def threshold sweep (counter + title + collector), accumulation from all five EventBus signals, clean-sweep transients, persistence rules (corrupt/version/unknown-keys), 3-layer unlock idempotency, recording-mock Steam reconcile (one setAchievement per id ever, one storeStats per batch), ENet no-op path. Stats are SANDBOXED in every harness/gate run (GdUnit self-sandbox + per-PID CI driver paths) — gate runs never bump the owner's real stats.json.*
+
+- [ ] **BLOCKING (deferred to the Slice 15 App-ID swap):** live Steam unlock toast — Spacewar (App 480) cannot carry our custom achievement API names, so the toast check runs with the real App ID registration, alongside the earmarked Slice 12 re-verification pass
+- [ ] Offline ENet accrual: play a full dev game → inspect `user://stats.json` counters (games/rounds/wins/titles/kudos/saves)
+- [ ] Delete `stats.json` → relaunch with Steam: no crash, no revocation, met-condition achievements re-set harmlessly
+- [ ] Full House + Clean Sweep sanity when a real 8-player game / a 3-round sweep happens (fold into any big playtest)
+- [ ] Achievement display names + descriptions final pass on the Steamworks partner site (Slice 15 owner task: create all 27 with the exact ids from `achievement_defs.gd`)
 
 ## Design gaps / open items (not bugs — need decisions)
 

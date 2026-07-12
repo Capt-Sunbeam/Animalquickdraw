@@ -1,12 +1,13 @@
 class_name TestGameSessionSocial
 extends GdUnitTestSuite
-## Slice 4 on the Slice 3 state machine: react/give_kudos validators (steps
-## 3-4 of the 5-step pattern), the kudos economy, gate lifecycle across
-## phases, score-deferral, and the results-bundle aggregates. Headless via
+## Slice 4 on the Slice 3 state machine: give_kudos validators (steps 3-4 of
+## the 5-step pattern), the kudos economy, gate lifecycle across phases,
+## score-deferral, and the results-bundle aggregates (Slice 19: emoji
+## reactions retired; kudos is the remaining social currency). Headless via
 ## the same rig pattern as TestGameSession. Anonymity note: entries never
-## carry authors, so tests find "someone else's drawing" by reacting as the
-## JUDGE (never an author) or by counting rejections (exactly one entry is
-## the reactor's own).
+## carry authors, so tests find "someone else's drawing" by giving kudos as
+## the JUDGE (never an author) or by counting rejections (exactly one entry
+## is the giver's own).
 
 const FIXTURE_DIR: String = "res://tests/fixtures/prompts/"
 
@@ -26,7 +27,6 @@ class Rig extends RefCounted:
 	var roster: Roster
 	var clock: Clock = Clock.new()
 	var phases: Array[Dictionary] = []
-	var reaction_syncs: Array[Dictionary] = []   # {"drawing_id", "counts"}
 	var kudos_syncs: Array[Dictionary] = []      # {"drawing_id", "total"}
 	var confirms: Array[Dictionary] = []         # {"player_id", "drawing_id", "remaining"}
 	var results: Dictionary = {}
@@ -47,13 +47,15 @@ class Rig extends RefCounted:
 		return ids
 
 
-func _make_rig(player_count: int = 4, round_count: int = 2) -> Rig:
+func _make_rig(player_count: int = 4, round_count: int = 2,
+		kudos_allotment: int = GameSettings.KUDOS_AUTO) -> Rig:
 	var rig := Rig.new()
 	rig.roster = Roster.new()
 	for i: int in range(player_count):
 		rig.roster.register(i + 1, "p%d" % i, "Player %d" % i)
 	var settings := GameSettings.new()
 	settings.round_count = round_count
+	settings.kudos_allotment = kudos_allotment
 	# GRID: this suite tests the Slice 4 gate semantics (closed during
 	# REVEAL, open-all at JUDGING); Slice 5's per-beat opening is covered by
 	# TestGameSessionReveal.
@@ -66,8 +68,6 @@ func _make_rig(player_count: int = 4, round_count: int = 2) -> Rig:
 	rig.session.use_pools(pools)
 	rig.session.phase_entered.connect(func(p: NetIds.Phase, d: Dictionary) -> void:
 		rig.phases.append({"phase": p, "data": d}))
-	rig.session.reaction_counts_changed.connect(func(id: String, counts: Dictionary) -> void:
-		rig.reaction_syncs.append({"drawing_id": id, "counts": counts}))
 	rig.session.kudos_total_changed.connect(func(id: String, total: int) -> void:
 		rig.kudos_syncs.append({"drawing_id": id, "total": total}))
 	rig.session.kudos_confirmed.connect(func(pid: String, id: String, remaining: int) -> void:
@@ -135,89 +135,20 @@ func test_allotment_zero_disables_kudos() -> void:
 		assert_bool(rig.session.give_kudos("p0", id)).is_false()
 
 
-# --- react validators ---
+# --- kudos validators / economy ---
 
 
-func test_react_validator_gate_closed_drops() -> void:
-	var rig: Rig = _make_rig()
-	rig.session.start_game()
-	rig.session.on_phase_deadline()  # DRAWING
-	rig.session.on_phase_deadline()  # REVEAL - v1 grid beat, gate still closed
-	var target: String = rig.entry_ids()[0]
-	assert_bool(rig.session.react("p0", target, NetIds.Reaction.LAUGH, true)).is_false()
-	rig.session.on_phase_deadline()  # JUDGING - gate opens
-	assert_bool(rig.session.react("p0", target, NetIds.Reaction.LAUGH, true)).is_true()
-
-
-func test_react_validator_grace_window_accepts() -> void:
-	var rig: Rig = _make_rig()
+func test_kudos_grace_window_accepts_then_drops() -> void:
+	var rig: Rig = _make_rig(4, 6)   # AUTO: 6 rounds -> 2 kudos
 	_to_judging(rig)
-	var target: String = rig.entry_ids()[0]
+	var ids: Array[String] = rig.entry_ids()
 	rig.session.on_phase_deadline()  # JUDGING lapses -> RESOLUTION, gate closes
 	# Racing request inside the grace window still counts (§10)...
-	assert_bool(rig.session.react("p0", target, NetIds.Reaction.WOW, true)).is_true()
-	# ...but past the grace it drops.
-	rig.clock.advance(GameConstants.REACTION_CLOSE_GRACE_MSEC + 1)
-	assert_bool(rig.session.react("p0", target, NetIds.Reaction.FIRE, true)).is_false()
-
-
-func test_react_validator_rejects_invalid_reaction_and_unknown_drawing() -> void:
-	var rig: Rig = _make_rig()
-	_to_judging(rig)
-	var target: String = rig.entry_ids()[0]
-	assert_bool(rig.session.react("p0", target, 99, true)).is_false()
-	assert_bool(rig.session.react("p0", target, -1, true)).is_false()
-	assert_bool(rig.session.react("p0", "bogus-id", NetIds.Reaction.LAUGH, true)).is_false()
-
-
-func test_own_drawing_react_rejected() -> void:
-	var rig: Rig = _make_rig()
-	_to_judging(rig)
-	# p1 reacts to every entry; exactly one (their own) is rejected.
-	var rejected: int = 0
-	for id: String in rig.entry_ids():
-		if not rig.session.react("p1", id, NetIds.Reaction.LAUGH, true):
-			rejected += 1
-	assert_int(rejected).is_equal(1)
-
-
-func test_noop_toggle_not_broadcast() -> void:
-	var rig: Rig = _make_rig()
-	_to_judging(rig)
-	var target: String = rig.entry_ids()[0]
-	rig.session.react("p0", target, NetIds.Reaction.LAUGH, true)
-	var syncs_before: int = rig.reaction_syncs.size()
-	assert_bool(rig.session.react("p0", target, NetIds.Reaction.LAUGH, true)).is_false()
-	assert_int(rig.reaction_syncs.size()).is_equal(syncs_before)
-
-
-func test_react_toggle_roundtrip_updates_counts_and_stats() -> void:
-	var rig: Rig = _make_rig()
-	rig.session.start_game()
-	rig.session.on_phase_deadline()  # DRAWING
-	# Distinguishable docs so the test can target p1's drawing specifically
-	# (entries are anonymized; p2 must not react to their own).
-	rig.session.submit_drawing("p1", {"doc": {"v": 1, "orientation": "landscape", "ops": [{"t": "clear"}]}})
-	rig.session.submit_drawing("p2", {"doc": {"v": 1, "orientation": "landscape", "ops": [{"t": "clear"}, {"t": "clear"}]}})
-	rig.session.submit_drawing("p3", {"doc": {"v": 1, "orientation": "landscape", "ops": [{"t": "clear"}, {"t": "clear"}, {"t": "clear"}]}})
-	for ready_pid: String in ["p1", "p2", "p3"]:
-		rig.session.set_ready(ready_pid, true)   # Slice 17: ready ends DRAWING
-	rig.session.on_phase_deadline()  # REVEAL -> JUDGING
-	var target: String = ""
-	for entry: Dictionary in rig.entries():
-		if ((entry["doc"] as Dictionary)["ops"] as Array).size() == 1:
-			target = str(entry["drawing_id"])   # p1's drawing
-	rig.session.react("p0", target, NetIds.Reaction.LAUGH, true)
-	rig.session.react("p2", target, NetIds.Reaction.LAUGH, true)
-	rig.session.react("p0", target, NetIds.Reaction.LAUGH, false)
-	assert_int(rig.reaction_syncs.size()).is_equal(3)
-	var last: Dictionary = rig.reaction_syncs[2]
-	assert_str(str(last["drawing_id"])).is_equal(target)
-	assert_that(last["counts"]).is_equal({NetIds.Reaction.LAUGH: 1})
-	assert_int(rig.session.session_stats().reaction_events.size()).is_equal(3)
-
-
-# --- kudos validators / economy ---
+	assert_bool(rig.session.give_kudos("p0", ids[0])).is_true()
+	# ...but past the grace it drops (budget still has 1 left - it is the
+	# gate, not the wallet, doing the rejecting).
+	rig.clock.advance(GameConstants.SOCIAL_CLOSE_GRACE_MSEC + 1)
+	assert_bool(rig.session.give_kudos("p0", ids[1])).is_false()
 
 
 func test_judge_kudos_allowed_and_confirms_with_remaining() -> void:
@@ -310,26 +241,27 @@ func test_kudos_score_applies_host_side_but_broadcast_defers_to_resolution() -> 
 
 
 func test_gate_reopens_each_judging_and_closes_after() -> void:
-	var rig: Rig = _make_rig(4, 2)
+	# Explicit allotment: the gate is what's under test, never the wallet.
+	var rig: Rig = _make_rig(4, 2, 8)
 	_to_judging(rig)
 	var round0_target: String = rig.entry_ids()[0]
-	assert_bool(rig.session.react("p0", round0_target, NetIds.Reaction.LAUGH, true)).is_true()
+	assert_bool(rig.session.give_kudos("p0", round0_target)).is_true()
 	rig.session.on_phase_deadline()  # -> RESOLUTION (closes gate)
-	rig.clock.advance(GameConstants.REACTION_CLOSE_GRACE_MSEC + 1)
-	assert_bool(rig.session.react("p0", round0_target, NetIds.Reaction.LOVE, true)).is_false()
+	rig.clock.advance(GameConstants.SOCIAL_CLOSE_GRACE_MSEC + 1)
+	assert_bool(rig.session.give_kudos("p0", rig.entry_ids()[1])).is_false()
 	rig.session.on_phase_deadline()  # -> ROUND_INTRO (round 1)
 	rig.session.on_phase_deadline()  # -> DRAWING
 	rig.session.on_phase_deadline()  # -> REVEAL
-	assert_bool(rig.session.react("p1", rig.entry_ids()[0], NetIds.Reaction.LAUGH, true)).is_false()
+	assert_bool(rig.session.give_kudos("p1", rig.entry_ids()[0])).is_false()
 	rig.session.on_phase_deadline()  # -> JUDGING (gate reopens for round 1 set)
 	var judge: String = rig.session.current_judge_id()   # p1 after rotation
-	var reacted: int = 0
+	var accepted: int = 0
 	for id: String in rig.entry_ids():
-		if rig.session.react(judge, id, NetIds.Reaction.FIRE, true):
-			reacted += 1
-	assert_int(reacted).is_equal(3)   # the judge reacts to all of round 1's drawings
+		if rig.session.give_kudos(judge, id):
+			accepted += 1
+	assert_int(accepted).is_equal(3)   # the judge kudos all of round 1's drawings
 	# Round 0 ids are NOT part of the reopened set.
-	assert_bool(rig.session.react(judge, round0_target, NetIds.Reaction.FIRE, true)).is_false()
+	assert_bool(rig.session.give_kudos(judge, round0_target)).is_false()
 
 
 func test_stats_register_drawings_and_winner() -> void:
@@ -349,7 +281,6 @@ func test_results_bundle_carries_social_aggregates() -> void:
 	var rig: Rig = _make_rig(4, 1)
 	_to_judging(rig)
 	var target: String = rig.entry_ids()[0]
-	rig.session.react("p0", target, NetIds.Reaction.LAUGH, true)
 	rig.session.give_kudos("p0", target)
 	rig.session.on_phase_deadline()  # -> RESOLUTION (no pick)
 	rig.session.on_phase_deadline()  # -> WRAP_UP (1-round game)
@@ -359,8 +290,6 @@ func test_results_bundle_carries_social_aggregates() -> void:
 	assert_str(author).is_not_empty()
 	assert_that(rig.results["kudos_stats"]["received_by_author"]).is_equal({author: 1})
 	assert_that(rig.results["kudos_stats"]["drawing_totals"]).is_equal({target: 1})
-	assert_that(rig.results["reaction_stats"]["totals_by_author"]).is_equal(
-			{author: {NetIds.Reaction.LAUGH: 1}})
 	# Kudos +1 and judge -1 both present in the final scores.
 	assert_int(int((rig.results["final_scores"] as Dictionary)[author])).is_equal(1)
 	assert_int(int((rig.results["final_scores"] as Dictionary)["p0"])).is_equal(-1)

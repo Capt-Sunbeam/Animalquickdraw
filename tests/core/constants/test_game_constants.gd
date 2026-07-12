@@ -37,7 +37,3 @@ func test_phase_enum_has_all_nine_values() -> void:
 	assert_int(NetIds.Phase.size()).is_equal(9)
 	assert_int(NetIds.Phase.LOBBY).is_equal(0)
 	assert_int(NetIds.Phase.PAUSED).is_equal(8)
-
-
-func test_reaction_enum_has_six_values() -> void:
-	assert_int(NetIds.Reaction.size()).is_equal(6)

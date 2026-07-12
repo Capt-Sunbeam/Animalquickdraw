@@ -1,11 +1,11 @@
 class_name TestWrapupScenes
 extends GdUnitTestSuite
-## Slice 10 UI/relay tests (TDD §11): the EventBus signal order contract on
-## WRAP_UP, bundle validation at the relay, scene smokes for all four wrap-up
-## components, skip semantics, and the empty-bundle fast-forward.
+## Slice 10 UI/relay tests (TDD §11; superlatives retired by Slice 19): the
+## EventBus signal order contract on WRAP_UP, bundle validation at the relay,
+## scene smokes for the wrap-up screen / title card / standings panel, skip
+## semantics, and the empty-bundle fast-forward.
 
 const WRAP_UP_SCREEN: PackedScene = preload("res://ui/wrapup/wrap_up_screen.tscn")
-const SUPERLATIVE_CARD: PackedScene = preload("res://ui/wrapup/superlative_card.tscn")
 const TITLE_CARD: PackedScene = preload("res://ui/wrapup/title_card.tscn")
 const STANDINGS_PANEL: PackedScene = preload("res://ui/wrapup/standings_panel.tscn")
 const SESSION_CLIENT_SCRIPT: GDScript = preload("res://game/session/session_client.gd")
@@ -20,9 +20,6 @@ func _stroke_doc() -> Dictionary:
 func _valid_bundle() -> Dictionary:
 	return {
 		"v": 1, "early_end": false, "rounds_completed": 2,
-		"superlatives": [{"id": "funniest", "reaction": 0, "drawing_id": "d0",
-				"author_id": "p1", "count": 3, "round": 0, "prompt": "sleepy aardvark",
-				"points": 1}],
 		"titles": [{"id": TitleIds.HOTSHOT, "player_id": "p0", "stat_value": 2,
 				"stat_label": "2 kudos received", "evidence_drawing_ids": ["d0"],
 				"points": 1}],
@@ -76,7 +73,8 @@ func test_wrap_up_signals_fire_in_documented_order_before_phase_changed() -> voi
 	EventBus.game_ended.disconnect(on_ended)
 	EventBus.phase_changed.disconnect(on_phase)
 	assert_array(order).contains_exactly(["results", "started", "titles", "ended", "phase"])
-	assert_dict(titles_map).is_equal({"p0": TitleIds.HOTSHOT})
+	# Slice 19: titles stack - the map carries an Array of ids per player.
+	assert_dict(titles_map).is_equal({"p0": [TitleIds.HOTSHOT]})
 	assert_int(ended_standings.size()).is_equal(2)
 
 
@@ -132,16 +130,10 @@ func test_screen_with_empty_results_fast_forwards_to_post_game() -> void:
 func test_screen_skip_semantics_finish_then_advance_through_all_acts() -> void:
 	var screen: Control = _instantiate_screen()
 	screen.setup({"results": {"wrap_up": _valid_bundle()}}, null)
-	# Act 1: superlative card, replay flourish running.
+	# Act 1: title card (Slice 19: the plan is title cards -> standings).
 	var card: Control = screen._card
-	assert_object(card).is_instanceof(SuperlativeCard)
-	assert_bool(card.is_animating()).is_true()
-	screen._on_skip_pressed()                       # 1st press: finish the flourish
-	assert_bool(card.is_animating()).is_false()
-	assert_object(screen._card).is_same(card)       # still the same card
-	screen._on_skip_pressed()                       # 2nd press: advance
-	assert_object(screen._card).is_instanceof(TitleCard)
-	var name_label: Label = screen._card.find_child("NameLabel", true, false)
+	assert_object(card).is_instanceof(TitleCard)
+	var name_label: Label = card.find_child("NameLabel", true, false)
 	assert_str(name_label.text).is_equal("Alice")   # resolved from standings
 	screen._on_skip_pressed()                       # static card: advance directly
 	assert_object(screen._card).is_instanceof(StandingsPanel)
@@ -166,25 +158,6 @@ func test_screen_early_end_badge_wording() -> void:
 
 
 # --- component smokes ---
-
-
-func test_superlative_card_presents_award_replay_and_author() -> void:
-	var card: SuperlativeCard = auto_free(SUPERLATIVE_CARD.instantiate())
-	add_child(card)
-	var bundle: Dictionary = _valid_bundle()
-	card.present(bundle["superlatives"][0], bundle["drawings"]["d0"], "Bob")
-	assert_str((card.find_child("AwardLabel", true, false) as Label).text)\
-			.is_equal("🏆 Funniest Drawing")
-	assert_str((card.find_child("ReactionLabel", true, false) as Label).text)\
-			.is_equal("😂 ×3")
-	assert_str((card.find_child("AuthorLabel", true, false) as Label).text)\
-			.is_equal("drawn by Bob")
-	assert_bool((card.find_child("PointsChip", true, false) as Label).visible).is_true()
-	assert_bool(card.is_animating()).is_true()
-	assert_float(card.display_secs())\
-			.is_greater(GameConstants.WRAPUP_SUPERLATIVE_CARD_SECONDS - 0.001)
-	card.finish_now()
-	assert_bool(card.is_animating()).is_false()
 
 
 func test_title_card_marks_disconnected_players_and_fans_evidence() -> void:

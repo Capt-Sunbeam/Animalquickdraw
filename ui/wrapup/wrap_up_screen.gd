@@ -1,28 +1,33 @@
 extends Control
-## The end-game wrap-up sequence (Slice 10 TDD §5/§7): superlative cards ->
+## The end-game wrap-up sequence (Slice 10 TDD §5/§7, reworked by Slice 19):
 ## title cards -> final standings, played locally at each peer's own pace
 ## with a per-peer Skip. Everything renders from the host-computed bundle in
-## results["wrap_up"] - no further host coordination after the broadcast, so
-## the sequence even survives a host disconnect (Session holds the host-quit
+## results["wrap_up"] - no further host coordination after the broadcast
+## (the Slice 19 skip VOTE being the one deliberate exception), so the
+## sequence even survives a host disconnect (Session holds the host-quit
 ## navigation until the show ends, then this screen degrades to Leave-only).
-## Replaces Slice 3's placeholder standings screen.
+## Slice 19: superlatives retired; the ceremony act only plays when
+## settings.title_ceremony is on (badges on the standings show regardless);
+## a majority "Skip ceremony" vote jumps every peer to standings.
 
-const SUPERLATIVE_CARD: PackedScene = preload("res://ui/wrapup/superlative_card.tscn")
 const TITLE_CARD: PackedScene = preload("res://ui/wrapup/title_card.tscn")
 const STANDINGS_PANEL: PackedScene = preload("res://ui/wrapup/standings_panel.tscn")
 
+var _client: SessionClient = null
 var _bundle: Dictionary = {}
-var _plan: Array[Dictionary] = []        # [{"kind": "super"|"title"|"standings", "entry": {}}]
+var _plan: Array[Dictionary] = []        # [{"kind": "title"|"standings", "entry": {}}]
 var _plan_index: int = -1
 var _card: Control = null
 var _player_names: Dictionary = {}       # platform_id -> {"name": String, "connected": bool}
 var _done: bool = false
+var _voted_skip: bool = false
 var _card_timer: Timer = null
 
 @onready var _stage: CenterContainer = %Stage
 @onready var _rounds_badge: Label = %RoundsBadge
 @onready var _progress_label: Label = %ProgressLabel
 @onready var _skip_button: Button = %SkipButton
+@onready var _skip_ceremony_button: Button = %SkipCeremonyButton
 @onready var _post_game: HBoxContainer = %PostGame
 @onready var _back_button: Button = %BackButton
 @onready var _leave_button: Button = %LeaveButton
@@ -35,6 +40,8 @@ func _ready() -> void:
 	_card_timer.timeout.connect(_next_card)
 	add_child(_card_timer)
 	_skip_button.pressed.connect(_on_skip_pressed)
+	_skip_ceremony_button.pressed.connect(_on_skip_ceremony_pressed)
+	EventBus.ceremony_skip_updated.connect(_on_ceremony_skip_updated)
 	_back_button.pressed.connect(Session.return_to_lobby)
 	_leave_button.pressed.connect(Session.leave)
 	_post_game.visible = false
@@ -44,7 +51,8 @@ func _ready() -> void:
 	tree_exiting.connect(func() -> void: Session.hold_host_quit(false))
 
 
-func setup(data: Dictionary, _client: SessionClient) -> void:
+func setup(data: Dictionary, client: SessionClient) -> void:
+	_client = client
 	var results: Dictionary = data.get("results", {})
 	var raw: Variant = results.get("wrap_up")
 	_bundle = raw if SessionClient.is_valid_wrap_up_bundle(raw) else _fallback_bundle(results)
@@ -57,13 +65,14 @@ func setup(data: Dictionary, _client: SessionClient) -> void:
 	var rounds: int = int(_bundle.get("rounds_completed", 0))
 	_rounds_badge.text = ("ended early • %d %s" if bool(_bundle.get("early_end", false)) \
 			else "%d %s") % [rounds, "round" if rounds == 1 else "rounds"]
-	for entry: Variant in _bundle.get("superlatives", []):
-		if entry is Dictionary:
-			_plan.append({"kind": "super", "entry": entry})
-	for entry: Variant in _bundle.get("titles", []):
-		if entry is Dictionary:
-			_plan.append({"kind": "title", "entry": entry})
+	# Slice 19: the awards ceremony is a setting; badges-only games go
+	# straight to standings. Frozen-snapshot read (cg reality note).
+	if Session.game_settings.title_ceremony:
+		for entry: Variant in _bundle.get("titles", []):
+			if entry is Dictionary:
+				_plan.append({"kind": "title", "entry": entry})
 	_plan.append({"kind": "standings", "entry": {}})
+	_skip_ceremony_button.visible = _plan.size() > 1
 	_next_card()
 
 
@@ -101,13 +110,6 @@ func _next_card() -> void:
 	var item: Dictionary = _plan[_plan_index]
 	var entry: Dictionary = item["entry"]
 	match str(item["kind"]):
-		"super":
-			var card: SuperlativeCard = SUPERLATIVE_CARD.instantiate()
-			_stage.add_child(card)
-			card.present(entry, _drawing_for(str(entry.get("drawing_id", ""))),
-					_name_of(str(entry.get("author_id", ""))))
-			_card = card
-			_card_timer.start(maxf(0.1, card.display_secs()))
 		"title":
 			var card: TitleCard = TITLE_CARD.instantiate()
 			_stage.add_child(card)
@@ -121,12 +123,53 @@ func _next_card() -> void:
 			_card = card
 			_card_timer.start(maxf(0.1, card.display_secs()))
 		"standings":
+			_skip_ceremony_button.visible = false   # Slice 19: vote is moot now
 			var panel: StandingsPanel = STANDINGS_PANEL.instantiate()
 			_stage.add_child(panel)
 			panel.finished.connect(_on_sequence_finished)
-			panel.present(_bundle.get("standings", []))
+			panel.present(_bundle.get("standings", []), _titles_by_player())
 			_card = panel
 	_progress_label.text = _progress_dots()
+
+
+# --- Slice 19: ceremony skip vote ---
+
+
+## Voting also jumps YOUR view straight to standings (a voter wants out
+## now); the broadcast moves everyone else when the majority lands.
+func _on_skip_ceremony_pressed() -> void:
+	if _done or _voted_skip:
+		return
+	_voted_skip = true
+	_skip_ceremony_button.disabled = true
+	if _client != null:
+		_client.request_skip_ceremony()
+	_jump_to_standings()
+
+
+func _on_ceremony_skip_updated(votes: int, needed: int, skipped: bool) -> void:
+	if skipped:
+		_jump_to_standings()
+	elif _skip_ceremony_button.visible:
+		_skip_ceremony_button.text = "Skip ceremony (%d/%d)" % [votes, needed]
+
+
+func _jump_to_standings() -> void:
+	if _done or _plan_index >= _plan.size() - 1:
+		return   # already at (or past) the standings act
+	_plan_index = _plan.size() - 2   # _next_card advances onto standings
+	_next_card()
+
+
+## platform_id -> Array[String] of title DISPLAY names, for standings badges.
+func _titles_by_player() -> Dictionary:
+	var out: Dictionary = {}
+	for entry: Variant in _bundle.get("titles", []):
+		if entry is Dictionary:
+			var pid: String = str((entry as Dictionary).get("player_id", ""))
+			(out.get_or_add(pid, []) as Array).append(
+					TitleIds.display_name(str((entry as Dictionary).get("id", ""))))
+	return out
 
 
 func _on_sequence_finished() -> void:
@@ -198,6 +241,6 @@ func _fallback_bundle(results: Dictionary) -> Dictionary:
 		"v": WrapUpCalculator.BUNDLE_VERSION,
 		"early_end": bool(results.get("ended_early", false)),
 		"rounds_completed": int(results.get("rounds_played", 0)),
-		"superlatives": [], "titles": [], "standings": standings,
+		"titles": [], "standings": standings,
 		"kudos": {}, "drawings": {},
 	}

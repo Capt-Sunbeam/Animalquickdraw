@@ -222,3 +222,41 @@ func test_slice9_keys_round_trip_and_default() -> void:
 	assert_bool(old.is_public).is_false()
 	assert_bool(old.fluid_rejoin).is_true()
 	assert_bool(old.fluid_rejoin_overridden).is_false()
+
+
+# --- Slice 19: titles_enabled / title_ceremony ---
+
+
+func test_slice19_keys_round_trip_and_default() -> void:
+	var s := GameSettings.new()
+	assert_bool(s.titles_enabled).is_true()      # defaults on
+	assert_bool(s.title_ceremony).is_true()
+	s.apply_preset(SettingsDefaults.Mode.CUSTOM)
+	assert_bool(s.set_value(&"titles_enabled", false)).is_true()
+	assert_bool(s.set_value(&"title_ceremony", false)).is_true()
+	var back: GameSettings = GameSettings.from_dict(s.to_dict())
+	assert_bool(back.titles_enabled).is_false()
+	assert_bool(back.title_ceremony).is_false()
+	# Pre-Slice-19 payloads default cleanly (missing keys -> true).
+	var old: GameSettings = GameSettings.from_dict({})
+	assert_bool(old.titles_enabled).is_true()
+	assert_bool(old.title_ceremony).is_true()
+
+
+func test_streamlined_preset_turns_ceremony_off_titles_stay_on() -> void:
+	var s := GameSettings.new()
+	s.apply_preset(SettingsDefaults.Mode.STREAMLINED)
+	assert_bool(s.titles_enabled).is_true()      # badges still show
+	assert_bool(s.title_ceremony).is_false()     # pace is the identity
+	s.apply_preset(SettingsDefaults.Mode.DEFAULT)
+	assert_bool(s.title_ceremony).is_true()      # preset switch restores it
+
+
+func test_slice19_keys_preset_locked_outside_custom() -> void:
+	var s := GameSettings.new()
+	s.apply_preset(SettingsDefaults.Mode.DEFAULT)
+	assert_bool(s.is_locked(&"titles_enabled")).is_true()
+	assert_bool(s.set_value(&"titles_enabled", false)).is_false()
+	s.apply_preset(SettingsDefaults.Mode.CUSTOM)
+	assert_bool(s.is_locked(&"titles_enabled")).is_false()
+	assert_bool(s.is_locked(&"title_ceremony")).is_false()

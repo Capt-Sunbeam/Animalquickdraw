@@ -8,8 +8,6 @@ extends RefCounted
 
 signal phase_entered(phase: NetIds.Phase, data: Dictionary)
 signal session_finished(results: Dictionary)
-## Slice 4: a drawing's aggregate reaction counts changed (nonzero keys only).
-signal reaction_counts_changed(drawing_id: String, counts: Dictionary)
 ## Slice 4: a drawing's public kudos total changed.
 signal kudos_total_changed(drawing_id: String, total: int)
 ## Slice 4: a kudos was accepted; SessionClient confirms privately to the
@@ -74,9 +72,8 @@ var _round_forfeits: Array[Dictionary] = []  # this round's dodge forfeits (intr
 var _standard_allotment: int = 0           # cached at start; late joiners get half (§11)
 
 # Slice 4: host-only social state (all keyed by stable platform ids).
-var _reaction_ledger: ReactionLedger = ReactionLedger.new()
 var _kudos_ledger: KudosLedger = KudosLedger.new()
-var _reaction_gate: ReactionGate
+var _social_gate: SocialGate
 var _session_stats: SessionStats
 
 # Slice 5: reveal choreography plan for the current round (host-only).
@@ -91,7 +88,7 @@ func _init(settings: GameSettings, roster: Roster, now_ms: Callable = Callable()
 	_settings = settings
 	_roster = roster
 	_now_ms = now_ms if now_ms.is_valid() else Callable(GameSession, "_system_now_ms")
-	_reaction_gate = ReactionGate.new(_now_ms)
+	_social_gate = SocialGate.new(_now_ms)
 	_session_stats = SessionStats.new(_now_ms)
 	rng.randomize()
 
@@ -313,33 +310,13 @@ func pool_setup_progress() -> Array:
 	return out
 
 
-## Slice 4: reaction toggle. Shared validated entry point - the RPC handler
-## and the host's own UI both call this (5-step steps 3-4; steps 1-2 live in
-## SessionClient). Returns false on any invalid/no-op request (drop, never
-## crash - brief §13).
-func react(player_id: String, drawing_id: String, reaction_value: int, active: bool) -> bool:
-	if not _reaction_gate.is_open_for(drawing_id):
-		return false                                    # window closed (incl. grace, §10)
-	if reaction_value < 0 or reaction_value >= NetIds.Reaction.size():
-		return false                                    # not a NetIds.Reaction
-	var author: String = str(_authors.get(drawing_id, ""))
-	if author.is_empty() or author == player_id:
-		return false                                    # unknown drawing / own drawing
-	var reaction: NetIds.Reaction = reaction_value as NetIds.Reaction
-	if not _reaction_ledger.set_reaction(drawing_id, reaction, player_id, active):
-		return false                                    # no-op toggle or event cap - not broadcast
-	_session_stats.record_reaction(_round_index, drawing_id, reaction, player_id, active)
-	reaction_counts_changed.emit(drawing_id, _reaction_ledger.counts_for(drawing_id))
-	return true
-
-
 ## Slice 4: spend one kudos on someone else's drawing. +1 to the author's
 ## score applies immediately host-side; the scoreboard broadcast stays
 ## deferred to RESOLUTION (Slice 3 contract - no score sync exists between
 ## phases, so anonymity holds by construction). Host processes requests in
 ## arrival order - host order wins the last-kudos race (§10).
 func give_kudos(player_id: String, drawing_id: String) -> bool:
-	if not _reaction_gate.is_open_for(drawing_id):
+	if not _social_gate.is_open_for(drawing_id):
 		return false
 	var author: String = str(_authors.get(drawing_id, ""))
 	if author.is_empty() or author == player_id:
@@ -362,7 +339,7 @@ func give_kudos(player_id: String, drawing_id: String) -> bool:
 	return true
 
 
-## Slice 4/10: host-side stats surface (Slice 10 mines superlatives here).
+## Slice 4/10: host-side stats surface (Slice 10 mines titles here).
 func session_stats() -> SessionStats:
 	return _session_stats
 
@@ -713,12 +690,12 @@ func _collect_and_reveal() -> void:
 		_authors[sub.drawing_id] = pid
 		_round.submissions.append(sub)
 		_entries.append({"drawing_id": sub.drawing_id, "doc": sub.doc})
-		# Slice 4: stats registration (blanks included - they are reactable).
+		# Slice 4: stats registration (blanks included - they can take kudos).
 		_session_stats.register_drawing(sub.drawing_id, _round_index, pid,
 				_round.prompt.display_text if _round.prompt != null else "")
 	_shuffle_entries()
 	# Slice 10: the post-shuffle order IS the on-screen reveal order - the
-	# superlative tie-break key. Recorded per round, never re-derived.
+	# title-evidence tie-break key. Recorded per round, never re-derived.
 	_round.reveal_order.clear()
 	for entry: Dictionary in _entries:
 		_round.reveal_order.append(str(entry["drawing_id"]))
@@ -747,12 +724,12 @@ func _advance_reveal() -> void:
 	var action: Dictionary = _reveal_director.next_action()
 	if action.has("beat"):
 		var beat: Dictionary = action["beat"]
-		_reaction_gate.close()
-		_reaction_gate.open_for(PackedStringArray([str(beat["drawing_id"])]))
+		_social_gate.close()
+		_social_gate.open_for(PackedStringArray([str(beat["drawing_id"])]))
 		reveal_beat_started.emit(int(beat["index"]), str(beat["drawing_id"]),
 				float(beat["secs"]))
 	elif action.has("gather"):
-		_reaction_gate.close()
+		_social_gate.close()
 		reveal_gather_started.emit(float(action["gather"]))
 	else:
 		_open_judging()
@@ -785,12 +762,12 @@ func _censor_text_ops(doc: Dictionary) -> Dictionary:
 
 func _open_judging() -> void:
 	_pending_winner_id = ""   # fresh latch; a stale pick must never carry over
-	# Slice 4: the whole reveal set accepts reactions/kudos during JUDGING
+	# Slice 4: the whole reveal set accepts kudos during JUDGING
 	# (Slice 5 additionally opens per-drawing beats during REVEAL).
 	var ids := PackedStringArray()
 	for entry: Dictionary in _entries:
 		ids.append(str(entry["drawing_id"]))
-	_reaction_gate.open_all(ids)
+	_social_gate.open_all(ids)
 	# Slice 6: the window is a host-tunable setting (was a Slice 3 constant).
 	_enter_phase(NetIds.Phase.JUDGING, _settings.judging_window_sec, {})
 
@@ -799,7 +776,7 @@ func _open_judging() -> void:
 ## author is resolved from the private map - the only moment authorship is
 ## revealed, and only for the winner.
 func _finish_judging(winner_drawing_id: String) -> void:
-	_reaction_gate.close()   # Slice 4: grace window absorbs racing requests (§10)
+	_social_gate.close()   # Slice 4: grace window absorbs racing requests (§10)
 	var data: Dictionary = {"picked": false, "winner_drawing_id": "",
 			"winner_player_id": "", "winner_display_name": ""}
 	if winner_drawing_id.is_empty():
@@ -853,7 +830,8 @@ func _advance_round() -> void:
 
 
 ## SessionResults bundle (§2) - Slices 4/10 extend it; unknown keys must be
-## tolerated by all readers. reaction_stats/kudos_stats reserved for Slice 4.
+## tolerated by all readers. kudos_stats reserved for Slice 4 (reaction_stats
+## retired with the emoji system, Slice 19).
 ## Slice 9 folds the TDD-09 §6 wrap-up input contract into this same bundle
 ## (deviation: one results shape, not a parallel get_wrapup_input dict):
 ## ended_early / rounds_played / rounds_planned / players. Disconnected
@@ -862,8 +840,8 @@ func _advance_round() -> void:
 ## Slice 10 (same precedent): the computed wrap-up bundle rides in the
 ## "wrap_up" key - one replication channel, no dedicated bundle RPC. The
 ## base final_scores/standings keys stay BASE scores (Slice 3 shape pin);
-## title/superlative points live only in wrap_up.standings, the
-## authoritative final display order.
+## title points live only in wrap_up.standings, the authoritative final
+## display order.
 func _build_results(early: bool = false) -> Dictionary:
 	var rounds: Array[Dictionary] = []
 	for record: RoundRecord in _records:
@@ -890,16 +868,14 @@ func _build_results(early: bool = false) -> Dictionary:
 		# Slice 4 aggregates (uid-keyed). Slice 10 mines the full SessionStats
 		# host-side; these bundle keys carry the shareable rollups to all
 		# peers. Readers must tolerate unknown keys.
-		"reaction_stats": {
-			"totals_by_author": _session_stats.reaction_totals_by_author(),
-		},
 		"kudos_stats": {
 			"received_by_author": _session_stats.kudos_received_by_author(),
 			"drawing_totals": _kudos_ledger.totals(),
 		},
 		"wrap_up": WrapUpCalculator.build_bundle(_records, _session_stats,
 				_wrapup_players_meta(), _scoring.snapshot(), _judge_order,
-				_settings.draw_time_sec, _settings.title_points_enabled, early),
+				_settings.draw_time_sec, _settings.title_points_enabled, early,
+				_settings.titles_enabled),
 	}
 
 
