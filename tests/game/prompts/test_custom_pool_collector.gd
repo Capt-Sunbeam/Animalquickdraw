@@ -88,6 +88,11 @@ func test_submit_rejected_validation_matrix() -> void:
 	# Multiline.
 	assert_int(c.submit("p0", "animals", _words(["aard\nvark", "heron"])))\
 			.is_equal(NetIds.WordRejectReason.BAD_LENGTH)
+	# ANY control char, not just newline (Slice 13 security audit).
+	assert_int(c.submit("p0", "animals", _words(["aard\tvark", "heron"])))\
+			.is_equal(NetIds.WordRejectReason.BAD_LENGTH)
+	assert_int(c.submit("p0", "animals", _words(["aard\rvark", "heron"])))\
+			.is_equal(NetIds.WordRejectReason.BAD_LENGTH)
 	# Nothing leaked through any failed attempt.
 	assert_array(c.collected_words("animals")).is_empty()
 

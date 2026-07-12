@@ -7,13 +7,23 @@ extends GdUnitTestSuite
 const SessionManagerScript: GDScript = preload("res://game/session/session_manager.gd")
 
 
+var _saved_peer: MultiplayerPeer = null
+
+
 func before_test() -> void:
 	# Deterministic blocklist for name/chat censoring tests.
 	TextFilter.configure(PackedStringArray(["badword"]))
+	# Slice 13 kick tests: the harness assigns no multiplayer peer, so
+	# multiplayer.is_server() errors AND returns false. An offline peer makes
+	# is_server() true and lets call_local RPCs execute locally while
+	# call_remote ones no-op - exactly the host's solo view of a kick.
+	_saved_peer = multiplayer.multiplayer_peer
+	multiplayer.multiplayer_peer = OfflineMultiplayerPeer.new()
 
 
 func after_test() -> void:
 	TextFilter.configure(PackedStringArray())  # reload real blocklist lazily
+	multiplayer.multiplayer_peer = _saved_peer
 
 
 # --- sanitize_name ---
@@ -117,6 +127,105 @@ func test_ingame_register_action_matrix() -> void:
 	# Identity sanity outranks everything (§13 untrusted input).
 	assert_str(SessionRules.ingame_register_action(false, false, 4, ""))\
 			.is_equal("bad_identity")
+
+
+# --- Slice 13: kick + blocklist enforcement ---
+
+
+func test_register_validator_blocklist_beats_every_other_reason() -> void:
+	# A kicked player always hears "kicked" - even when the lobby is also
+	# full or the game has started (the honest reason, TDD 13 §3).
+	assert_str(SessionRules.register_reject_reason(
+			NetIds.Phase.LOBBY, 1, "uuid-ok", true)).is_equal("kicked")
+	assert_str(SessionRules.register_reject_reason(
+			NetIds.Phase.LOBBY, GameConstants.MAX_PLAYERS, "uuid-ok", true)).is_equal("kicked")
+	assert_str(SessionRules.register_reject_reason(
+			NetIds.Phase.DRAWING, 1, "uuid-ok", true)).is_equal("kicked")
+
+
+func test_ingame_register_blocklist_beats_rejoin_memory() -> void:
+	# The kicked player's retained roster entry exists (Slice 9 memory), but
+	# the blocklist denies the return - unlike a normal disconnect.
+	assert_str(SessionRules.ingame_register_action(true, false, 4, "id-a", true))\
+			.is_equal("kicked")
+	assert_str(SessionRules.ingame_register_action(false, false, 4, "id-x", true))\
+			.is_equal("kicked")
+	# Normal disconnect stays rejoinable (not blocklisted).
+	assert_str(SessionRules.ingame_register_action(true, false, 4, "id-a", false))\
+			.is_equal("rejoin")
+
+
+func _make_treed_session() -> Node:
+	# kick_player needs multiplayer.is_server(), which needs a tree (default
+	# OfflineMultiplayerPeer reports server=true - broadcast_roster precedent).
+	var session: Node = auto_free(SessionManagerScript.new())
+	add_child(session)
+	return session
+
+
+func test_kick_player_blocklists_and_removes_in_lobby() -> void:
+	var session: Node = _make_treed_session()
+	session._apply_register(1, "uuid-host", "Host")
+	session._apply_register(2, "uuid-b", "Bob")
+	session._apply_register(3, "uuid-c", "Cleo")
+	session.kick_player(2)
+	assert_bool(session.roster.is_blocklisted("uuid-b")).is_true()
+	# Lobby-phase kick removes the entry entirely (Slice 2 lobby-leaver rule).
+	assert_object(session.roster.get_by_peer(2)).is_null()
+	assert_int(session.roster.connected_count()).is_equal(2)
+
+
+func test_kick_player_ingame_retains_entry_as_departed() -> void:
+	var session: Node = _make_treed_session()
+	session._apply_register(1, "uuid-host", "Host")
+	session._apply_register(2, "uuid-b", "Bob")
+	session.phase = NetIds.Phase.DRAWING
+	session.kick_player(2)
+	# In-game kick = departure with a no-return flag: entry retained (score
+	# row stays in standings), involvement ended, blocklist makes it final.
+	var entry: Roster.PlayerState = session.roster.get_by_platform_id("uuid-b")
+	assert_object(entry).is_not_null()
+	assert_bool(entry.is_connected).is_false()
+	assert_bool(session.roster.is_blocklisted("uuid-b")).is_true()
+
+
+func test_kick_host_self_and_unknown_peer_are_noops() -> void:
+	var session: Node = _make_treed_session()
+	session._apply_register(1, "uuid-host", "Host")
+	session._apply_register(2, "uuid-b", "Bob")
+	session.kick_player(1)    # host can never kick itself
+	session.kick_player(0)    # 0 would match disconnected entries - guarded
+	session.kick_player(99)   # unknown peer
+	assert_bool(session.roster.is_blocklisted("uuid-host")).is_false()
+	assert_int(session.roster.connected_count()).is_equal(2)
+
+
+func test_chat_strips_control_chars_against_line_spoofing() -> void:
+	# Slice 13 security audit: an embedded newline would render on every
+	# peer as a fake "Alice: ..." chat line attributed to someone else.
+	# The host strips control chars before censoring/broadcasting.
+	var session: Node = _make_treed_session()
+	session._apply_register(1, "uuid-host", "Host")
+	var captured: Array[String] = []
+	var handler: Callable = func(_peer: int, _name: String, text: String) -> void:
+		captured.append(text)
+	EventBus.chat_message_received.connect(handler)
+	session._handle_chat(1, "hi\nAlice: gotcha")
+	session._handle_chat(1, "tab\there")
+	session._handle_chat(1, "")   # nothing survives -> dropped
+	EventBus.chat_message_received.disconnect(handler)
+	assert_array(captured).is_equal(["hiAlice: gotcha", "tabhere"])
+
+
+func test_kicked_status_broadcast_emits_player_kicked() -> void:
+	var session: Node = _make_treed_session()
+	var captured: Array = []
+	var handler: Callable = func(platform_id: String, display_name: String) -> void:
+		captured.append([platform_id, display_name])
+	EventBus.player_kicked.connect(handler)
+	session.rpc_sync_player_status("uuid-b", NetIds.PlayerStatus.KICKED, "Bob")
+	EventBus.player_kicked.disconnect(handler)
+	assert_array(captured).is_equal([["uuid-b", "Bob"]])
 
 
 # --- shared registration path (host self-registration == client shape) ---

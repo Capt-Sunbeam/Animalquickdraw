@@ -145,6 +145,45 @@ func supports_invites() -> bool:
 	return _init_ok
 
 
+func supports_lobby_browser() -> bool:
+	return _init_ok
+
+
+## Coroutine (Slice 13). Steam-side string filters narrow the list to our
+## protocol's PUBLIC, still-in-lobby games (filters apply to the next
+## requestLobbyList only); rows come back as raw metadata for LobbyListing's
+## strict parse - browser data is advisory, the join handshake re-validates
+## everything (TDD 13 §10). Shares _match_lobbies with _resolve_code: fine,
+## the UI serializes list requests and code joins (different screens).
+func request_lobby_list() -> Dictionary:
+	if not _init_ok:
+		return {"ok": false, "lobbies": []}
+	_match_lobbies = null
+	Steam.addRequestLobbyListStringFilter(
+			LobbyMetadata.KEY_PROTO, NetIds.PROTOCOL_VERSION, Steam.LOBBY_COMPARISON_EQUAL)
+	Steam.addRequestLobbyListStringFilter(
+			LobbyMetadata.KEY_PUBLIC, "1", Steam.LOBBY_COMPARISON_EQUAL)
+	Steam.addRequestLobbyListStringFilter(
+			LobbyMetadata.KEY_STATE, LobbyMetadata.STATE_LOBBY, Steam.LOBBY_COMPARISON_EQUAL)
+	Steam.requestLobbyList()
+	if not await _await_flag(func() -> bool: return _match_lobbies != null):
+		return {"ok": false, "lobbies": []}
+	var lobbies: Array[Dictionary] = []
+	for lobby: Variant in _match_lobbies:
+		var lobby_id: int = int(lobby)
+		lobbies.append({"id": lobby_id, "meta": _read_lobby_meta(lobby_id)})
+	return {"ok": true, "lobbies": lobbies}
+
+
+## Full schema read for one listed lobby (list results carry their metadata;
+## getLobbyData needs no extra round trip).
+func _read_lobby_meta(lobby_id: int) -> Dictionary:
+	var meta: Dictionary = {}
+	for key: String in LobbyMetadata.ALL_KEYS:
+		meta[key] = Steam.getLobbyData(lobby_id, key)
+	return meta
+
+
 ## Maps a lobby_joined chat-room response to our short reason keys.
 ## Pure - unit-tested; values align with Slice 2's session_closed keys
 ## where they overlap ("full").

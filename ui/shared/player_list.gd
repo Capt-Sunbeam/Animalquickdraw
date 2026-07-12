@@ -3,8 +3,19 @@ extends PanelContainer
 ## Shared roster display (Slice 2 TDD §7) - rows with a real AvatarChip
 ## (Slice 11), name, and a host crown icon + "(host)" label (never color
 ## alone - cg §13). Rebuilds on EventBus.roster_updated.
+## Slice 13: with allow_kick the HOST additionally sees a Kick button on
+## every other connected row. The list only emits kick_requested; the
+## owning screen confirms and calls Session.kick_player (same decoupling
+## as ChatPanel.message_submitted).
+
+## Slice 13: the owning screen confirmed nothing yet - this is the raw click.
+signal kick_requested(peer_id: int, display_name: String)
 
 const AVATAR_CHIP: PackedScene = preload("res://ui/shared/avatar_chip.tscn")
+
+## Set by the owning scene (lobby screen sets true). Non-hosts never see
+## the control regardless.
+@export var allow_kick: bool = false
 
 const HOST_MARK: String = "♛"  # ♛ glyph; paired with the "(host)" text label
 const CHIP_PX: int = 48        # TDD 11 §7: lobby chips at 48
@@ -51,6 +62,13 @@ func _build_row(state: Roster.PlayerState) -> HBoxContainer:
 	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	name_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	row.add_child(name_label)
+	if allow_kick and Session.is_host() and not is_host_player and state.is_connected:
+		var kick := Button.new()
+		kick.text = "Kick"
+		kick.tooltip_text = "Remove this player - they can't rejoin this game"
+		kick.pressed.connect(func() -> void:
+			kick_requested.emit(state.peer_id, state.display_name))
+		row.add_child(kick)
 	if not state.is_connected:
 		row.modulate.a = DISCONNECTED_ALPHA
 	return row

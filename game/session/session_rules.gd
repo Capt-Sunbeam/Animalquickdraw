@@ -35,11 +35,10 @@ class ChatRateLimiter extends RefCounted:
 
 ## Strip control chars, trim, truncate to MAX_NAME_LEN, censor on the host
 ## (brief §13), fall back to "Player <n>" if nothing survives cleaning.
+## (Control-char strip moved to TextFilter in Slice 13's security audit -
+## chat shares it now.)
 static func sanitize_name(raw: String, fallback_number: int) -> String:
-	var kept: String = ""
-	for ch: String in raw:
-		if ch.unicode_at(0) >= 32 and ch.unicode_at(0) != 127:
-			kept += ch
+	var kept: String = TextFilter.strip_control_chars(raw)
 	kept = kept.strip_edges().substr(0, GameConstants.MAX_NAME_LEN)
 	kept = TextFilter.censor(kept).strip_edges()
 	if kept.is_empty():
@@ -52,8 +51,12 @@ static func sanitize_name(raw: String, fallback_number: int) -> String:
 ## Since Slice 9 the register handler routes phase != LOBBY registrations
 ## through ingame_register_action below; the "in_progress" branch here only
 ## fires in the STARTING gap when no GameSession exists yet.
+## Slice 13: is_blocklisted is checked FIRST - a kicked player always hears
+## "kicked", never a coincidental "full" (the honest reason, TDD 13 §3).
 static func register_reject_reason(phase: NetIds.Phase, connected_count: int,
-		platform_id: String) -> String:
+		platform_id: String, is_blocklisted: bool = false) -> String:
+	if is_blocklisted:
+		return "kicked"
 	if phase != NetIds.Phase.LOBBY:
 		return "in_progress"
 	if connected_count >= GameConstants.MAX_PLAYERS:
@@ -68,8 +71,12 @@ static func register_reject_reason(phase: NetIds.Phase, connected_count: int,
 ## (never evict a live player - §13); an unknown one late-joins while a
 ## CONNECTED seat is free (memory entries never block real players - ghost
 ## capacity rule, §10). Returns "rejoin", "late_join", or a reject reason.
+## Slice 13: the blocklist beats the rejoin memory - a kicked player's
+## retained entry exists, but their return is denied ("kicked"), first.
 static func ingame_register_action(has_entry: bool, entry_connected: bool,
-		connected_count: int, platform_id: String) -> String:
+		connected_count: int, platform_id: String, is_blocklisted: bool = false) -> String:
+	if is_blocklisted:
+		return "kicked"
 	if platform_id.is_empty() or platform_id.length() > GameConstants.MAX_PLATFORM_ID_LEN:
 		return "bad_identity"
 	if has_entry:

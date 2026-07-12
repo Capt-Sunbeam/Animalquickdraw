@@ -132,3 +132,12 @@ const CANVAS_MINIMAP_WIDTH_FRAC: float = 0.24         # inset width as a fractio
 const ROOM_CODE_LENGTH: int = 5
 const ROOM_CODE_ALPHABET: String = "23456789ABCDEFGHJKMNPQRSTUVWXYZ"  # no 0/O/1/I/L ambiguity
 const LOBBY_SEARCH_TIMEOUT_SEC: float = 10.0          # join-by-code search + lobby create/join waits
+
+# --- Slice 13: Public Lobbies & Moderation ---
+const BROWSER_REFRESH_COOLDOWN_SEC: float = 2.0       # min gap between lobby-list requests
+const KICK_DISCONNECT_GRACE_SEC: float = 1.0          # rpc_do_kicked flush window before force-disconnect
+## Bumped when the notice wording changes materially (Slice 15 legal pass):
+## everyone re-accepts exactly once per wording version (TDD 13 §4).
+const PUBLIC_NOTICE_VERSION: int = 1
+## Placeholder wording - final text is Slice 15's legal pass (§12).
+const PUBLIC_NOTICE_TEXT: String = "Public games are played with strangers and are NOT moderated.\nDrawings and chat are player-created and may be offensive.\n18+ - join at your own risk."

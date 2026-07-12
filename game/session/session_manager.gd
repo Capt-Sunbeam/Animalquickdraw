@@ -129,6 +129,49 @@ func leave() -> void:
 	_close_to_menu("left")
 
 
+## Slice 13: host-only kick, called directly from host UI - deliberately NO
+## rpc_request_* twin (only the host may kick; a request RPC would just add
+## a spoofable surface, TDD 13 §3). Blocklists the platform_id (join-time
+## enforcement), tells the target, applies the departure immediately through
+## the same paths a natural disconnect uses, and force-disconnects after a
+## short grace. The later transport disconnect finds no roster entry and
+## no-ops - no double bookkeeping, no second toast.
+## is_server (not Net.is_host) so headless tests exercise the same path
+## (broadcast_roster precedent).
+func kick_player(target_peer_id: int) -> void:
+	if not multiplayer.is_server():
+		return
+	if target_peer_id < 2:
+		return  # host can never kick itself (1); 0 would match disconnected entries
+	var player: Roster.PlayerState = roster.get_by_peer(target_peer_id)
+	if player == null:
+		return
+	roster.add_to_blocklist(player.platform_id)
+	if multiplayer.get_peers().has(target_peer_id):
+		rpc_do_kicked.rpc_id(target_peer_id)
+		_disconnect_peer_later(target_peer_id, GameConstants.KICK_DISCONNECT_GRACE_SEC)
+	_apply_kick_departure(player)
+
+
+## Kick departure bookkeeping - mirrors _on_peer_disconnected's two branches
+## but broadcasts KICKED instead of DROPPED. Mid-game the entry is retained
+## like any departure (drawing stays judged, score row stays in standings,
+## §9 pause/judge handling all reused); the blocklist alone makes it final.
+func _apply_kick_departure(player: Roster.PlayerState) -> void:
+	_rate_limiter.forget(player.peer_id)
+	if phase == NetIds.Phase.LOBBY:
+		roster.remove_by_peer(player.peer_id)
+		_refresh_suggested_rounds()
+		_broadcast_lobby_state()
+	else:
+		roster.mark_disconnected(player.peer_id, _unix_now_ms())
+		broadcast_roster()
+		if round_client != null and round_client.game_session() != null:
+			round_client.game_session().handle_departure(player)
+	rpc_sync_player_status.rpc(player.platform_id,
+			NetIds.PlayerStatus.KICKED, player.display_name)
+
+
 # --- Slice 12: Steam invite / cold-launch join routing ---
 
 
@@ -332,7 +375,13 @@ func _handle_chat(sender_peer_id: int, text: String) -> void:
 		return                                        # 3a. content validation
 	if not _rate_limiter.allow(sender_peer_id, Time.get_ticks_msec() / 1000.0):
 		return                                        # 3b. rate limit - drop silently
-	var clean: String = TextFilter.censor(text.strip_edges())  # 4. filter on host (brief §13)
+	# 4. filter on host (brief §13). Control chars stripped FIRST (Slice 13
+	# audit): an embedded newline would render as a spoofed "Name: text"
+	# line on every peer's chat history.
+	var clean: String = TextFilter.censor(
+			TextFilter.strip_control_chars(text).strip_edges())
+	if clean.is_empty():
+		return                                        # nothing survived cleaning
 	rpc_sync_chat_message.rpc(sender_peer_id, player.display_name, clean)  # 5. broadcast
 
 
@@ -418,8 +467,10 @@ func _arm_register_timeout(peer_id: int) -> void:
 
 ## Gives the reject RPC time to flush before closing a hostile/full peer's
 ## connection (the polite client already left on rpc_do_reject_join).
-func _disconnect_peer_later(peer_id: int) -> void:
-	await get_tree().create_timer(GameConstants.REJECT_DISCONNECT_DELAY_SEC).timeout
+## Slice 13 reuses it with a longer grace for kicks (rpc_do_kicked in flight).
+func _disconnect_peer_later(peer_id: int,
+		delay_sec: float = GameConstants.REJECT_DISCONNECT_DELAY_SEC) -> void:
+	await get_tree().create_timer(delay_sec).timeout
 	if Net.is_host() and multiplayer.get_peers().has(peer_id):
 		multiplayer.multiplayer_peer.disconnect_peer(peer_id)
 
@@ -490,7 +541,8 @@ func rpc_request_register(platform_id: String, display_name: String) -> void:
 		_handle_ingame_register(sender, platform_id, display_name)
 		return
 	var reject: String = SessionRules.register_reject_reason(
-			phase, roster.connected_count(), platform_id)  # 3. validate vs phase/state
+			phase, roster.connected_count(), platform_id,
+			roster.is_blocklisted(platform_id))            # 3. validate vs phase/state (Slice 13: kicked?)
 	if not reject.is_empty():
 		rpc_do_reject_join.rpc_id(sender, reject)
 		_disconnect_peer_later(sender)
@@ -519,7 +571,8 @@ func _handle_ingame_register(sender: int, platform_id: String, display_name: Str
 	var existing: Roster.PlayerState = roster.get_by_platform_id(platform_id)
 	var action: String = SessionRules.ingame_register_action(
 			existing != null, existing != null and existing.is_connected,
-			roster.connected_count(), platform_id)
+			roster.connected_count(), platform_id,
+			roster.is_blocklisted(platform_id))   # Slice 13: blocklist beats rejoin memory
 	match action:
 		"rejoin":
 			roster.rebind_peer(platform_id, sender)
@@ -567,13 +620,25 @@ func rpc_do_welcome(state: Dictionary) -> void:
 	Nav.goto(Routes.LOBBY)
 
 
-## host -> peer: registration refused ("full", "in_progress", "bad_identity").
+## host -> peer: registration refused ("full", "in_progress", "bad_identity",
+## "kicked" - Slice 13).
 @rpc("authority", "call_remote", "reliable")
 func rpc_do_reject_join(reason: String) -> void:
 	if _local_state != LocalState.REGISTERING:
 		return
 	Net.leave()
 	_close_to_menu(reason)
+
+
+## host -> target peer (Slice 13): you were kicked. No payload - the reason
+## IS the message; the menu shows the blocking "kicked by host" dialog off
+## the close reason. Any state but MENU is valid (lobby or mid-game).
+@rpc("authority", "call_remote", "reliable")
+func rpc_do_kicked() -> void:
+	if _local_state == LocalState.MENU:
+		return
+	Net.leave()
+	_close_to_menu("kicked")
 
 
 ## host -> new/returning peer (Slice 9): the mid-game welcome. The payload
@@ -608,6 +673,8 @@ func rpc_sync_player_status(platform_id: String, kind: int, display_name: String
 			EventBus.player_rejoined.emit(platform_id, display_name)
 		NetIds.PlayerStatus.LATE_JOINED:
 			EventBus.player_late_joined.emit(platform_id, display_name)
+		NetIds.PlayerStatus.KICKED:
+			EventBus.player_kicked.emit(platform_id, display_name)
 
 
 ## client -> host (Slice 11): set the sender's avatar doc. 5-step pattern;

@@ -66,6 +66,11 @@ class PlayerState extends RefCounted:
 
 var _players: Array[PlayerState] = []
 var _next_joined_order: int = 0
+## Slice 13: platform_ids the host kicked this session. Host-only state -
+## never serialized (to_dicts skips it), never persisted (§12: kick is
+## per-game, not a global ban). Session-scoped for free: Session builds a
+## fresh Roster in _reset_session_state on every host/join.
+var _kick_blocklist: Array[String] = []
 
 
 func register(peer_id: int, platform_id: String, display_name: String) -> PlayerState:
@@ -116,6 +121,18 @@ func rebind_peer(platform_id: String, peer_id: int) -> PlayerState:
 	p.disconnect_at_ms = -1
 	p.dodge_suspect = false
 	return p
+
+
+# --- Slice 13: kick blocklist (host-only; join-handshake enforcement) ---
+
+
+func add_to_blocklist(platform_id: String) -> void:
+	if platform_id != "" and not _kick_blocklist.has(platform_id):
+		_kick_blocklist.append(platform_id)
+
+
+func is_blocklisted(platform_id: String) -> bool:
+	return _kick_blocklist.has(platform_id)
 
 
 func get_by_peer(peer_id: int) -> PlayerState:

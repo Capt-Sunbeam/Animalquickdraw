@@ -86,3 +86,12 @@ func supports_invites() -> bool:
 
 func supports_lobby_browser() -> bool:
 	return false
+
+
+## Slice 13 public browser: list open public lobbies. Coroutine like the
+## peer calls (ENet returns immediately - still awaitable). Shape:
+## {"ok": bool, "lobbies": [{"id": int, "meta": Dictionary}]}. ok=false =
+## the request itself failed/unsupported; empty lobbies with ok=true is a
+## legitimate "no open games".
+func request_lobby_list() -> Dictionary:
+	return {"ok": false, "lobbies": []}

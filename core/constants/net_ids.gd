@@ -19,7 +19,9 @@ enum WordRejectReason { NONE, NOT_CLEAN, BAD_LENGTH, WRONG_COUNT, ALREADY_SUBMIT
 enum PauseReason { HOST_MENU, BELOW_MINIMUM }
 
 ## Slice 9: rpc_sync_player_status kind - what happened to the player.
-enum PlayerStatus { DROPPED, REJOINED, LATE_JOINED }
+## KICKED appended by Slice 13 (append-only rule above): the host removed
+## the player; their platform_id is session-blocklisted against rejoin.
+enum PlayerStatus { DROPPED, REJOINED, LATE_JOINED, KICKED }
 
 ## Slice 12: network/protocol version, written into Steam lobby metadata
 ## (aq_proto) and matched exactly by joiners and lobby searches. Bump on ANY

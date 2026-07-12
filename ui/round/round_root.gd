@@ -57,6 +57,9 @@ func _ready() -> void:
 		_toast_coalesced("%s joined the game!" % display_name))
 	EventBus.judge_slot_forfeited.connect(func(_pid: String, display_name: String) -> void:
 		_toast_coalesced("%s dodged judging: -1" % display_name))
+	# Slice 13: host kicks announce themselves distinctly from drops.
+	EventBus.player_kicked.connect(func(_pid: String, display_name: String) -> void:
+		_toast_coalesced("%s was kicked" % display_name))
 
 
 ## Slice 6: Esc toggles the in-game menu (forced open while paused).

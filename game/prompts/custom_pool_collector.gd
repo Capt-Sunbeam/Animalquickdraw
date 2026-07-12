@@ -37,8 +37,8 @@ func submit(player_id: String, pool_id: String, words: PackedStringArray) -> int
 	for w: String in words:
 		var word: String = w.strip_edges()
 		if word.is_empty() or word.length() > GameConstants.WORD_MAX_CHARS \
-				or word.contains("\n"):
-			return NetIds.WordRejectReason.BAD_LENGTH
+				or word != TextFilter.strip_control_chars(word):
+			return NetIds.WordRejectReason.BAD_LENGTH   # incl. ANY control char (Slice 13 audit; was \n only)
 		# Never auto-censor a prompt word - "*** aardvark" isn't drawable (§2).
 		if not TextFilter.is_clean(word):
 			return NetIds.WordRejectReason.NOT_CLEAN

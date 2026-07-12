@@ -1,10 +1,11 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene load_steps=7 format=3]
 
 [ext_resource type="Script" path="res://ui/lobby/lobby_screen.gd" id="1_lobby"]
 [ext_resource type="PackedScene" path="res://ui/shared/player_list.tscn" id="2_plist"]
 [ext_resource type="PackedScene" path="res://ui/shared/chat_panel.tscn" id="3_chat"]
 [ext_resource type="PackedScene" path="res://ui/shared/toast.tscn" id="4_toast"]
 [ext_resource type="PackedScene" path="res://ui/lobby/mode_settings_panel.tscn" id="5_mpanel"]
+[ext_resource type="PackedScene" path="res://ui/shared/confirm_dialog.tscn" id="6_kickconfirm"]
 
 [node name="LobbyScreen" type="Control"]
 layout_mode = 3
@@ -65,9 +66,11 @@ size_flags_vertical = 3
 theme_override_constants/separation = 12
 
 [node name="PlayerList" parent="Margin/Root/Main" instance=ExtResource("2_plist")]
+unique_name_in_owner = true
 layout_mode = 2
 custom_minimum_size = Vector2(280, 0)
 size_flags_vertical = 3
+allow_kick = true
 
 [node name="SettingsPanel" type="PanelContainer" parent="Margin/Root/Main"]
 layout_mode = 2
@@ -176,7 +179,7 @@ theme_override_constants/separation = 12
 [node name="PublicCheck" type="CheckBox" parent="Margin/Root/Main/SettingsPanel/SettingsMargin/SettingsBox/Grid/ConnectivityBox"]
 unique_name_in_owner = true
 layout_mode = 2
-tooltip_text = "Listed publicly - coming with the lobby browser"
+tooltip_text = "ON: listed in the public browser for anyone (unmoderated, 18+). OFF: private - invite & room code only"
 text = "Public lobby"
 
 [node name="FluidCheck" type="CheckBox" parent="Margin/Root/Main/SettingsPanel/SettingsMargin/SettingsBox/Grid/ConnectivityBox"]
@@ -240,6 +243,9 @@ theme_override_font_sizes/font_size = 24
 text = "Game starting…"
 horizontal_alignment = 1
 vertical_alignment = 1
+
+[node name="KickConfirm" parent="." instance=ExtResource("6_kickconfirm")]
+unique_name_in_owner = true
 
 [node name="Toast" parent="." instance=ExtResource("4_toast")]
 unique_name_in_owner = true

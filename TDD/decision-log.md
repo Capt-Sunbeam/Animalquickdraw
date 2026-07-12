@@ -2,13 +2,31 @@
 
 **Purpose:** Track design decisions made during development. New entries are added at the top of the Decisions section.
 
-**Last Updated:** 2026-07-10
+**Last Updated:** 2026-07-11
 
 ---
 
 ## Decisions
 
 *New entries go here, at the top of this section.*
+
+---
+
+### Slice 13: security audit fix - control chars stripped from ALL broadcast text (chat line spoofing)
+**Date:** 2026-07-11 | **Slice:** 13 (touches 2's chat + 7's pool words) | **Decided by:** Owner directive ("make sure no commands can get through the chat") + AI audit | **Type:** Quick
+
+**Decision:** The owner-expanded text-input security audit found one real hole: chat was censored but NOT control-char-stripped, so a modified client could send `"hi\nAlice: ..."` and every peer's chat history would render a line spoofed from another player. Fix: `TextFilter.strip_control_chars()` (new shared home; `sanitize_name` refactored onto it) now runs in `_handle_chat` before censoring (empty-after-clean drops), and pool-word validation rejects ANY control char (was `\n` only). Audit verdict on everything else: clean - exactly one RichTextLabel exists (chat, push-API only, BBCode never parsed - pinned), zero `Expression`/`OS.execute`/`parse_bbcode`/`bbcode_enabled` anywhere, user text reaches file names only through `slugify`'s [a-z0-9-] whitelist + `Save._path_ok` traversal guard. Full audit table in the Slice 13 implementation notes.
+
+**Status:** [x] Implemented + pinned (`test_chat_strips_control_chars_against_line_spoofing`, pool-word control-char cases)
+
+---
+
+### Slice 13: reconciliations against shipped Slice 12/2/9 reality (deny strings, kick-on-Session, privacy flag, coroutine list, visibility toggle)
+**Date:** 2026-07-11 | **Slice:** 13 | **Decided by:** AI (TDD 13's own "Slice 12 is authoritative" rule) + owner plan approval | **Type:** Quick
+
+**Decision:** (1) **"kicked" is a string deny reason**, not the TDD's `JoinDenyReason` enum - Slice 2/9 shipped string keys through `rpc_do_reject_join`; the blocklist check is a defaulted param on both `SessionRules` gates, checked FIRST (honest reason beats "full"). (2) **Kick lives on `Session`**, not GameSession - roster/peers/handshake live there and lobby-phase kicks have no GameSession; the kicked departure reuses the existing disconnect branches + `PlayerStatus.KICKED` (append-only enum). (3) **Privacy = `aq_public` filter**, not `FRIENDS_ONLY` lobby type (Slice 12: everything Steam-PUBLIC for code search); browser filters proto+public+state Steam-side AND re-validates in `LobbyListing`'s strict parse. (4) **Lobby list is an awaitable coroutine** (`Platform.request_lobby_list()`), not EventBus signals - Slice 12's backend-contract style; only the browser consumes it. (5) **Public/Private is the existing Slice 9 lobby toggle** (host-only, changeable in-lobby), not fixed-at-creation - the shipped metadata is dynamic, the notice gates the BROWSER join path so nothing is bypassed, and `set_value(&"is_public")` already re-derives fluid_rejoin. (6) **In-game (`aq_state="ingame"`) lobbies are hidden** from the browser (late join stays possible by code/invite). (7) Post-connect handshake rejects land on the MENU (every join path's flow), not back in the browser.
+
+**Status:** [x] Implemented (556 tests green, 3 gates PASS) [x] Kick end-to-end owner-confirmed 2026-07-11 [ ] Browser two-account pair
 
 ---
 

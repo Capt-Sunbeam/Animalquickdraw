@@ -165,3 +165,9 @@ signal invite_join_requested(lobby_id: int)
 ## Async lobby resolution for a room code finished. lobby_id == 0 => not
 ## found (or search timed out) - the join dialog shows the not-found toast.
 signal lobby_resolved(code: String, lobby_id: int)
+
+# --- Slice 13: Public Lobbies & Moderation ---
+
+## Emitted on all peers when the host kicks a player (after roster removal /
+## disconnect bookkeeping). Keyed by platform_id like every stable identity.
+signal player_kicked(platform_id: String, display_name: String)

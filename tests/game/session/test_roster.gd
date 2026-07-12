@@ -32,6 +32,43 @@ func test_register_when_full_is_rejected_by_is_full() -> void:
 	assert_bool(roster.is_full()).is_true()
 
 
+# --- Slice 13: kick blocklist ---
+
+
+func test_blocklist_add_and_lookup() -> void:
+	var roster := Roster.new()
+	assert_bool(roster.is_blocklisted("id-a")).is_false()
+	roster.add_to_blocklist("id-a")
+	assert_bool(roster.is_blocklisted("id-a")).is_true()
+	assert_bool(roster.is_blocklisted("id-b")).is_false()
+	# Idempotent; empty ids never enter the list.
+	roster.add_to_blocklist("id-a")
+	roster.add_to_blocklist("")
+	assert_bool(roster.is_blocklisted("")).is_false()
+
+
+func test_blocklist_never_serialized() -> void:
+	# Host-only state: kicked ids must not ride roster snapshots to clients
+	# (TDD 13 §2 - not persisted, not broadcast).
+	var roster := Roster.new()
+	roster.register(1, "id-a", "Alice")
+	roster.add_to_blocklist("id-kicked")
+	for d: Dictionary in roster.to_dicts():
+		for key: String in d.keys():
+			assert_str(key).is_not_equal("_kick_blocklist")
+	var mirror := Roster.new()
+	mirror.apply_dicts(roster.to_dicts())
+	assert_bool(mirror.is_blocklisted("id-kicked")).is_false()
+
+
+func test_fresh_roster_has_empty_blocklist() -> void:
+	# Session-scoped rule: Session._reset_session_state builds a new Roster
+	# per session; a fresh instance must carry nothing over.
+	var roster := Roster.new()
+	roster.add_to_blocklist("id-a")
+	assert_bool(Roster.new().is_blocklisted("id-a")).is_false()
+
+
 func test_lookups_return_null_for_unknown_peer_or_platform_id() -> void:
 	var roster := Roster.new()
 	roster.register(1, "id-a", "Alice")

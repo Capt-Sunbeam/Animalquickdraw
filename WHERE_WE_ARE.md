@@ -2,17 +2,17 @@
 
 **Purpose:** Single source of truth for project status and session continuity. Any developer or AI can read this to understand the current state and resume work seamlessly.
 
-**Last Updated:** 2026-07-11 (end of session 10)
-**Total Sessions:** 10
+**Last Updated:** 2026-07-11 (end of session 11)
+**Total Sessions:** 11
 
 ---
 
 ## Current Status
 
-**Active Slice:** **Slice 12: Steam Platform Integration (Chunk 15) — IMPLEMENTED session 10, owner confirmation PENDING** (blocking two-account protocol; gates Slices 13/14). Slices 0–11 + 16 + 17 + 18 complete
-**Current Objective:** Collect the Slice 12 blocking checks (needs a friend / second Steam account; friend build = export zip **with `steam_appid.txt` beside the executable**), then **Slice 13: Public Lobbies & Moderation (Chunk 16)**
-**Blockers:** Slice 12 completion needs two Steam accounts (single-instance smoke already PASSED on the owner's machine/account)
-**Pending owner confirmations:** **Slice 12 blocking protocol (4 checks — TDD 12 §7 / Next Steps below)** + Slice 12 batchables (qa-backlog); explicit Slice 10 early-end + skip-isolation items if not covered by the 2026-07-10 pass; Slice 7 force-continue check; Slice 7 + 8 + 9 + 10 + 11 + 16 + 17 + 18 batchable lists (qa-backlog)
+**Active Slices:** **Slice 12 (Chunk 15) + Slice 13: Public Lobbies & Moderation (Chunk 16) — BOTH IMPLEMENTED; the remaining confirmations are Steam-only.** **Slice 13's kick end-to-end was OWNER-CONFIRMED 2026-07-11** (session 11, live 3-instance ENet run: lobby kick + rejoin denial + in-game Esc-menu kick — "it worked!"). One combined two-account session covers everything left. Slices 0–11 + 16 + 17 + 18 complete
+**Current Objective:** Collect the combined Slice 12/13 two-account protocol (friend build = export zip **with `steam_appid.txt` beside the executable**). Then **Slice 14 (Chunk 17)** — reconcile its stats-API section first (SDK 1.64 removal)
+**Blockers:** The remaining checks all need two Steam accounts (single-instance smoke PASSED; kick confirmed; everything else machine-verified green — 556 tests, 3 gates)
+**Pending owner confirmations:** **Slice 12 blocking protocol (4 checks — TDD 12 §7)** + **Slice 13 browser pair (public listed / private unlisted — Next Steps below)**; batchable lists in qa-backlog for Slices 7–13 + 16 + 17 + 18; explicit Slice 10 early-end + skip-isolation items if not covered by the 2026-07-10 pass; Slice 7 force-continue check
 
 ---
 
@@ -36,7 +36,9 @@
 | **Slice 18 Implementation Notes** | `TDD/18-canvas-ergonomics-implementation-notes.md` | Stretch mode, zoom-inside-viewport, draw_hold, content-scale test rule |
 | **Slice 12 TDD (Steam)** | `TDD/12-steam-integration.md` | Implemented session 10; owner two-account checks pending |
 | **Slice 12 Implementation Notes** | `TDD/12-steam-integration-implementation-notes.md` | GodotSteam 4.20 API reality, deviations (stats init, invite-in-Session, tiebreak), Spacewar limits |
-| **Next Slice TDD** | `TDD/13-public-lobbies-moderation.md` | **Chunk 16** — after the Slice 12 blocking checks clear |
+| **Slice 13 TDD (public lobbies)** | `TDD/13-public-lobbies-moderation.md` | Implemented session 11; owner checks pending |
+| **Slice 13 Implementation Notes** | `TDD/13-public-lobbies-moderation-implementation-notes.md` | Kick-on-Session, strict listing parse, notice gate, **full text-input security audit record** |
+| **Next Slice TDD** | `TDD/14-achievements-stats.md` | **Chunk 17** — reconcile stats API vs SDK 1.64 removal BEFORE implementing |
 | Slice 7 Implementation Notes | `TDD/07-player-created-pools-implementation-notes.md` | What was actually built + deviations (enum NONE, signal-routed rejections, branch draws) |
 | Slice 8 Implementation Notes | `TDD/08-collection-browser-export-implementation-notes.md` | What was actually built + deviations (Slice 4 reality adaptations, atomic write_png) |
 | Slice 4 Implementation Notes | `TDD/04-reactions-kudos-saving-implementation-notes.md` | What was actually built + deviations (incl. RAM-incident lesson) |
@@ -48,7 +50,7 @@
 | Consistency Guide | `TDD/consistency-guide.md` | Patterns and standards — read before coding |
 | Recipe | `TDD/recipe.md` | Approved project contract |
 | Overview + Chunk Plan | `TDD/overview-of-slices.md` | Slice deps + 18-chunk session plan |
-| Latest Session Log | `TDD/logs/2026-07-11-session-10.md` | Slice 12 implemented (GodotSteam 4.20); Steam smoke PASS; owner two-account checks pending |
+| Latest Session Log | `TDD/logs/2026-07-11-session-11.md` | Slice 13 implemented + security audit (1 hole fixed); kick owner-confirmed; browser pair pending |
 | **Art Pass Plan** | `TDD/art-pass-plan.md` | Hand-drawn UI skin + font + wallpaper: workstreams, pipeline, ordering (after Slice 14) |
 | Decision Log | `TDD/decision-log.md` | Tech stack + pacing decisions |
 | Design Brief | `game-design-brief.md` | Authoritative game spec (§1–§15) |
@@ -81,13 +83,14 @@
 
 | Slice | Name | Started | Status | % Complete |
 |-------|------|---------|--------|------------|
-| 12 | Steam Platform Integration | 2026-07-11 | Implemented + documented; 532 tests green, 3 gates PASS, single-instance Steam smoke PASS. Awaiting the owner's blocking two-account protocol | ~95% (code/tests/docs done) |
+| 12 | Steam Platform Integration | 2026-07-11 | Implemented + documented; single-instance Steam smoke PASS. Awaiting the owner's blocking two-account protocol | ~95% (code/tests/docs done) |
+| 13 | Public Lobbies & Moderation | 2026-07-11 | Implemented + documented session 11; 556 tests green, 3 gates PASS; security audit done (1 hole found + fixed). **Kick end-to-end OWNER-CONFIRMED same session** (lobby + rejoin denial + in-game). Awaiting only the browser pair (two accounts, batch with Slice 12) | ~98% (kick confirmed) |
 
 ### Upcoming (see chunk plan in overview-of-slices.md)
 
 | Slice | Name | Dependencies | Priority |
 |-------|------|--------------|----------|
-| 13 | Public Lobbies & Moderation | 12 (metadata schema, `LobbyMetadata.parse`, `join_session_by_lobby`) | **Next (Chunk 16)** — after the Slice 12 blocking checks clear |
+| 14 | Achievements & Stats | 12 (`is_stats_ready`; **TDD predates the SDK 1.64 stats-API removal — reconcile first**) | **Next (Chunk 17)** — after the Slice 12/13 blocking checks clear |
 
 ---
 
@@ -95,6 +98,7 @@
 
 | Date | Session | Summary | Status |
 |------|---------|---------|--------|
+| 2026-07-11 | #11 | **Slice 13 implemented + documented** (Chunk 16). Kick + session-scoped blocklist (platform_id, never persisted; "kicked" deny reason checked FIRST in both SessionRules gates; blocklist beats rejoin memory; departure reuses the disconnect branches + appended `PlayerStatus.KICKED`); public browser (backend `request_lobby_list` with proto/public/state Steam filters, strict `LobbyListing` parse dropping malformed/forged rows + local re-censor, mode/has-space filters, 2 s cooldown, notice gate → `join_session_by_lobby`); 18+ notice (versioned accept-once-per-install, `PublicNoticeGate.path` test seam); kick UI (lobby rows + Esc-menu Players section with pause warning); Public toggle was already shipped (Slice 9/12) — tooltips made honest, kept changeable in-lobby (logged deviation). **Owner-expanded text-input security audit: one real hole found + FIXED** — chat control-char line spoofing (`\n` → fake "Name: text" lines); `TextFilter.strip_control_chars` now guards chat + pool words + names; everything else clean (one RichTextLabel total, push-API only; zero executable sinks; slugify+_path_ok on filenames). 7 reconciliations vs shipped Slice 12/2/9 logged. 532 → 556 tests green; 3 gates PASS. Harness lesson: Session-level RPC tests need an explicit `OfflineMultiplayerPeer` | Completed (owner checks pending) |
 | 2026-07-11 | #10 | **Slice 12 implemented + documented** (Chunk 15). GodotSteam GDExtension **4.20** vendored (Steamworks 1.64, pinned); API surface probed via ClassDB before coding — caught the removed `requestCurrentStats` (→ `is_stats_ready` = init success; Slice 14 TDD needs reconciling). SteamBackend complete: identity, host/join-by-code (aq_code+aq_proto-filtered search, 10 s timeout, proto re-check on the invite path), metadata schema via pure `LobbyMetadata` (Slice 13's read seam), invites (overlay + mid-game confirm + cold-launch `+connect_lobby`), leave-cleanup on every teardown, friendly failure reasons. Invite routing centralized in Session (logged deviation); lobby Invite button (ENet: hidden); menu offline mode. **Owner directives honored:** ENet stays the editor/dev/test default (regression-pinned) — local testing works regardless of Steam state; real-App-ID pass earmarked in qa-backlog (runs with Slice 15). 505 → 532 tests green; 3 gates PASS; **single-instance Steam smoke PASS on the real client** (init/lobby/metadata read-back/relay host peer). Blocking two-account protocol pending | Completed (owner checks pending) |
 | 2026-07-10 | #9 | **Slices 10 + 11 owner-confirmed** (wrap-up + avatars). Avatar check first surfaced a dev-environment artifact — all local instances share `user://`, so every player showed P1's avatar; root-caused as NOT a sync bug, fixed by namespacing `AvatarStore.path` per `--name` (enet-only, +4 tests). **Slice 18 (mini) inserted, TDD'd, implemented, documented** (owner-approved): `canvas_items`/`expand` stretch + min window, display-only canvas zoom/pan inside the SubViewport, hold-D-to-draw with source-aware releases. **Same-session owner rework** after first playtest: D-as-click outside the canvas (synthesized `push_input` pair), CanvasMinimap navigation inset (click-drag / hold-D pan), trackpad gestures rerouted to `_input` (gui delivery platform-flaky — the owner's pan never arrived), wheel `factor` scaling. Harness rules learned: simulated-input suites must park `content_scale_mode`; latent f32/f64 exact-compare surfaced (epsilon fix). Minimap border polish (owner: inset blended into blank canvas). **Slice 18 owner-confirmed same session → COMPLETE.** 487 → 505 tests green; all 3 gates PASS ×2 | Completed (slices 10, 11, 18 all confirmed) |
 | 2026-07-07/08 | #8 | **Slices 10 + 11 implemented and documented back-to-back, NO owner tests** (owner instruction — all checks batched; owner then deferred the whole list to a later session and committed the work). Slice 10: WrapUpCalculator + bundle-in-results (no new RPC/route), three-act sequence UI with per-peer skip, host-quit hold, placeholder standings screen deleted. Slice 11: circular avatar editor (mask hook activated), AvatarStore/Resolver/Chip + platform_id-keyed sync + roster `"avatar"` key, retrofits everywhere, 6 house avatars. In passing: pre-existing WinnerSpotlight null race fixed; `verify_round` now pins `kudos_allotment` (owner-profile pollution — pin-rule 3rd instance). **Art pass planned** (`TDD/art-pass-plan.md`): hand-drawn UI skin + font + animal wallpaper, slotted after Slice 14. 422 → 487 tests green; all 3 gates PASS after each slice | Completed (owner checks pending) |
@@ -110,18 +114,18 @@
 
 ## Next Steps
 
-**Immediate (Next Session — Session 11):**
+**Immediate (Next Session — Session 12):**
 1. Session Start workflow
-2. **Collect the Slice 12 blocking checks** (owner + friend/second Steam account; each side runs with Steam open — friend build = export zip with `steam_appid.txt` beside the executable; owner solo path: `godot --path . -- --platform=steam`):
-   - Host ↔ join by 5-char code, full Slice 3 round end-to-end over the relay
-   - Invite button → overlay → friend accepts while their game runs
-   - Cold-launch join: friend launches the exe with `+connect_lobby <lobby id>` args (true friends-list cold-launch is real-App-ID territory — qa-backlog)
-   - Steam quit → offline menu with dialog, no crash, collection still opens
-   On confirmation: append completion status to the Slice 12 TDD (impl notes exist), move it to Completed here
-3. **Slice 13: Public Lobbies & Moderation (Chunk 16)** — read its FULL TDD; it consumes the frozen Slice 12 surface: `LobbyMetadata.parse()`, the aq_* schema, `Session.join_session_by_lobby()`, `EventBus.lobby_resolved`
-4. Worth folding into any playtest: the explicit Slice 10 early-end + skip-isolation items (qa-backlog Slice 10 section) if the 2026-07-10 pass didn't cover them
+2. ~~Slice 13 kick check~~ — **DONE, owner-confirmed 2026-07-11** (session 11: lobby kick, rejoin denial, in-game Esc-menu kick, all on a live 3-instance ENet run)
+3. **Combined Slice 12 + 13 two-account protocol** (owner + friend/second Steam account; each side runs with Steam open — friend build = export zip with `steam_appid.txt` beside the executable; owner solo path: `godot --path . -- --platform=steam`):
+   - Slice 12: host ↔ join by 5-char code + full round over the relay; Invite → overlay → accept while running; cold-launch via manual `+connect_lobby <lobby id>`; Steam quit → offline menu, collection still opens
+   - Slice 13: host a PUBLIC lobby on one account → other account's browser lists it with correct mode/seats/rounds/draw-time/pool facts; flip to private (uncheck Public) → row disappears but join-by-code still works; 18+ notice prompts exactly once on first public Join
+   On confirmation: append completion status to both slice TDDs (impl notes exist), move both to Completed here
+4. **Slice 14: Achievements & Stats (Chunk 17)** — read its FULL TDD; **FIRST reconcile its stats-API section**: SDK 1.64 removed `requestCurrentStats`/`current_stats_received`; `is_stats_ready()` = init success (decision log 2026-07-11)
+5. Worth folding into any playtest: Slice 10 early-end + skip-isolation items (qa-backlog) if the 2026-07-10 pass didn't cover them
 
 **Reality notes for coming sessions:**
+-1. Slice 13: join-deny reasons are STRINGS ("kicked" joined "full"/"in_progress"/"bad_identity"); kick lives on `Session.kick_player` (not GameSession — lobby kicks have no sim); blocklist is host `Roster` state, never serialized, cleared by the fresh-Roster-per-session rule (survives return-to-lobby rematches by design); `PlayerStatus` enum is append-only and ends at KICKED; browser list = `Platform.request_lobby_list()` coroutine (no EventBus signals); `LobbyListing` is the STRICT parse (browser) vs `LobbyMetadata.parse` tolerant (invite path); `PublicNoticeGate.path` is the test seam (never touch the real profile.json in tests); `TextFilter.strip_control_chars` is the shared text-hygiene home — ALL broadcast text must pass it (chat spoofing fix, decision log 2026-07-11); **test suites driving Session-level RPCs must assign `OfflineMultiplayerPeer` in before_test** (bare tree has no peer; `is_server()` errors AND returns false)
 0. Slice 12: **`is_stats_ready()` = init success** — SDK 1.64 removed `requestCurrentStats`/`current_stats_received`; **Slice 14's TDD predates this, reconcile before implementing**. Invite/browser joins go through `Session.join_session_by_lobby(lobby_id)`; `LobbyMetadata` is pure (builder host-side, `parse()` is Slice 13's read seam); all lobbies are Steam-PUBLIC (privacy = `aq_public` flag + obscure code); proto gate runs twice (search filter + explicit invite-path re-check); `choose_lobby` tiebreak = Steam result order; metadata writes flow through `Session._push_lobby_metadata` (is_server-guarded); `Platform.platform_ok` is the late-screen read for `platform_ready`; editor/dev/tests default ENet, exports default steam (pinned by `test_editor_runs_default_to_enet`)
 1. Slice 18: zoom is display-only INSIDE the SubViewport (RasterView manual layout; `map_display_to_internal` is the single mapping choke point — zoom-1 identity is regression-pinned); `draw_hold` strokes are source-tracked (`_stroke_from_key`); D outside the canvas synthesizes a click pair (`_key_click_at`, `push_input` viewport-local); `CanvasMinimap` pans via `view_center_requested` → `_center_view_on_fraction`; pan/zoom feel constants in `GameConstants` Slice 18 banner are first guesses; **test suites simulating OS-level input must park `content_scale_mode` (drag-suite precedent)**; dev instances keep per-`--name` avatar files (`avatar_P1.json`, `AvatarStore.default_path_for_args`)
 2. Slice 10 reality notes: wrap-up bundle = `results["wrap_up"]` (validate via `SessionClient.is_valid_wrap_up_bundle`); base `final_scores`/`standings` stay BASE scores — final display truth is `wrap_up.standings`; EventBus order on WRAP_UP: `session_results_ready` → `wrap_up_started` → `titles_awarded` → `game_ended` → `phase_changed` (Slice 14's feed); host-quit-mid-sequence defers via `Session.hold_host_quit`

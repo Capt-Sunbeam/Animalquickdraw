@@ -27,6 +27,19 @@ static func censor(text: String) -> String:
 	return regex.sub(text, CENSOR_TEXT, true)
 
 
+## Slice 13 security audit: strips ASCII control characters (< 32 and 127).
+## Applied host-side to every broadcast text field - a modified client must
+## not inject newlines into chat ("hi\nAlice: fake" would render as a line
+## spoofed from Alice) or other control bytes anywhere. Name sanitation
+## already did this inline (Slice 2); this is the shared home.
+static func strip_control_chars(raw: String) -> String:
+	var kept: String = ""
+	for ch: String in raw:
+		if ch.unicode_at(0) >= 32 and ch.unicode_at(0) != 127:
+			kept += ch
+	return kept
+
+
 ## Test seam: replaces the loaded blocklist with an explicit word list.
 ## Pass an empty array to reload from disk on next use.
 static func configure(words: PackedStringArray) -> void:

@@ -8,6 +8,9 @@ exports/
 # macOS
 .DS_Store
 
+# Art pipeline raw drops (phone photos/scans; processed PNGs go to assets/)
+art_drops/
+
 # Export artifacts
 builds/
 *.dmg

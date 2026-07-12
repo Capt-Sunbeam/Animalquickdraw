@@ -34,6 +34,7 @@ static var _offline_dialog_shown: bool = false
 @onready var _peer_list: ItemList = %PeerList
 @onready var _host_button: Button = %HostButton
 @onready var _join_button: Button = %JoinButton
+@onready var _public_button: Button = %PublicButton
 @onready var _collection_button: Button = %CollectionButton
 @onready var _sandbox_button: Button = %SandboxButton
 @onready var _join_dialog: JoinDialog = %JoinDialog
@@ -46,6 +47,12 @@ func _ready() -> void:
 	_identity_label.text = "%s  (%s)" % [Platform.get_display_name(), Platform.get_platform_id().substr(0, 8)]
 	_host_button.pressed.connect(_on_host_pressed)
 	_join_button.pressed.connect(_on_join_pressed)
+	# Slice 13: browser needs the Steam lobby list; disabled (not hidden) on
+	# ENet so dev runs still see the surface (kick/notice test over ENet).
+	_public_button.pressed.connect(func() -> void: Nav.goto(Routes.PUBLIC_BROWSER))
+	if not Platform.supports_lobby_browser():
+		_public_button.disabled = true
+		_public_button.tooltip_text = "Steam required - public games use the Steam lobby list"
 	_join_dialog.join_requested.connect(_on_join_code_entered)
 	_collection_button.pressed.connect(func() -> void: Nav.goto(Routes.COLLECTION))
 	# Slice 11: the Avatar button's icon IS the local player's current chip.
@@ -59,7 +66,9 @@ func _ready() -> void:
 	_refresh_peer_list()
 	# Session returns players here after closes/rejects; explain why.
 	var close_reason: String = Session.consume_close_reason()
-	if CLOSE_MESSAGES.has(close_reason):
+	if close_reason == "kicked":
+		_show_kicked_dialog()   # Slice 13: blocking dialog, not a toast
+	elif CLOSE_MESSAGES.has(close_reason):
 		_toast.show_error(str(CLOSE_MESSAGES[close_reason]))
 	# Slice 12: Steam init failed => multiplayer off, local features stay.
 	if not Platform.platform_ok:
@@ -116,8 +125,10 @@ func _on_join_code_entered(code: String) -> void:
 func _apply_offline_mode() -> void:
 	_host_button.disabled = true
 	_join_button.disabled = true
+	_public_button.disabled = true   # Slice 13: browser is multiplayer too
 	_host_button.tooltip_text = OFFLINE_TOOLTIP
 	_join_button.tooltip_text = OFFLINE_TOOLTIP
+	_public_button.tooltip_text = OFFLINE_TOOLTIP
 	_status_label.text = "Steam offline - multiplayer unavailable"
 	if _offline_dialog_shown:
 		return
@@ -127,6 +138,16 @@ func _apply_offline_mode() -> void:
 	dialog.dialog_text = "Couldn't connect to Steam - multiplayer is unavailable.\n" \
 			+ "Restart Steam and relaunch the game.\n\n" \
 			+ "Your collection and avatar editor still work."
+	add_child(dialog)
+	dialog.popup_centered()
+
+
+## Slice 13 (TDD §7): being kicked gets a blocking dialog over the menu -
+## covers both the live kick and a later denied rejoin attempt.
+func _show_kicked_dialog() -> void:
+	var dialog := AcceptDialog.new()
+	dialog.title = "Kicked from game"
+	dialog.dialog_text = "You were kicked from this game by the host.\nYou can't rejoin this game."
 	add_child(dialog)
 	dialog.popup_centered()
 
@@ -142,6 +163,8 @@ func _on_peer_disconnected(_peer_id: int) -> void:
 func _set_buttons_enabled(enabled: bool) -> void:
 	_host_button.disabled = not enabled
 	_join_button.disabled = not enabled
+	# Never re-enables past the platform gate (Slice 13).
+	_public_button.disabled = not enabled or not Platform.supports_lobby_browser()
 
 
 ## Slice 11: local chip = the saved avatar (or the fallback chain).

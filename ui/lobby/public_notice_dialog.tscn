@@ -1,0 +1,8 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://ui/lobby/public_notice_dialog.gd" id="1_notice"]
+
+[node name="PublicNoticeDialog" type="ConfirmationDialog"]
+title = "Before you join a public game"
+size = Vector2i(480, 220)
+script = ExtResource("1_notice")

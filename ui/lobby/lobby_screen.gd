@@ -5,7 +5,10 @@ extends Control
 ## re-renders on EventBus signals (TDD §8 rule).
 
 var _updating_ui: bool = false  # guards value_changed while applying syncs
+var _kick_target_peer: int = 0  # Slice 13: pending kick awaiting confirm
 
+@onready var _player_list: PlayerList = %PlayerList
+@onready var _kick_confirm: ConfirmDialog = %KickConfirm
 @onready var _room_code_label: Label = %RoomCodeLabel
 @onready var _invite_button: Button = %InviteButton
 @onready var _leave_button: Button = %LeaveButton
@@ -41,6 +44,13 @@ func _ready() -> void:
 	_leave_button.pressed.connect(Session.leave)
 	_chat.prominence = ChatPanel.Prominence.NORMAL
 	_chat.message_submitted.connect(Session.submit_chat)
+	# Slice 13: host kick from the roster (rows only render the control for
+	# the host); the confirm is this screen's job, the action is Session's.
+	_player_list.kick_requested.connect(_on_kick_requested)
+	_kick_confirm.confirmed.connect(_on_kick_confirmed)
+	_kick_confirm.cancelled.connect(func() -> void: _kick_target_peer = 0)
+	EventBus.player_kicked.connect(func(_pid: String, display_name: String) -> void:
+		_toast.show_message("%s was kicked" % display_name))
 	_setup_settings_controls()
 	_start_button.pressed.connect(Session.start_game)
 	_start_button.visible = Session.is_host()
@@ -176,6 +186,21 @@ func _on_round_suggestion_changed(suggested: int, overridden: bool) -> void:
 
 func _on_roster_updated(_players: Array) -> void:
 	_refresh_start_gate()
+
+
+# --- Slice 13: host kick ---
+
+
+func _on_kick_requested(peer_id: int, display_name: String) -> void:
+	_kick_target_peer = peer_id
+	_kick_confirm.ask("Kick %s?" % display_name,
+			"They won't be able to rejoin this game.", "Kick")
+
+
+func _on_kick_confirmed() -> void:
+	if _kick_target_peer != 0:
+		Session.kick_player(_kick_target_peer)
+		_kick_target_peer = 0
 
 
 func _refresh_start_gate() -> void:

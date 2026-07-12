@@ -103,3 +103,8 @@ func supports_invites() -> bool:
 
 func supports_lobby_browser() -> bool:
 	return backend.supports_lobby_browser()
+
+
+## Coroutine - always await. Slice 13 public-browser list request.
+func request_lobby_list() -> Dictionary:
+	return await backend.request_lobby_list()

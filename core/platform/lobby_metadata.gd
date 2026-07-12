@@ -21,6 +21,12 @@ const KEY_STATE: String = "aq_state"
 const STATE_LOBBY: String = "lobby"
 const STATE_INGAME: String = "ingame"
 
+## Slice 13: every schema key - the browser's per-lobby metadata read set.
+const ALL_KEYS: Array[String] = [
+	KEY_PROTO, KEY_CODE, KEY_NAME, KEY_MODE, KEY_PLAYERS, KEY_MAX_PLAYERS,
+	KEY_ROUNDS, KEY_DRAW_TIME, KEY_POOL_TYPE, KEY_PUBLIC, KEY_STATE,
+]
+
 ## SettingsDefaults.Mode -> wire string (lowercase enum names, TDD 12 §2).
 const _MODE_NAMES: Dictionary = {
 	SettingsDefaults.Mode.DEFAULT: "default",

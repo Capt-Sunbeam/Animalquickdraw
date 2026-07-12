@@ -261,6 +261,21 @@ Two owner-directed fix batches this session (decision log 2026-07-06 "Judging = 
 - [ ] Steam-quit boot: offline dialog once, Host/Join disabled with tooltip, collection + avatar editor fully usable
 - [ ] **Real App ID pass (owner-earmarked 2026-07-11, runs with Slice 15):** register the App ID, then the §9 swap procedure (APP_ID constant, delete `steam_appid.txt` from the shipped depot, Steamworks build config) and re-verify under the real ID: overlay shows "Animal Quickdraw", invites, **cold-launch "Join Game" with the game closed launches OUR exe** (unverifiable under Spacewar — Steam would launch Valve's app; until then simulate with manual `+connect_lobby <id>`), store-visible lobby names
 
+## Slice 13 — Public Lobbies & Moderation
+
+*Machine coverage: blocklist/kick/handshake suites (incl. blocklist-beats-rejoin + honest-reason ordering), strict listing parse (drops malformed/forged/version-mismatch/private/ingame + local re-censor), notice gate persistence + version-bump re-prompt, browser screen over a stubbed backend (rows, empty/failed states, both filters, full-row Join disabled, notice gating), chat control-char spoof fix pinned, menu gating on ENet; all 3 gates green. **Kick end-to-end OWNER-CONFIRMED 2026-07-11** (session 11, 3-instance ENet: lobby kick, rejoin denial, in-game Esc-menu kick). Remaining BLOCKING check in WHERE_WE_ARE: browser two-account pair. Batchables:*
+
+- [ ] Notice shows exactly once: first public Join prompts, second doesn't; fresh `user://` (or bumped `PUBLIC_NOTICE_VERSION`) re-prompts once ✅ AUTO (gate logic; the feel check remains)
+- [ ] Filters + refresh: mode filter, has-space filter, 2 s refresh cooldown feel right; full lobbies show greyed Join
+- [ ] Browser row layout at 960×540 (name truncation, column widths with 8/8 + long host names)
+- [ ] Kick confirm dialog wording in lobby; Esc-menu two-click kick ("Sure? (pauses game)" when dropping below 3) discoverable enough?
+- [ ] Kicked player's blocking dialog on the menu reads right; remaining players' "was kicked" toast distinct from the disconnect toast
+- [ ] Kick during the target's judge turn: round continues via the judge-drop path (machine-covered; eyeball once)
+- [x] ~~Kick below 3 players mid-game: below-minimum pause + "waiting for players" overlay behaves~~ — covered by the owner's 2026-07-11 in-game kick run (3-player game)
+- [ ] 18+ banner wording/placement on the browser (placeholder text - final wording is Slice 15's legal pass with the `PUBLIC_NOTICE_VERSION` bump)
+- [ ] Public toggle tooltips in the lobby settings read clearly (private default)
+- [ ] Try a blocklisted word as a Steam persona name hosting a public lobby: browser row shows it censored (double-censor path)
+
 ## Design gaps / open items (not bugs — need decisions)
 
 - [x] ~~**No in-game pause/leave menu** (owner, 2026-07-06)~~ — RESOLVED: Slice 6 shipped the Esc menu (Resume/Leave + host pause); Slice 9 upgraded leave semantics (graceful leave = disconnect with rejoin memory, below-minimum pause, host End-game-now)
