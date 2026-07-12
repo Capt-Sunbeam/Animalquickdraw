@@ -70,6 +70,38 @@ func test_real_mouse_drag_engages_with_chip_data() -> void:
 	await runner.await_input_processed()
 
 
+func test_key_hold_drag_engages_with_chip_data() -> void:
+	# Slice 20 tweak (owner): hold-D drags like a held left button. The
+	# runner's moves here carry NO button mask (we never press a button) -
+	# the canvas must consume them and re-issue masked copies, and the
+	# viewport must enter drag state carrying the chip payload.
+	var runner: GdUnitSceneRunner = scene_runner("res://ui/canvas/drawing_canvas.tscn")
+	var canvas: DrawingCanvas = _laid_out_canvas(runner)
+	await runner.simulate_frames(3)
+	canvas._text_input.text = "MOO"
+	canvas._refresh_text_chip()
+	await runner.simulate_frames(2)
+	var start: Vector2 = canvas._text_chip.get_global_rect().get_center()
+	var target: Vector2 = canvas._viewport_box.get_global_rect().get_center()
+	runner.simulate_mouse_move(start)
+	await runner.await_input_processed()
+	canvas._key_button_down(start)   # D pressed while hovering the chip
+	await runner.await_input_processed()
+	assert_bool(canvas._key_press_active).is_true()
+	for i: int in range(1, 11):
+		runner.simulate_mouse_move(start.lerp(target, float(i) / 10.0))
+		await runner.await_input_processed()
+	assert_bool(canvas.get_viewport().gui_is_dragging()) \
+		.override_failure_message("hold-D + move must engage the drag pipeline") \
+		.is_true()
+	var data: Variant = canvas.get_viewport().gui_get_drag_data()
+	assert_bool(data is Dictionary and (data as Dictionary).has("aq_text_drop")).is_true()
+	canvas._key_button_up(target)    # D released = the drop attempt
+	await runner.await_input_processed()
+	assert_bool(canvas._key_press_active).is_false()
+	assert_bool(canvas.get_viewport().gui_is_dragging()).is_false()
+
+
 func test_drop_handler_chain_commits_text_op() -> void:
 	# The drop-target half: invoke exactly what the engine calls on a real
 	# drop (_can_drop_data hover query, then _drop_data) at a canvas-local

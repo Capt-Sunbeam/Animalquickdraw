@@ -297,6 +297,15 @@ Two owner-directed fix batches this session (decision log 2026-07-06 "Judging = 
 - [ ] Full House + Clean Sweep sanity when a real 8-player game / a 3-round sweep happens (fold into any big playtest)
 - [ ] Achievement display names + descriptions final pass on the Steamworks partner site (Slice 15 owner task: create all 27 with the exact ids from `achievement_defs.gd`)
 
+## Slice 20 — Authentic Undo in Replays + D-key overlay fix (added 2026-07-12)
+
+*Machine coverage: doc round-trip/parser/effective-semantics, rasterizer hash equalities (incl. the `undo_history` golden pinned to `stroke_fill`'s hash), replay mid-revert + skip + end-state sweep, canvas marker/guard/signal tests, calculator net-mark counts, D-key hover cross-check regression test. Batchables:*
+
+- [x] ~~Replay feel with undos~~ — owner-confirmed live 2026-07-12 ("both fixes landed well"); victory lap + collection viewer sanity still worth an eyeball in a full game
+- [x] ~~D-press on EXPANDED palette swatches selects the color~~ — owner-confirmed live 2026-07-12 ("both fixes landed well")
+- [x] ~~**D-drag** (owner tweak, same day): hold D to drag the TEXT CHIP into the canvas and expanded-palette colors onto the + favorite slots~~ — owner-confirmed live 2026-07-12 ("it works now") after the motion-mask fix
+- [ ] Undo button enabled-state feel: greys out when the canvas is effectively blank even after heavy undo use
+
 ## Design gaps / open items (not bugs — need decisions)
 
 - [x] ~~**No in-game pause/leave menu** (owner, 2026-07-06)~~ — RESOLVED: Slice 6 shipped the Esc menu (Resume/Leave + host pause); Slice 9 upgraded leave semantics (graceful leave = disconnect with rejoin memory, below-minimum pause, host End-game-now)

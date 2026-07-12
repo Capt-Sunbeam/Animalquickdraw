@@ -12,6 +12,15 @@
 
 ---
 
+### Slice 20 (mini): undo is a RECORDED op - replays show strokes drawn then removed (DrawingDoc v1 extended in place)
+**Date:** 2026-07-12 | **Slice:** 20 (touches 1/5/10 surfaces) | **Decided by:** Owner ("more authentically aligned to the users drawing actions") | **Type:** Quick
+
+**Decision:** `_press_undo` no longer pops history; it appends a wire-visible `{"t":"undo"}` marker (`UndoOp`). Final images read `DrawingDoc.effective_ops()` (undo cancels the previous effective op - the single home of undo semantics); replays play RAW ops and revert to the effective-prefix raster when they hit the marker (one re-raster per undo; a `REPLAY_NON_STROKE_OP_SEC` beat, so planner/player schedules stay mirrored automatically). Mark-count titles (Da Vinci/Minimalist) count NET ops; Speed Demon finish time + natural duration deliberately stay RAW (undone strokes are still real drawing time). **DrawingDoc v1 extended in place, no version bump** - pre-release, nothing shipped; old saved docs carry no markers and behave byte-identically. Same session: owner-found D-key bug fixed (`_begin_key_draw`'s geometric canvas-rect test inked under the expanded palette overlay; now cross-checks `gui_get_hovered_control()` - any control floating over the canvas wins the synthesized click).
+
+**Status:** [x] Implemented (581 tests green; `undo_history` golden pins the semantics by sharing `stroke_fill`'s baked hash) [x] Gates PASS ×3 [x] **Owner-confirmed live 2026-07-12** (undo replays + D-click, then the follow-up D-DRAG tweak: D outside the canvas is a held left button; drag detection needed the left-button mask RE-ISSUED ON MOTION EVENTS - real motions carry none while only D is held; headless engagement test pins it)
+
+---
+
 ### Slice 19 (mini): emoji reaction system RETIRED; title stacking; Worst Drawer cut; People's Champion rebased on kudos; ceremony settings + majority skip
 **Date:** 2026-07-12 | **Slice:** 19 (touches shipped 4/5/10/6/17 surfaces) | **Decided by:** Owner ("ive decided to get rid of the emoji system entirely") | **Type:** Structural
 

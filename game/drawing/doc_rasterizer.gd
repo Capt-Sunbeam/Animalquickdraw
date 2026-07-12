@@ -30,6 +30,10 @@ static func apply_op(img: Image, op: DrawingOp, mask: Image = null) -> void:
 		DrawingOp.Type.TEXT:
 			var text_op: TextOp = op
 			_blit_text(img, text_op, mask)
+		DrawingOp.Type.UNDO:
+			# Slice 20: an undo is not paintable in isolation - it needs doc
+			# context. Callers use rasterize()/rasterize_prefix() instead.
+			push_error("DocRasterizer.apply_op: UndoOp has no standalone raster")
 
 
 ## Stamps a partial stroke segment (points[from_idx..to_idx] inclusive) -
@@ -51,9 +55,20 @@ static func stamp_stroke_range(img: Image, stroke: Stroke, from_idx: int, to_idx
 
 
 ## Full re-raster (undo, initial display of a received doc, golden tests).
+## Slice 20: reads the EFFECTIVE ops - undone work never paints the final.
 static func rasterize(doc: DrawingDoc, mask: Image = null) -> Image:
 	var img: Image = new_canvas_image(doc.canvas_size())
-	for op: DrawingOp in doc.ops:
+	for op: DrawingOp in doc.effective_ops():
+		apply_op(img, op, mask)
+	return img
+
+
+## Effective-state raster of the first `count` RAW ops - the replay revert
+## primitive (Slice 20): called when the playhead crosses an UndoOp, with
+## count = that op's index + 1, so the marker cancels inside the prefix.
+static func rasterize_prefix(doc: DrawingDoc, count: int, mask: Image = null) -> Image:
+	var img: Image = new_canvas_image(doc.canvas_size())
+	for op: DrawingOp in DrawingDoc.resolve_effective(doc.ops.slice(0, count)):
 		apply_op(img, op, mask)
 	return img
 

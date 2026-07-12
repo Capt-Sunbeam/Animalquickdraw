@@ -246,6 +246,25 @@ func test_minimalist_excludes_zero_op_docs_da_vinci_takes_most_marks() -> void:
 			assert_array(t["evidence_drawing_ids"]).contains_exactly(["d1"])  # 1 op
 
 
+func test_mark_counts_ignore_undone_ops() -> void:
+	# Slice 20: undo markers ride the op list - marks must be the NET count,
+	# so a player who drew 5 things and undid 4 has 1 mark, not 9.
+	var undo_doc: Dictionary = _doc(5)
+	for i: int in 4:
+		(undo_doc["ops"] as Array).append({"t": "undo"})
+	var records: Array[RoundRecord] = [
+		_record(0, [_sub("d0", "p1", _doc(5)), _sub("d1", "p2", undo_doc)]),
+		_record(1, [_sub("d2", "p1", _doc(7)), _sub("d3", "p2", _doc(1))]),
+	]
+	var stats: SessionStats = _stats_for(records)
+	var titles: Array[Dictionary] = _titles_of(records, stats)
+	assert_str(_title_holder(titles, TitleIds.DA_VINCI)).is_equal("p1")
+	assert_str(_title_holder(titles, TitleIds.MINIMALIST)).is_equal("p2")
+	for t: Dictionary in titles:
+		if str(t["id"]) == TitleIds.MINIMALIST:
+			assert_float(float(t["stat_value"])).is_equal_approx(1.0, 0.001)
+
+
 func test_title_tie_breaks_stat_then_round_then_rotation_index() -> void:
 	# p1 and p3 tie on kudos received (2 each). p3's best evidence is round 0,
 	# p1's is round 1 -> earlier round wins for p3.

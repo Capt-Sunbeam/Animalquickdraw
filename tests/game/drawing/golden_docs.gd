@@ -78,6 +78,22 @@ static func stroke_fill() -> DrawingDoc:
 	return doc
 
 
+## Slice 20: same effective picture as stroke_fill, but with a drawn-and-
+## undone detour recorded in the history. Its baked hash IS stroke_fill's -
+## the equality is the undo-marker semantic pin.
+static func undo_history() -> DrawingDoc:
+	var doc := DrawingDoc.new()
+	doc.ops.append(make_stroke(4, 1, [
+		Vector2(200.0, 150.0), Vector2(600.0, 150.0), Vector2(600.0, 450.0),
+		Vector2(200.0, 450.0), Vector2(200.0, 150.0),
+	], 0.0, 0.2))
+	doc.ops.append(make_stroke(Palette.base_index(8), 2,
+		[Vector2(100.0, 500.0), Vector2(700.0, 520.0)], 1.5, 0.2))   # the mistake
+	doc.ops.append(UndoOp.new())                                     # ...regretted
+	doc.ops.append(make_fill(Palette.base_index(3), 400, 300))
+	return doc
+
+
 ## Fill on an untouched canvas (floods everything).
 static func fill_blank() -> DrawingDoc:
 	var doc := DrawingDoc.new()
@@ -113,6 +129,7 @@ static func all() -> Dictionary:
 		"multi_stroke": multi_stroke(),
 		"stroke_clear_stroke": stroke_clear_stroke(),
 		"stroke_fill": stroke_fill(),
+		"undo_history": undo_history(),
 		"fill_blank": fill_blank(),
 		"portrait_stroke": portrait_stroke(),
 		"text_mixed": text_mixed(),

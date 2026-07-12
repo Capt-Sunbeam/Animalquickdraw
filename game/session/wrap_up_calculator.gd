@@ -363,7 +363,17 @@ static func _op_count(doc: Variant) -> int:
 	if not doc is Dictionary:
 		return 0
 	var ops: Variant = (doc as Dictionary).get("ops")
-	return (ops as Array).size() if ops is Array else 0
+	if not ops is Array:
+		return 0
+	# Slice 20: undo markers ride the op list - "marks" = the NET effective
+	# count (an undone stroke is not a mark; the undo itself never is).
+	var count: int = 0
+	for op: Variant in ops:
+		if op is Dictionary and str((op as Dictionary).get("t", "")) == "undo":
+			count = maxi(0, count - 1)
+		else:
+			count += 1
+	return count
 
 
 static func _embed_drawing(drawings: Dictionary, by_id: Dictionary, drawing_id: String) -> void:

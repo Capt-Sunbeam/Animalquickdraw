@@ -54,6 +54,11 @@ var _eraser_cursor: EraserCursor = null   # display-only erase footprint
 var _zoom: float = 1.0
 var _pan: Vector2 = Vector2.ZERO          # RasterView position; <= 0 per axis
 var _stroke_from_key: bool = false        # live stroke started by draw_hold
+var _key_press_active: bool = false       # synthetic left button held via D (off-canvas)
+var _key_last_pointer: Vector2 = Vector2.ZERO  # last re-issued motion position (viewport coords)
+
+## Tags the motion copies _push_key_motion re-issues (recursion guard).
+const KEY_SYNTH_META: StringName = &"aq_key_synth"
 var _pan_grab_mouse: Vector2 = Vector2.ZERO
 var _minimap: CanvasMinimap = null        # "you are here" inset while zoomed
 
@@ -216,6 +221,17 @@ func _process(_delta: float) -> void:
 
 
 func _input(event: InputEvent) -> void:
+	# D-as-button drags (Slice 20 tweak): Godot's drag detection reads the
+	# button mask ON THE MOTION EVENTS (the GdUnit drag recipe proves it),
+	# and real motions carry no mask while only D is held. While the
+	# synthetic press is active, consume each real motion and re-issue it
+	# carrying MOUSE_BUTTON_MASK_LEFT - hold-D + move then starts drags
+	# exactly like a held physical button. Tagged copies skip this block.
+	if _key_press_active and event is InputEventMouseMotion \
+			and not event.has_meta(KEY_SYNTH_META):
+		get_viewport().set_input_as_handled()
+		_push_key_motion()
+		return
 	# Trackpad gestures are handled here, NOT in gui_input - their delivery
 	# to Controls varies by platform (the owner's two-finger pan never
 	# arrived through gui_input on macOS). Hit-test the canvas ourselves.
@@ -256,6 +272,10 @@ func _notification(what: int) -> void:
 			_end_stroke_at_last_point()
 		if _input_state == InputState.PANNING:
 			_input_state = InputState.IDLE
+		if _key_press_active:
+			# The D-up may never reach us after a focus swap - release the
+			# synthetic button so no held state gets stuck.
+			_key_button_up(get_viewport().get_mouse_position())
 
 
 func _unhandled_key_input(event: InputEvent) -> void:
@@ -263,9 +283,13 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		_press_undo()
 	elif event.is_action_pressed("draw_hold") and not event.is_echo():
 		_begin_key_draw()
-	elif event.is_action_released("draw_hold") \
-			and _input_state == InputState.STROKING and _stroke_from_key:
-		_stroke_end(_display_to_internal(_viewport_box.get_local_mouse_position()))
+	elif event.is_action_released("draw_hold"):
+		if _input_state == InputState.STROKING and _stroke_from_key:
+			_stroke_end(_display_to_internal(_viewport_box.get_local_mouse_position()))
+		elif _key_press_active:
+			# Release at the CURRENT pointer - a D-drag drops wherever the
+			# pointer travelled to (canvas included: text chip placement).
+			_key_button_up(get_viewport().get_mouse_position())
 
 
 # --- Internal: input handling ---
@@ -437,13 +461,15 @@ func _layout_minimap() -> void:
 	_minimap.set_view(_zoom, _pan, view)
 
 
-## Hold-to-draw + key-click (Slice 18; rework 2026-07-10): while
+## Hold-to-draw + key-as-button (Slice 18; reworks 2026-07-10/12): while
 ## `draw_hold` (default D) is held over the canvas, the pointer is the
-## pen; over the minimap, the minimap pans; anywhere else, a D press is a
-## synthesized left-click at the pointer (toolbar/palette/toggles/chat
-## focus - one rule, no per-widget wiring). Focused text fields consume
-## the key before _unhandled_key_input, so typing "d" can never ink OR
-## click.
+## pen; over the minimap, the minimap pans; anywhere else, holding D IS a
+## held left mouse button - tap = click, hold + move = drag-and-drop
+## (owner request 2026-07-12: drag the text chip / palette favorites with
+## D exactly like the mouse). One rule, no per-widget wiring: Godot's own
+## drag pipeline sees the synthesized press, the REAL pointer motion, and
+## the release on D-up. Focused text fields consume the key before
+## _unhandled_key_input, so typing "d" can never ink OR click.
 func _begin_key_draw() -> void:
 	if not is_visible_in_tree():
 		return
@@ -461,8 +487,8 @@ func _begin_key_draw() -> void:
 			_stroke_begin(pos)
 		return
 	if Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
-		return   # a real press is in flight - don't double-click
-	_key_click_at(get_viewport().get_mouse_position())
+		return   # a real press is in flight - don't double-press
+	_key_button_down(get_viewport().get_mouse_position())
 
 
 ## The canvas-rect test alone lies when another control floats OVER the
@@ -484,17 +510,45 @@ func _hover_allows_canvas(hovered: Control) -> bool:
 	return hovered == _viewport_box or _viewport_box.is_ancestor_of(hovered)
 
 
-## Synthesized full press+release pair (no held-button state to get
-## stuck), pushed viewport-locally so the window stretch transform never
-## touches the coordinates.
-func _key_click_at(canvas_pos: Vector2) -> void:
-	for is_press: bool in [true, false]:
-		var ev := InputEventMouseButton.new()
-		ev.button_index = MOUSE_BUTTON_LEFT
-		ev.pressed = is_press
-		ev.position = canvas_pos
-		ev.global_position = canvas_pos
-		get_viewport().push_input(ev, true)
+## D-down outside the canvas: synthesize a left-button PRESS and hold it
+## until D-up (release pairs in _unhandled_key_input and, as a stuck-state
+## guard, on focus loss). Between the pair, real pointer motion drives
+## Godot's drag detection - which is what makes D-drags work.
+func _key_button_down(canvas_pos: Vector2) -> void:
+	_key_press_active = true
+	_key_last_pointer = canvas_pos
+	_push_key_button(canvas_pos, true)
+
+
+func _key_button_up(canvas_pos: Vector2) -> void:
+	_key_press_active = false
+	_push_key_button(canvas_pos, false)
+
+
+## Re-issued motion carrying the left-button mask (see _input). Positions
+## are viewport-local like the press; relative is our own delta so the
+## window stretch transform never skews the drag threshold accumulation.
+func _push_key_motion() -> void:
+	var pos: Vector2 = get_viewport().get_mouse_position()
+	var mm := InputEventMouseMotion.new()
+	mm.position = pos
+	mm.global_position = pos
+	mm.relative = pos - _key_last_pointer
+	mm.button_mask = MOUSE_BUTTON_MASK_LEFT
+	mm.set_meta(KEY_SYNTH_META, true)
+	_key_last_pointer = pos
+	get_viewport().push_input(mm, true)
+
+
+## One synthesized button edge, pushed viewport-locally so the window
+## stretch transform never touches the coordinates.
+func _push_key_button(canvas_pos: Vector2, is_press: bool) -> void:
+	var ev := InputEventMouseButton.new()
+	ev.button_index = MOUSE_BUTTON_LEFT
+	ev.pressed = is_press
+	ev.position = canvas_pos
+	ev.global_position = canvas_pos
+	get_viewport().push_input(ev, true)
 
 
 # --- Internal: stroke lifecycle (also the headless-test seam) ---
@@ -741,12 +795,16 @@ func _update_eraser_cursor() -> void:
 
 
 func _press_undo() -> void:
-	if not _tools_enabled or _input_state != InputState.IDLE or _doc.ops.is_empty():
-		return  # stray Ctrl+Z on empty doc / mid-stroke is a silent no-op
-	_doc.ops.pop_back()
+	# Slice 20: undo is RECORDED, not destructive - a marker op rides the
+	# history so replays show the work drawn and then removed. Guards read
+	# the EFFECTIVE state (a fully-undone doc has ops but nothing to undo).
+	if not _tools_enabled or _input_state != InputState.IDLE \
+			or _doc.effective_ops().is_empty():
+		return  # stray Ctrl+Z on blank canvas / mid-stroke is a silent no-op
+	_doc.ops.append(UndoOp.new())
 	_full_reraster()
 	_refresh_undo_state()
-	op_undone.emit(_doc.ops.size())
+	op_undone.emit(_doc.effective_ops().size())
 	doc_changed.emit()
 
 
@@ -767,8 +825,8 @@ func _press_rotate() -> void:
 		return
 	if mask_mode == MaskMode.CIRCLE:
 		return   # avatar orientation is fixed (button hidden; belt-and-braces)
-	if _doc.ops.is_empty():
-		_flip_orientation()  # nothing to lose - no dialog (§5)
+	if _doc.effective_ops().is_empty():
+		_flip_orientation()  # canvas LOOKS blank - nothing to lose, no dialog (§5)
 		return
 	_input_state = InputState.CONFIRMING_ROTATE
 	_rotate_confirm.ask("Rotate canvas", "Rotating clears your drawing. Rotate anyway?", "Rotate")
@@ -828,7 +886,8 @@ func _full_reraster() -> void:
 
 
 func _refresh_undo_state() -> void:
-	_toolbar.set_undo_enabled(_tools_enabled and not _doc.ops.is_empty())
+	# Slice 20: effective emptiness - undo markers alone leave nothing to undo.
+	_toolbar.set_undo_enabled(_tools_enabled and not _doc.effective_ops().is_empty())
 
 
 func _clock_sec() -> float:

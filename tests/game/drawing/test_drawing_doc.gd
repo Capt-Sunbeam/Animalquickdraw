@@ -13,6 +13,41 @@ func _valid_doc() -> DrawingDoc:
 	return doc
 
 
+# --- Slice 20: undo markers ---
+
+
+func test_undo_round_trips_and_parses() -> void:
+	var doc: DrawingDoc = _valid_doc()
+	doc.ops.append(UndoOp.new())
+	var parsed: DrawingDoc = DrawingDoc.from_dict(
+			JSON.parse_string(JSON.stringify(doc.to_dict())))
+	assert_object(parsed).is_not_null()
+	assert_int(parsed.ops.size()).is_equal(5)
+	assert_int(parsed.ops[4].type).is_equal(DrawingOp.Type.UNDO)
+
+
+func test_effective_ops_cancel_previous_op() -> void:
+	var doc: DrawingDoc = _valid_doc()          # stroke, fill, clear, text
+	doc.ops.append(UndoOp.new())                # cancels text
+	doc.ops.append(UndoOp.new())                # cancels clear
+	var effective: Array[DrawingOp] = doc.effective_ops()
+	assert_int(effective.size()).is_equal(2)
+	assert_int(effective[0].type).is_equal(DrawingOp.Type.STROKE)
+	assert_int(effective[1].type).is_equal(DrawingOp.Type.FILL)
+	# Raw history is untouched - replays need it.
+	assert_int(doc.ops.size()).is_equal(6)
+
+
+func test_effective_ops_tolerate_undo_on_empty() -> void:
+	# Hostile doc: markers with nothing to cancel resolve to empty, no crash.
+	var doc := DrawingDoc.new()
+	doc.ops.append(UndoOp.new())
+	doc.ops.append(UndoOp.new())
+	assert_array(doc.effective_ops()).is_empty()
+	# And the wire shape still parses.
+	assert_object(DrawingDoc.from_dict(doc.to_dict())).is_not_null()
+
+
 func test_round_trip_preserves_all_ops() -> void:
 	var doc: DrawingDoc = _valid_doc()
 	var parsed: DrawingDoc = DrawingDoc.from_dict(doc.to_dict())

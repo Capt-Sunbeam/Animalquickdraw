@@ -13,7 +13,25 @@ const KNOWN_ORIENTATIONS: Array[StringName] = [ORIENTATION_LANDSCAPE,
 		ORIENTATION_PORTRAIT, ORIENTATION_AVATAR]
 
 var orientation: StringName = ORIENTATION_LANDSCAPE
-var ops: Array[DrawingOp] = []
+var ops: Array[DrawingOp] = []   # RAW history incl. undo markers (Slice 20)
+
+
+## The ops that actually paint (Slice 20): an UndoOp cancels the previous
+## effective op. This is the ONE home of undo semantics - final rasters read
+## this; replays read the raw list and revert when they hit a marker.
+func effective_ops() -> Array[DrawingOp]:
+	return resolve_effective(ops)
+
+
+static func resolve_effective(raw_ops: Array[DrawingOp]) -> Array[DrawingOp]:
+	var out: Array[DrawingOp] = []
+	for op: DrawingOp in raw_ops:
+		if op is UndoOp:
+			if not out.is_empty():
+				out.pop_back()   # undo on empty is a tolerated no-op (hostile docs)
+		else:
+			out.append(op)
+	return out
 
 
 func canvas_size() -> Vector2i:
@@ -59,6 +77,8 @@ func to_dict() -> Dictionary:
 				var text_op: TextOp = op
 				out_ops.append({"t": "text", "c": text_op.color_index, "s": text_op.size_index,
 						"x": text_op.x, "y": text_op.y, "str": text_op.text})
+			DrawingOp.Type.UNDO:
+				out_ops.append({"t": "undo"})
 	return {"v": FORMAT_VERSION, "orientation": String(orientation), "ops": out_ops}
 
 
@@ -104,6 +124,8 @@ static func from_dict(data: Variant) -> DrawingDoc:
 				doc.ops.append(fill)
 			"clear":
 				doc.ops.append(ClearOp.new())
+			"undo":
+				doc.ops.append(UndoOp.new())
 			"text":
 				var text_op: TextOp = _parse_text(op_dict, size)
 				if text_op == null:

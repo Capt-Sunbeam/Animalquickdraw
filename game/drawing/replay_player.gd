@@ -104,6 +104,9 @@ func skip_to_end() -> void:
 			# stamps fully from index 0.
 			var stroke: Stroke = op
 			DocRasterizer.stamp_stroke_range(_image, stroke, maxi(_stamped_points - 1, 0), stroke.points.size() - 1)
+		elif op is UndoOp:
+			# Slice 20: revert to the effective state incl. this marker.
+			_image = DocRasterizer.rasterize_prefix(_doc, _op_index + 1)
 		else:
 			DocRasterizer.apply_op(_image, op)
 		_advance_to_next_op()
@@ -142,6 +145,14 @@ func _apply_up_to_playhead() -> void:
 				_stamped_points = target
 			if _stamped_points < stroke.points.size():
 				return  # mid-stroke; wait for more playhead
+		elif op is UndoOp:
+			# Slice 20: the undone work vanishes at op start (drawn -> beat ->
+			# poof); one effective-prefix re-raster, same cost as the initial
+			# raster. The beat duration is the usual non-stroke pacing.
+			_image = DocRasterizer.rasterize_prefix(_doc, _op_index + 1)
+			if _playhead < entry.start + entry.duration:
+				_advance_to_next_op()
+				return
 		else:
 			# Fill/clear apply at op start; their duration is a pacing beat.
 			DocRasterizer.apply_op(_image, op)

@@ -50,19 +50,26 @@ func test_clear_is_recorded_as_an_op() -> void:
 	assert_int(_canvas.get_doc().ops[0].type).is_equal(DrawingOp.Type.CLEAR)
 
 
-func test_undo_pops_any_op_type_and_rerasters() -> void:
+func test_undo_records_marker_and_rerasters() -> void:
+	# Slice 20: undo APPENDS a marker (history survives for replays); the
+	# raster and the op_undone counts read the EFFECTIVE state.
 	var blank_hash: String = DocRasterizer.image_hash(_canvas._raster)
 	_canvas._stroke_begin(Vector2(100.0, 100.0))
 	_canvas._stroke_end(Vector2(300.0, 300.0))
 	_canvas._fill_at(Vector2(50.0, 50.0))
 	var undone: Array[int] = []
 	_canvas.op_undone.connect(func(remaining: int) -> void: undone.append(remaining))
-	_canvas._press_undo()  # pops the fill
-	assert_int(_canvas.get_doc().ops.size()).is_equal(1)
-	_canvas._press_undo()  # pops the stroke
-	assert_int(_canvas.get_doc().ops.size()).is_equal(0)
+	_canvas._press_undo()  # cancels the fill
+	assert_int(_canvas.get_doc().ops.size()).is_equal(3)   # stroke, fill, undo
+	assert_int(_canvas.get_doc().effective_ops().size()).is_equal(1)
+	_canvas._press_undo()  # cancels the stroke
+	assert_int(_canvas.get_doc().ops.size()).is_equal(4)
+	assert_array(_canvas.get_doc().effective_ops()).is_empty()
 	assert_array(undone).is_equal([1, 0])
 	assert_str(DocRasterizer.image_hash(_canvas._raster)).is_equal(blank_hash)
+	# Effectively blank: a further undo must append NOTHING.
+	_canvas._press_undo()
+	assert_int(_canvas.get_doc().ops.size()).is_equal(4)
 
 
 func test_undo_on_empty_doc_is_silent_noop() -> void:
@@ -209,7 +216,10 @@ func test_undo_removes_committed_text_op() -> void:
 	_canvas._text_input.text = "oops"
 	_canvas._commit_text_at(Vector2i(50, 50))
 	_canvas._press_undo()
-	assert_int(_canvas.get_doc().ops.size()).is_equal(0)
+	# Slice 20: the text op stays in history (+ the undo marker) but no
+	# longer paints - the raster is blank again.
+	assert_int(_canvas.get_doc().ops.size()).is_equal(2)
+	assert_array(_canvas.get_doc().effective_ops()).is_empty()
 	assert_str(DocRasterizer.image_hash(_canvas._raster)).is_equal(blank_hash)
 
 
@@ -412,15 +422,24 @@ func test_minimap_hidden_at_fit_visible_zoomed() -> void:
 	assert_bool(_canvas._minimap.visible).is_true()
 
 
-func test_key_click_presses_the_button_under_the_pointer() -> void:
-	# The D-as-click synthesis: a click pair at the Clear button's center
-	# must run the ordinary button path (ClearOp appended).
+func test_key_hold_acts_as_held_button_press_then_release() -> void:
+	# Owner tweak (2026-07-12): D outside the canvas is a HELD left button -
+	# tap = click, hold + move = drag. A press alone must not activate a
+	# click-on-release button; the D-up release completes it. (Real drag
+	# delivery is owner-verified live - headless can't deliver drops,
+	# Slice 16 lesson.)
 	_canvas.size = Vector2(1000.0, 760.0)
 	await await_idle_frame()
 	var clear_button: Button = _canvas._toolbar._clear_button
-	_canvas._key_click_at(clear_button.get_global_rect().get_center())
+	var center: Vector2 = clear_button.get_global_rect().get_center()
+	_canvas._key_button_down(center)
 	await await_idle_frame()
-	assert_int(_canvas.get_doc().ops.size()).is_equal(1)
+	assert_bool(_canvas._key_press_active).is_true()
+	assert_int(_canvas.get_doc().ops.size()).is_equal(0)   # held, not clicked yet
+	_canvas._key_button_up(center)
+	await await_idle_frame()
+	assert_bool(_canvas._key_press_active).is_false()
+	assert_int(_canvas.get_doc().ops.size()).is_equal(1)   # release = the click
 	assert_int(_canvas.get_doc().ops[0].type).is_equal(DrawingOp.Type.CLEAR)
 
 

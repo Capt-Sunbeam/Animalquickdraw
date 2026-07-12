@@ -30,6 +30,38 @@ func test_end_state_hash_matches_rasterize_for_every_golden() -> void:
 			.is_equal(DocRasterizer.image_hash(DocRasterizer.rasterize(doc)))
 
 
+func test_undo_reverts_mid_replay_then_end_state_matches() -> void:
+	# Slice 20: undo_history = [rect, mistake, undo, fill]. Right after the
+	# undo op starts, the image must equal the rect stroke alone (the
+	# mistake was drawn, then vanished); the end state is the golden.
+	var doc: DrawingDoc = GoldenDocs.undo_history()
+	var rect_only := DrawingDoc.new()
+	rect_only.ops.append(GoldenDocs.undo_history().ops[0])
+	var player := ReplayPlayer.new()
+	player.load_doc(doc, 1.0)
+	# Lambda captures are BY-VALUE (session-8 rule): mutate a container.
+	var reverted: Array[String] = []
+	player.op_started.connect(func(op_index: int) -> void:
+		if op_index == 3:   # the fill starts AFTER the undo beat settled
+			reverted.append(DocRasterizer.image_hash(player.get_image())))
+	_run_to_end(player)
+	assert_array(reverted).has_size(1)
+	assert_str(reverted[0]) \
+		.is_equal(DocRasterizer.image_hash(DocRasterizer.rasterize(rect_only)))
+	assert_str(DocRasterizer.image_hash(player.get_image())) \
+		.is_equal(DocRasterizer.image_hash(DocRasterizer.rasterize(doc)))
+
+
+func test_skip_to_end_with_undo_matches_final_raster() -> void:
+	var doc: DrawingDoc = GoldenDocs.undo_history()
+	var player := ReplayPlayer.new()
+	player.load_doc(doc, 1.0)
+	player.advance(FRAME)   # start playback, then bail immediately
+	player.skip_to_end()
+	assert_str(DocRasterizer.image_hash(player.get_image())) \
+		.is_equal(DocRasterizer.image_hash(DocRasterizer.rasterize(doc)))
+
+
 func test_thirty_second_doc_finishes_within_cap_at_speed_one() -> void:
 	var doc := DrawingDoc.new()
 	var points: Array = []
