@@ -1,0 +1,59 @@
+// M2 — Lobby Theme (Animal Quickdraw)
+// Status: DONE (owner, 2026-07-19)
+// Plays: lobby + pool-word submission screen
+// Character: elevator-music arrangement of M1 — same melody on e-piano, 7th chords, sparse marimba, half-time bass, flat arrangement (no build)
+// Key: F major pentatonic | Chords: Fmaj7–Dm7–Bbmaj7–C7 | Tempo: 104 BPM (setcpm(104/4))
+// Paste into https://strudel.cc — inventory: TDD/sound-design-brief.md §1 (M2), identity rules §0
+
+setcpm(104/4)
+
+// ═══ EP — the melody, now on e-piano. Rounder than the square lead.
+ep$: n("<[0 [~ 2] 4 [~ 2]] [5 [~ 4] 2 [~ 4]] [7 [~ 5] 4 [~ 5]] [2 [~ 0] 2 [~ 4]]>")
+  .scale("F4:major:pentatonic")
+  .sound("gm_epiano1")
+  .attack(.01).decay(.3).sustain(.3).release(.4)
+  .off(1/8, x => x.add(-12).gain(.15))
+  .lpf(sine.range(2200, 4200).slow(32))
+  .room(.35).size(5)
+  .gain(.32)
+  .pan(.5)
+  .mask("<1!64>")
+
+// ═══ CHD — 7th chords, warm and held.
+chd$: note("<[f3,a3,c4,e4] [d3,f3,a3,c4] [bb2,d3,f3,a3] [c3,e3,g3,bb3]>")
+  .sound("gm_epiano1")
+  .attack(.04).decay(.5).sustain(.5).release(.6)
+  .lpf(sine.range(1800, 3200).slow(32)).lpq(2)
+  .room(.4).size(6)
+  .gain(.26)
+  .pan(.45)
+  .mask("<1!64>")
+
+// ═══ MAR — the bounce, now sparse and quiet.
+mar$: n("<[0 ~ ~ [4@3 2]] [~ ~ 2 ~] [5 ~ ~ [2@3 0]] [~ ~ 0 ~]>")
+  .scale("F4:major:pentatonic")
+  .sound("gm_marimba")
+  .attack(.001).decay(.15).sustain(0).release(.1)
+  .room(.3).size(4)
+  .pan(.6)
+  .gain(.28)
+  .mask("<1!64>")
+
+// ═══ BNC — lazy half-time walk.
+bnc$: note("<[f1 ~ ~ a1] [d1 ~ ~ f1] [bb0 ~ ~ d1] [c1 ~ ~ e1]>")
+  .sound("sawtooth")
+  .attack(.005).decay(.3).sustain(.35).release(.2)
+  .lpf(650).lpq(3)
+  .room(.15)
+  .gain(.6).shape(.2)
+  .mask("<1!64>")
+
+// ═══ SWELL — soft pad underneath, kept from M1.
+swl$: note("<f2 d2 bb1 c2>")
+  .sound("triangle")
+  .attack(.4).decay(.5).sustain(.6).release(.6)
+  .lpf(sine.range(500, 1400).slow(8)).lpq(3)
+  .room(.5).size(7)
+  .gain(.2)
+  .pan(.5)
+  .mask("<1!64>")

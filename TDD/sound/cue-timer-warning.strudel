@@ -1,0 +1,27 @@
+// CUE — Timer Warning (5 s escalating countdown + landing note)
+// Status: DONE (owner, 2026-07-19)
+// Plays: last 5 seconds of the DRAWING and JUDGING timers. ONE-SHOT — never loops.
+// Design (owner): the music FADES smoothly into the cue — countdown well heard, but no rough cut.
+//   Notes 1–5 = the countdown, one per second; the 6TH note lands exactly ON the screen change
+//   out of the timed phase (a musical arrival, not an alarm cutoff).
+// Notes: F4 A4 D5 F5 A5 D6 — a rising F-major-pentatonic ladder | Tempo: setcpm(60), 1 cycle = 1 s
+// Wiring spec: start playback at T-minus-5.0 s so note 6 hits the transition frame; during DRAWING
+//   fade the music track out across the cue's first ~1 s (JUDGING is already music-free after the M4 cut).
+// Render: one-shot WAV, ~6 s + reverb tail.
+// Paste into https://strudel.cc — inventory: TDD/sound-design-brief.md §3, identity rules §0
+
+setcpm(60)
+// One cycle = 1 second. Five cycles = exactly 5 seconds. Play once, do NOT loop.
+
+stack(
+
+  // RISE — a note climbing the scale on top, one per second.
+  n("<0 2 4 5 7 9 >")
+    .scale("F4:major:pentatonic")
+    .sound("square")
+    .attack(.001).decay(.15).sustain(0).release(.05)
+    .lpf(saw.range(2000, 7000))
+    .gain(saw.range(.3, .7))
+    .pan(.5)
+)
+.room(.15).size(2)

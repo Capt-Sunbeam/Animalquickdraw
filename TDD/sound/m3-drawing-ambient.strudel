@@ -1,0 +1,67 @@
+// M3a — Ambient (Animal Quickdraw drawing theme, subtle)
+// Status: DONE (owner, 2026-07-19) — SHIPS alongside M3b; host picks which drawing tracks are in the rotation
+// Plays: DRAWING phase (host-pickable rotation)
+// Character: rounded triangle arp engine, upright bass, wandering vibraphone phrases, soft rim/hat shuffle
+// Key: F major pentatonic | Chords: F–Dm–Bb–C | Tempo: 112 BPM (setcpm(112/4))
+// Paste into https://strudel.cc — inventory: TDD/sound-design-brief.md §1 (M3), identity rules §0
+
+setcpm(112/4)
+
+// ═══ ARP — gentle engine. Rounded, not blippy.
+arp$: n("<[0 2 4 2] [4 2 0 2] [0 4 5 4] [2 4 5 2]>*2")
+  .scale("F3:major:pentatonic")
+  .sound("triangle")
+  .attack(.005).decay(.12).sustain(0).release(.08)
+  .lpf(perlin.range(1400, 2800).slow(12)).lpq(2)
+  .room(.25)
+  .pan(.5)
+  .gain(.22)
+  .mask("<1!96>")
+
+// ═══ BASS — upright, warm and woody.
+bas$: note("<[f1 ~ ~ c2] [d1 ~ ~ a1] [bb0 ~ ~ f1] [c1 ~ ~ g1]>")
+  .sound("gm_acoustic_bass")
+  .attack(.005).decay(.3).sustain(.3).release(.15)
+  .lpf(700)
+  .room(.15)
+  .gain(.6)
+  .mask("<0!4 1!92>")
+
+// ═══ VIB — a wandering phrase that comes and goes. Enters cycle 16.
+vib$: n("<[~ 4 ~ 2] [~ ~ ~ ~] [5 ~ 4 ~] [~ ~ ~ ~] [~ 2 ~ 0] [~ ~ ~ ~] [4 ~ 5 ~] [~ ~ ~ ~]>")
+  .scale("F4:major:pentatonic")
+  .sound("gm_vibraphone")
+  .attack(.01).decay(.4).sustain(0).release(.5)
+  .lpf(perlin.range(1600, 3200).slow(10))
+  .room(.5).size(6)
+  .delay(.25).delaytime(.375).delayfeedback(.35)
+  .pan(sine.range(.4, .6).slow(8))
+  .gain(.28)
+  .mask("<0!16 1!80>")
+
+// ═══ TICK — soft percussion. Steady, low-key.
+tck$: sound("~ rim ~ rim").bank("RolandTR707")
+  .speed(1.4)
+  .attack(.001).decay(.05).sustain(0)
+  .gain(.22)
+  .pan(.55)
+  .room(.1)
+  .mask("<0!8 1!88>")
+
+// ═══ HAT — quiet offbeat shuffle.
+hat$: sound("[~ hh]*2").bank("RolandTR707")
+  .gain(.16)
+  .hpf(6500)
+  .decay(.03).sustain(0)
+  .pan(.5)
+  .mask("<0!8 1!88>")
+
+// ═══ SWELL — pad underneath for warmth.
+swl$: note("<f2 d2 bb1 c2>")
+  .sound("triangle")
+  .attack(.4).decay(.5).sustain(.6).release(.6)
+  .lpf(sine.range(500, 1400).slow(14)).lpq(3)
+  .room(.4).size(6)
+  .gain(.18)
+  .pan(.5)
+  .mask("<1!96>")

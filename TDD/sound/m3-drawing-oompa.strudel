@@ -1,0 +1,64 @@
+// M3b — "Oompa Loompa Banjo" (Animal Quickdraw drawing theme, upbeat)
+// Status: DONE (owner, 2026-07-19) — SHIPS alongside M3a; host picks which drawing tracks are in the rotation
+// Plays: DRAWING phase (host-pickable rotation)
+// Character: carefree walking-whistle tune; ocarina + oompah tuba + banjo skip + clap/shaker
+// Key: F major pentatonic | Chords: F–Dm–Bb–C | Tempo: 120 BPM (setcpm(120/4))
+// Paste into https://strudel.cc — inventory: TDD/sound-design-brief.md §1 (M3), identity rules §0
+
+setcpm(120/4)
+
+// ═══ WHISTLE — the tune. Carefree, like humming while you walk.
+whs$: n("<[0 2 ~ 4] [2 ~ 4 5] [4 ~ 2 0] [~ 2 4 ~]>")
+  .scale("F4:major:pentatonic")
+  .sound("gm_ocarina")
+  .attack(.02).decay(.2).sustain(.4).release(.2)
+  .lpf(perlin.range(2000, 3600).slow(10))
+  .room(.35).size(5)
+  .vib(4).vibmod(.2)
+  .pan(.5)
+  .gain(.38)
+  .mask("<1!96>")
+
+// ═══ TUBA — bouncy oompah bass. Impossible to miss.
+tub$: note("<[f2 ~ c3 ~] [d2 ~ a2 ~] [bb1 ~ f2 ~] [c2 ~ g2 ~]>*2")
+  .sound("gm_tuba")
+  .attack(.005).decay(.25).sustain(.2).release(.12)
+  .lpf(1000)
+  .room(.1)
+  .gain(.85).shape(.2)
+  .mask("<0!2 1!94>")
+
+// ═══ BANJO — plucky skip. The bounce in the step.
+bnj$: n("<[0 2 4 2 5 4 2 0] [4 5 7 5 4 2 4 5]>")
+  .scale("F3:major:pentatonic")
+  .sound("gm_banjo")
+  .attack(.001).decay(.12).sustain(0).release(.06)
+  .lpf(2800)
+  .room(.2)
+  .pan(sine.range(.42, .58).slow(6))
+  .gain(.4)
+  .mask("<0!4 1!92>")
+
+// ═══ CLAP — handclap on the offbeat. Playground energy.
+clp$: sound("~ cp ~ cp").bank("RhythmAce")
+  .gain(.4).room(.25)
+  .pan(.5)
+  .mask("<0!8 1!88>")
+
+// ═══ SHAKE — shaker keeping the skip going.
+shk$: sound("[~ hh]*2").bank("RhythmAce")
+  .gain(.3)
+  .hpf(5000)
+  .decay(.04).sustain(0)
+  .pan(.55)
+  .mask("<0!6 1!90>")
+
+// ═══ SWELL — soft pad, the only tie to the other tracks.
+swl$: note("<f2 d2 bb1 c2>")
+  .sound("triangle")
+  .attack(.4).decay(.5).sustain(.6).release(.5)
+  .lpf(sine.range(700, 1800).slow(12)).lpq(3)
+  .room(.35).size(6)
+  .gain(.15)
+  .pan(.5)
+  .mask("<1!96>")
