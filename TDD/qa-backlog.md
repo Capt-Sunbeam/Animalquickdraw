@@ -90,7 +90,7 @@ Two owner-directed fix batches this session (decision log 2026-07-06 "Judging = 
 - [ ] Emoji glyphs still in use (🔒 yours, 🏅 badges, chat text) render on Windows/Linux exports (dev machine is macOS; font fallback differs)
 - [ ] Score at RESOLUTION visibly includes kudos +1 (winner who also got kudos shows +3 total) ✅ AUTO (scoring)
 - [ ] Judge can kudos while deciding (by design §11) — feels right, not distracting
-- [ ] Grid cell layout at 2–7 drawings and window resizes (Slice 19: reaction row removed — the drawing got the freed height; re-look at density)
+- [x] ~~Grid cell layout at 2–7 drawings and window resizes~~ — owner ran a 7-drawer game (8-instance playtest, 2026-08-10): "worked fine"; resize sweep still fair game in the full sweep
 
 ## Slice 5 — Reveal Styles & Replay
 
@@ -284,7 +284,7 @@ Two owner-directed fix batches this session (decision log 2026-07-06 "Judging = 
 - [ ] Standings badge line legibility: stacked titles (2–3 badges on one player), long title names at 960×540, "🏅 A · B" separator readability
 - [ ] Streamlined preset: badges-only wrap-up pacing feels right (straight to standings)
 - [ ] Custom panel: End-game titles / Awards ceremony / Title points rows — ceremony+points grey out when titles are off (honest-disable), wording clear
-- [ ] Judging grid after the reaction-row removal: drawings visibly larger; density at 5–7 entries re-eyeballed (owner's grid concern — partially relieved, full layout rework still a candidate for polish)
+- [x] ~~Judging grid after the reaction-row removal: density at 5–7 entries re-eyeballed~~ — owner-checked at 7 entries (8-instance playtest, 2026-08-10): "worked fine"; the fit-to-viewport rework candidate is parked unless a future playtest reopens it
 - [ ] Titles-off game end-to-end: wrap-up goes straight to plain standings, nothing references titles anywhere
 
 ## Slice 14 — Achievements & Stats (added 2026-07-12)

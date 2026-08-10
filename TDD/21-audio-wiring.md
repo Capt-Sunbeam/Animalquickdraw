@@ -112,7 +112,9 @@ Shared `AudioSettingsPanel` (three sliders: Master/Music/SFX, live-applied, save
 
 ## COMPLETION STATUS (2026-08-10, session 16)
 
-**IMPLEMENTED + machine-verified.** 600 tests green (+19); verify_lobby / verify_round / verify_resilience all PASS. Deviations + measured constants in `21-audio-wiring-implementation-notes.md`. **Blocking owner check: the ear pass** — full game with sound (music transitions, cue landing, S1 BEEP alignment, mix levels); batchable ear items in qa-backlog §21.
+**IMPLEMENTED + machine-verified.** 600 tests green (+19); verify_lobby / verify_round / verify_resilience all PASS. Deviations + measured constants in `21-audio-wiring-implementation-notes.md`.
+
+**EAR PASS DONE same session (owner, 3-instance + 8-instance runs): CORE-CONFIRMED — "the music is working well".** Zero script errors across both runs. Owner adjustment list captured in **`TDD/polish-notes.md`** (deferred to a later session): replace both timer-cue endings (disliked), compose judging+reveal music (M4-cut revisit condition triggered), track picker must allow none, eraser loops for the stroke, ready-up sound goes global, exit button, lobby Esc menu, chat-hide border. Slice 21's wiring machinery itself is sound-confirmed; those notes are the polish layer on top.
 
 ## 6. Resolved decisions (owner, 2026-08-10)
 - **D1 — S3/S8 officially CUT:** the cue's landing note IS the time's-up sound; S2 covers round transitions. Ids retired, not reused (S3/S8 rows in the sound README flip to CUT).
