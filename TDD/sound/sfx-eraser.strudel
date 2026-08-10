@@ -1,0 +1,14 @@
+// SFX — Eraser (eraser strokes on the canvas; one-shot per stroke)
+// Status: DONE (owner-approved 2026-07-19, v3 "chalkboard scrubbing")
+// Three soft wiping strokes, the first slightly longer — mid-band filtered noise with soft
+// attacks so they read as RUBBING, not tapping. Chalkboard-eraser reference (owner).
+// Knobs: bpf lower (~800) = more felt-on-board; higher (~1500) = squeakier.
+// Render: one hit, WAV. Audition plays once per second.
+// Paste into https://strudel.cc — spec: TDD/sound/stinger-sfx-spec.md
+
+setcpm(60)
+
+sound("[pink pink pink]@2 ~ ~")
+  .attack(.04).decay(.09).sustain(0)
+  .bpf(1100).bpq(2)
+  .gain(.4)

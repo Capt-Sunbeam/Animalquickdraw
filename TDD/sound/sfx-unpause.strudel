@@ -1,0 +1,16 @@
+// SFX — Unpause (Esc-menu resume + below-minimum auto-resume)
+// Status: DONE (owner-approved 2026-07-19, pair A "the staircase")
+// Up the wave: a six-note triangle run climbing the F pentatonic (F3 scale), landing on a
+// held F4 at the crest. The exact mirror of sfx-pause — one gesture split in two.
+// Render: one pass (~1 s + tail), WAV.
+// Paste into https://strudel.cc — spec: TDD/sound/stinger-sfx-spec.md
+
+setcpm(30)
+// UNPAUSE A — up the wave, ~1 s
+
+n("[0 1 2 3 4 5@4]@2 ~ ~")
+  .scale("F3:major:pentatonic")
+  .sound("triangle")
+  .attack(.005).decay(.18).sustain(.05).release(.15)
+  .lpf(2400)
+  .gain(.42)

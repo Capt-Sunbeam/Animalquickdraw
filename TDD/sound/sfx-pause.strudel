@@ -1,0 +1,16 @@
+// SFX — Pause (Esc-menu pause + below-minimum auto-pause)
+// Status: DONE (owner-approved 2026-07-19, pair A "the staircase")
+// Down the other side of the wave: the six-note triangle run descending the F pentatonic,
+// settling on a held low F3, darker filter. The exact mirror of sfx-unpause.
+// Render: one pass (~1 s + tail), WAV.
+// Paste into https://strudel.cc — spec: TDD/sound/stinger-sfx-spec.md
+
+setcpm(30)
+// PAUSE A — down the other side, ~1 s
+
+n("[5 4 3 2 1 0@4]@2 ~ ~")
+  .scale("F3:major:pentatonic")
+  .sound("triangle")
+  .attack(.005).decay(.18).sustain(.05).release(.2)
+  .lpf(1500)
+  .gain(.42)

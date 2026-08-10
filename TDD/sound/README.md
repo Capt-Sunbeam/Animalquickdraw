@@ -18,6 +18,40 @@
 - Plain text, valid Strudel code — paste-ready. `//` comment header at the top of each file: id, status, where it plays, key/tempo
 - Superseded versions: don't keep old copies in-file; git history is the archive (owner commits)
 
+## Render settings (2026-07-19)
+
+Per-file start/end cycles for converting sources to audio. Chosen so music loops close seamlessly (start/end land on the same mask state and modulation phase) and one-shots keep their tails. Music → OGG (loop points on import); cue/stingers/SFX → WAV.
+
+| File | Start cycle | End cycle | ≈ Length | Note |
+|------|-------------|-----------|----------|------|
+| `cue-timer-warning` | 0 | 6 | 6.0 s | one-shot; notes at 0–5 s, 6th = the landing |
+| `m1-main-menu` | 0 | 104 | 3:32 | the full arrangement; outro thins into the intro by design — loop the whole thing |
+| `m2-lobby` | 8 | 40 | 74 s | skips the 4-cycle bass intro; 32 cycles = full slow(32) filter period |
+| `m3-drawing-ambient` | 24 | 80 | 120 s | all layers on by 16; 56 cycles = full slow(14)+slow(8) periods |
+| `m3-drawing-oompa` | 16 | 64 | 96 s | all layers on by 8; 48 cycles = full slow(6)+slow(12) periods |
+| `s1-race-start` | 0 | 1 | 4.3 s | tail dies inside the cycle |
+| `s2-prompt-reveal` | 0 | 1 | 2.0 s | |
+| `s4-winner` | 0 | 2 | 4.0 s | **temporarily append `.mask("<1 0>")` after `.size(2)`** — the landing rings past the cycle edge; the mask silences the repeat so 0→2 captures the tail. Remove after rendering |
+| `s6-title-awarded` | 0 | 1 | 2.0 s | |
+| `s7-final-podium` | 0 | 2 | 8.0 s | **same `.mask("<1 0>")` trick after `.size(4)`** — Fmaj7 release rings past the cycle edge |
+| `sfx-all-ready` | 0 | 1 | 1.0 s | |
+| `sfx-button-press` | 0 | 1 | 1.0 s | |
+| `sfx-chat-pop` | 0 | 1 | 1.0 s | |
+| `sfx-eraser` | 0 | 1 | 1.0 s | |
+| `sfx-judge-latch` | 0 | 1 | 1.0 s | |
+| `sfx-kudos` | 0 | 1 | 2.0 s | |
+| `sfx-pause` | 0 | 1 | 2.0 s | |
+| `sfx-player-join` | 0 | 1 | 1.0 s | |
+| `sfx-player-leave` | 0 | 1 | 1.0 s | |
+| `sfx-ready-click` | 0 | 1 | 1.0 s | |
+| `sfx-text-stamp` | 0 | 1 | 1.0 s | |
+| `sfx-toggle-off` | 0 | 1 | 1.0 s | |
+| `sfx-toggle-on` | 0 | 1 | 1.0 s | |
+| `sfx-undo-poof` | 0 | 1 | 1.0 s | |
+| `sfx-unpause` | 0 | 1 | 2.0 s | |
+
+Trailing silence inside a one-shot render is harmless (trim in an editor later if you want snappier files — optional polish, the wiring session can also handle it).
+
 ## Index / composing to-do list
 
 | File | Inventory id | Asset | Status |
@@ -45,6 +79,12 @@
 | `sfx-player-join.strudel` | — | SFX: player join (rising e-piano "hello") | **DONE ✓** (2026-07-19) |
 | `sfx-player-leave.strudel` | — | SFX: player leave (falling e-piano goodbye) | **DONE ✓** (2026-07-19) |
 | `sfx-text-stamp.strudel` | — | SFX: text stamp ("rip-THUMP" — paper tear + deep thump) | **DONE ✓** (2026-07-19) |
+| `sfx-judge-latch.strudel` | — | SFX: judge card latch ("tk-TUK" click pair, second deeper) | **DONE ✓** (2026-07-19) |
+| `sfx-eraser.strudel` | — | SFX: eraser (chalkboard scrub, three soft wipes) | **DONE ✓** (2026-07-19) |
+| `sfx-undo-poof.strudel` | — | SFX: undo poof (breathy falling bottle-tone) | **DONE ✓** (2026-07-19) |
+| `sfx-pause.strudel` | — | SFX: pause (staircase run down the wave, settles dark) | **DONE ✓** (2026-07-19) |
+| `sfx-unpause.strudel` | — | SFX: unpause (staircase run up the wave, crests bright) | **DONE ✓** (2026-07-19) |
+| `sfx-kudos.strudel` | — | SFX: kudos given ("da-DING" wooden gift — the winner sting's language) | **DONE ✓** (2026-07-19) |
 
 (S5 retired 2026-07-14 with the emoji/superlatives removal — id not reused.)
 

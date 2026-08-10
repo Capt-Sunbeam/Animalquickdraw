@@ -1,0 +1,17 @@
+// SFX — Judge card latch (judge latching a card in judging)
+// Status: DONE (owner-approved 2026-07-19, v3 "clickED into place")
+// tk-TUK: a short mechanical click pair where the second lands DEEPER (F3 -> F2), both bone
+// dry, dead by 200 ms. The falling pitch between the two is what says "seated". No tail —
+// past tense on purpose.
+// Render: one hit, WAV. Audition plays once per second.
+// Paste into https://strudel.cc — spec: TDD/sound/stinger-sfx-spec.md
+
+setcpm(60)
+
+stack(
+  sound("[white white] ~ ~ ~")
+    .attack(.001).decay(.02).sustain(0)
+    .hpf(1200).lpf(6000).gain(.3),
+  note("[f3 f2] ~ ~ ~").sound("gm_marimba")
+    .attack(.001).decay(.09).sustain(0).gain(.55)
+)

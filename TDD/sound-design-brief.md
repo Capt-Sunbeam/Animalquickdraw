@@ -64,15 +64,15 @@ Optional later: M3 "last 10 seconds" intensity layer (same tempo, added urgency,
 | Chat pop | Incoming chat message (not your own) |
 | Player join | Roster gains a player (lobby + late join) — **DONE ✓ (owner, 2026-07-19, `sound/sfx-player-join.strudel`)** |
 | Player leave | Roster loses a player (softer than join) — **DONE ✓ (owner, 2026-07-19, `sound/sfx-player-leave.strudel`)** |
-| Kudos given | Kudos spend lands (slightly special — it's THE social currency now that reactions are gone) |
+| Kudos given | Kudos spend lands (slightly special — it's THE social currency now that reactions are gone) — **DONE ✓ (owner, 2026-07-19, `sound/sfx-kudos.strudel`)** |
 
 **Round-flow set:**
 | Sound | Trigger |
 |-------|---------|
 | **Timer-warning cue (5 s + landing, escalating)** | **DONE ✓ (owner, Strudel, 2026-07-19)** — `sound/cue-timer-warning.strudel`, one-shot, never loops. Cuts in for the last 5 seconds of the **drawing AND judging** timers: five rising F-pentatonic notes (one per second), then a **6th note that lands exactly ON the phase change** out of the timed screen. **Owner requirement: the music fades smoothly INTO the cue** — countdown well heard, no rough cut (wiring: start cue at T−5.0 s; during drawing, fade music out across the cue's first ~1 s; judging is already music-free). Open question for wiring: the built-in landing note may supersede S3 |
-| Judge pick hover/latch | Judge latching a card in judging |
+| Judge pick hover/latch | Judge latching a card in judging — **DONE ✓ (owner, 2026-07-19, `sound/sfx-judge-latch.strudel`)** |
 | Card flip/reveal | Cards appearing in the reveal grid |
-| Pause / unpause | Esc-menu pause + below-minimum auto-pause |
+| Pause / unpause | Esc-menu pause + below-minimum auto-pause — **DONE ✓ (owner, 2026-07-19, `sound/sfx-pause.strudel` + `sfx-unpause.strudel`)** |
 | Error/deny | Join failed, censored word rejected, invalid input |
 | Toast | Any toast notification |
 | Kicked | Kick landed (can reuse error/deny) |
@@ -80,9 +80,9 @@ Optional later: M3 "last 10 seconds" intensity layer (same tempo, added urgency,
 **Canvas set (owner, 2026-07-19: pen scratch CUT; the other three are committed):**
 | Sound | Trigger |
 |-------|---------|
-| Eraser | Eraser strokes (one-shot per stroke — no looping stroke audio now that pen scratch is cut) |
+| Eraser | Eraser strokes (one-shot per stroke — no looping stroke audio now that pen scratch is cut) — **DONE ✓ (owner, 2026-07-19, `sound/sfx-eraser.strudel`)** |
 | Text place | Text stamp dropped on canvas — **DONE ✓ (owner, 2026-07-19, `sound/sfx-text-stamp.strudel`)** |
-| Undo poof | Undo action (also heard at undo markers in Slice 20 replays) |
+| Undo poof | Undo action (also heard at undo markers in Slice 20 replays) — **DONE ✓ (owner, 2026-07-19, `sound/sfx-undo-poof.strudel`)** |
 
 **Per-sound composing spec:** every stinger and SFX above is precisely described (voice, notes, envelope, length, character) in [`sound/stinger-sfx-spec.md`](sound/stinger-sfx-spec.md) (2026-07-19).
 

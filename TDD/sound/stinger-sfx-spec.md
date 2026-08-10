@@ -40,18 +40,18 @@
 6. **Chat pop** (~80 ms): soft triangle "bloop," pitch dropping A4→F4 across the note, sustain 0, dry, very quiet — after the drawing music this is the most-heard sound in the game; it must disappear into the background. (Wiring: randomize playback speed ±5% so rapid chats don't machine-gun.)
 7. **Player join** (~300 ms). **FINAL (owner-approved 2026-07-19, source `sfx-player-join.strudel`):** warm e-piano rise F4→C5, small room. A little "hello" in M2's lobby voice.
 8. **Player leave** (~300 ms). **FINAL (owner-approved 2026-07-19, source `sfx-player-leave.strudel`):** the mirror — C5→F4, quieter, darker (lpf 1600). A soft "goodbye," NOT a sad trombone.
-9. **Kudos given** (~600 ms): the special one — marimba + vibraphone in unison, grace C5→D5, with M3a's delay trailing two echoes. A warm gift-sparkle, not a slot machine. Sits slightly louder than the other social sounds.
+9. **Kudos given** (~500 ms). **FINAL (owner-approved 2026-07-19, source `sfx-kudos.strudel`, option C "the wooden gift"):** a rising marimba pair "da-DING" (A4→F5) with one high octave shimmer on the landing — kudos speaks the winner sting's language. No delay echoes (v1's vibraphone-plus-delay draft rejected). Slightly more special than a UI click, pleasant on the twentieth hearing.
 
 ## Round-flow SFX
 
-10. **Judge card latch** (~80 ms): physical "thock" — marimba F3 plus a ~10 ms noise-click transient, dead dry. A stamp landing.
+10. **Judge card latch** (~200 ms). **FINAL (owner-approved 2026-07-19, source `sfx-judge-latch.strudel`):** "tk-TUK" — a mechanical click pair where the second lands deeper (marimba F3→F2 under white-noise clicks), bone dry, no tail. ClickED into place, past tense.
 11. **Card flip/reveal** (~120 ms): paper whip — white noise with hpf sweeping ~800→6000 Hz, capped by a marimba A4 tick. Bone dry: grid reveals fire in sequence and the overlaps must stay clean.
-12. **Pause / unpause** (~400 ms each): one mechanism, two directions. Pause: e-piano A4→D4 with the low-pass closing ~2500→800 ("world on hold"). Unpause: D4→A4 with the filter reopening.
+12. **Pause / unpause** (~1 s each). **FINAL (owner-approved 2026-07-19, sources `sfx-pause.strudel` / `sfx-unpause.strudel`, pair A "the staircase"):** one wave split in two — unpause rides UP a six-note triangle run (F pentatonic from F3, cresting on held F4, bright filter); pause rides DOWN the mirror run (settling on held F3, dark filter). Owner direction: the full updraft/downdraft, not a segment near the top. (E-piano pair and octave-glide drafts rejected — e-piano read too close to join/leave.)
 13. **Error/deny** (~150 ms): single dead-note pluck — muted guitar F3 killed instantly, lpf snapping ~2000→500. An unmistakable "no" with zero harshness. **Kicked** = this pitched down an octave (F2, ~250 ms) — a heavier door.
 14. **Toast** (~200 ms): neutral triangle A4 ping, soft attack, very quiet. Must not read good OR bad — toasts carry both kinds of news.
 
 ## Canvas SFX (pen scratch CUT — owner, 2026-07-19)
 
-15. **Eraser** (~120 ms): two low-passed noise puffs (lpf ~900), ~60 ms each, whisper-quiet. One-shot per eraser stroke.
+15. **Eraser** (~500 ms). **FINAL (owner-approved 2026-07-19, source `sfx-eraser.strudel`):** chalkboard scrubbing — three soft band-passed noise wipes (bpf 1100), first stroke longer, soft attacks so they read as rubbing. One-shot per eraser stroke.
 16. **Text-stamp place** (~250 ms). **FINAL (owner-approved 2026-07-19, source `sfx-text-stamp.strudel`):** "rip-THUMP" — a crackly paper tear (crackle source, density 8) into a deep marimba F2 thump landing ~125 ms later. A touch louder than a button press; placing text is deliberate.
-17. **Undo poof** (~220 ms): an air puff — noise burst, bandpass sweeping ~1200→400 Hz, soft almost-reversed attack, **no pitch content** (spam-undo safe). Quiet. Also plays at undo markers in Slice 20 replays — it's part of the replay's drawn-then-poof gag, so keep it charming.
+17. **Undo poof** (~300 ms). **FINAL (owner-approved 2026-07-19, source `sfx-undo-poof.strudel`):** a breathy falling bottle-tone — sine + noise mix (blowing across a bottle) with pitch dropping 5 semitones as it swells and vanishes (air sucked out), lpf-darkened tail. Also plays at undo markers in Slice 20 replays — the drawn-then-poof gag.

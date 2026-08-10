@@ -1,0 +1,19 @@
+// SFX — Kudos given (kudos spend lands — THE social currency)
+// Status: DONE (owner-approved 2026-07-19, option C "the wooden gift")
+// Speaks the winner sting's language: a rising marimba pair "da-DING" (A4 -> F5) with one
+// high octave shimmer on the landing. Warm and physical — a little wooden medal pressed
+// into someone's hand. No delay echoes (rejected in v1). Slightly more special than a UI
+// click, still pleasant on the twentieth hearing.
+// Render: one hit, WAV. Audition plays once per 2 s cycle.
+// Paste into https://strudel.cc — spec: TDD/sound/stinger-sfx-spec.md
+
+setcpm(30)
+// One cycle = 2 s. Render one cycle.
+
+stack(
+  n("[2 5@2]@1 ~ ~ ~").scale("F4:major:pentatonic").sound("gm_marimba")
+    .attack(.001).decay(.2).sustain(0).release(.1).gain(.5),
+  n("[~ 5]@1 ~ ~ ~").scale("F5:major:pentatonic").sound("gm_marimba")
+    .attack(.001).decay(.22).sustain(0).gain(.3)
+)
+.room(.2).size(2)

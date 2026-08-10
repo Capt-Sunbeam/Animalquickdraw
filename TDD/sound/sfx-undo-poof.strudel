@@ -1,0 +1,16 @@
+// SFX — Undo poof (undo action; also plays at undo markers in Slice 20 replays)
+// Status: DONE (owner-approved 2026-07-19, v3)
+// A breathy falling bottle-tone: sine with noise mixed in (blowing across a bottle top),
+// pitch falling 5 semitones as it swells and vanishes (air being sucked out). Single layer —
+// the earlier pink-noise whoosh read as static and was cut; lpf darkens the tail so it
+// disappears instead of hissing. Part of the replay's drawn-then-poof gag — keep it charming.
+// Render: one hit, WAV. Audition plays once per second.
+// Paste into https://strudel.cc — spec: TDD/sound/stinger-sfx-spec.md
+
+setcpm(60)
+
+note("d4 ~ ~ ~").sound("sine").noise(.35)
+  .attack(.08).decay(.12).sustain(0)
+  .penv(-5).pattack(.05).pdecay(.15)
+  .lpf(1800)
+  .gain(.45)
