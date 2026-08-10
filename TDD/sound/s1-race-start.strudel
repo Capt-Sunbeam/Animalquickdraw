@@ -1,0 +1,32 @@
+// S1 — Race Start (drawing begins, EVERY round) — "duh duh duh duh-BEEP"
+// Status: DONE (owner-approved 2026-07-19, owner's favorite version saved verbatim)
+// Repurposed from "whole-game start" (owner, 2026-07-19): a Mario Kart-style countdown into the
+// drawing race. Round 1's race start doubles as the game-start moment — no separate lobby stinger planned.
+// Three breathing unison duhs (tuba + marimba + short square transient), then duh-BEEP:
+// a short arcade square GO at C6, envelope-limited to ~0.3 s so it can't hang.
+// Wiring: the BEEP sits ~2.79 s into the render — ideally it lands on the exact frame the drawing
+// timer starts (mirror of the countdown cue's 6th-note landing).
+// Render: one cycle (~4.3 s + tail), one-shot.
+// Paste into https://strudel.cc — spec: TDD/sound/stinger-sfx-spec.md
+
+setcpm(14)
+// One cycle ≈ 4.3 s: DUH... DUH... DUH... duh-BEEP. Render one cycle.
+
+stack(
+  // The three breathing duhs + the "d" of dee — the unison tone you liked
+  note("f2 f2 f2 [f2 ~@3] ~").sound("gm_tuba")
+    .attack(.002).decay(.25).sustain(0).gain(.5),
+  n("0 0 0 [0 2@3] ~").scale("F4:major:pentatonic").sound("gm_marimba")
+    .attack(.001).decay(.15).sustain(0).gain(.45),
+  n("0 0 0 [0 ~@3] ~").scale("F5:major:pentatonic").sound("square")
+    .attack(.001).decay(.09).sustain(0).release(.03)
+    .lpf(3200)
+    .gain(.26),
+
+  // The BEEP — short, bright, arcade GO. Gone in ~0.3 s.
+  n("~ ~ ~ [~ 3@3] ~").scale("F5:major:pentatonic").sound("square")
+    .attack(.002).decay(.28).sustain(0).release(.05)
+    .lpf(2500)
+    .gain(.4)
+)
+.room(.25).size(3)

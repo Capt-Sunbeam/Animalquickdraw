@@ -1,0 +1,17 @@
+// SFX — Text stamp place (text dropped onto the canvas)
+// Status: DONE (owner-approved 2026-07-19)
+// Paper tear into a stamp: a crackly rip (crackle source, density 8) followed by a deep
+// marimba F2 thump landing right after — "rip-THUMP". A touch louder than a button press;
+// placing text is a deliberate act.
+// Render: one hit, WAV. Audition plays once per second.
+// Paste into https://strudel.cc — spec: TDD/sound/stinger-sfx-spec.md
+
+setcpm(60)
+
+stack(
+  sound("crackle ~ ~ ~").density(8)
+    .attack(.001).decay(.12).sustain(0)
+    .hpf(800).gain(.5),
+  note("[~ f2] ~ ~ ~").sound("gm_marimba")
+    .attack(.001).decay(.12).sustain(0).gain(.5)
+)

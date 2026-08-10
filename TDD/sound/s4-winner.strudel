@@ -1,0 +1,25 @@
+// S4 — Winner Sting (per-ROUND winner: judge locks their pick → WinnerSpotlight)
+// Status: DONE (owner-approved 2026-07-19)
+// "duh duh duh-DUH" — two steady hits, a quick double, accented landing. Fires EVERY round,
+// so it stays short and human on purpose (no square lead, no build — see spec global rules).
+// Voices: marimba lead; landing only gets an octave sparkle + one tuba root.
+// Render: one cycle (~2 s + tail), one-shot. Rhythm knob = the first mini-notation string.
+// Paste into https://strudel.cc — spec: TDD/sound/stinger-sfx-spec.md
+
+setcpm(30)
+
+stack(
+  // DUH... DUH... duh-duh — DUHHH (C5 C5 C5-D5 F5, landing held)
+  n("3 ~ 3 ~ [3 4] 5@3")
+    .scale("F4:major:pentatonic")
+    .sound("gm_marimba")
+    .attack(.001).decay(.18).sustain(.1).release(.15)
+    .gain(.5),
+
+  // Landing accent only: octave sparkle + one tuba root. No other layers.
+  n("~@5 5@3").scale("F5:major:pentatonic").sound("gm_marimba")
+    .attack(.001).decay(.2).sustain(0).gain(.38),
+  note("~@5 f2@3").sound("gm_tuba")
+    .attack(.002).decay(.3).sustain(0).gain(.5)
+)
+.room(.2).size(2)

@@ -1,0 +1,11 @@
+// SFX — Toggle/checkbox ON (settings toggles, Public checkbox)
+// Status: DONE (owner-approved 2026-07-19)
+// Whisper-quiet triangle tick. Pitch carries the state: A4 = ON (up), F4 = OFF (down) —
+// see sfx-toggle-off.strudel for the pair.
+// Render: one hit, WAV. Audition ticks once per second.
+// Paste into https://strudel.cc — spec: TDD/sound/stinger-sfx-spec.md
+
+setcpm(60)
+
+note("a4 ~ ~ ~").sound("triangle")
+  .attack(.001).decay(.05).sustain(0).lpf(1800).gain(.32)

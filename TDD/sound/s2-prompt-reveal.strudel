@@ -1,0 +1,19 @@
+// S2 — Prompt Reveal ("ta-da-da-DAAA" — climb-over finish)
+// Status: DONE (owner-approved 2026-07-19, option H)
+// Fires at t=0 of the 4.0 s ROUND_INTRO, the instant the word appears. Dovetails with the
+// S1 race start, whose duhs begin ~1.2 s later and whose BEEP lands exactly on drawing start —
+// together they score the whole intro: "TA-DA (word!)... duh... duh... duh-BEEP (draw!)".
+// No low end on purpose: must never mask players reading the word aloud.
+// Owner note: first candidate for trimming if playtests find the per-round ceremony too noisy.
+// Render: one cycle (~2 s incl. tail), one-shot.
+// Paste into https://strudel.cc — spec: TDD/sound/stinger-sfx-spec.md
+
+setcpm(30)
+// One cycle = 2 s. Render one cycle.
+
+n("[0 1 2 3] [4 5 7@2]@2 ~ ~")
+  .scale("F4:major:pentatonic")
+  .sound("gm_marimba")
+  .attack(.001).decay(.15).sustain(0).release(.08)
+  .gain(.5)
+  .room(.2).size(2)

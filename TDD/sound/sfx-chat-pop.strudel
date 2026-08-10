@@ -1,0 +1,15 @@
+// SFX — Chat pop (incoming chat message, not your own)
+// Status: DONE (owner-approved 2026-07-19)
+// The most-heard SFX in the game after the drawing music — deliberately the quietest.
+// Wiring: randomize playback speed ±5% per fire so rapid chat doesn't machine-gun.
+// Render: one hit, WAV. Audition pattern pops once per second.
+// Paste into https://strudel.cc — spec: TDD/sound/stinger-sfx-spec.md
+
+setcpm(60)
+
+note("a4 ~ ~ ~")
+  .sound("triangle")
+  .attack(.001).decay(.09).sustain(0)
+  .penv(-4).pattack(.001).pdecay(.09)
+  .lpf(2500)
+  .gain(.3)

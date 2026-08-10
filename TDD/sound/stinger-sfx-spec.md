@@ -7,38 +7,39 @@
 - SFX are **drier than music**: `room ≤ .15` (music runs .3–.5) — dry reads as "UI," wet reads as "song"
 - Loudness ladder, top to bottom: S4/S7 → S1 → other stingers → all-ready chime + kudos → join/leave/chat/toast → button/toggle/canvas ticks (quietest)
 - Everything under ~500 ms except stingers; nothing but S4/S7 gets low end + long tail at once
+- **Short sounds don't build (owner, 2026-07-19):** stingers/SFX state their idea immediately — no swells, no intro gestures, no layer-unmasking. That's song architecture; a sting is 1–3 voices saying one thing once
 
 ---
 
 ## Stingers
 
-**S1 — Game start** (~2.5 s). M1's intro gesture as a launchpad: triangle pad on F2+C3, slow attack (~.4), low-pass sweeping open ~500→2500 Hz across ~1.2 s — then everything lands on ONE unison downbeat hit: tuba F2 + marimba F4 + square F5, short ring-out. Message: "here we go."
+**S1 — Race start** (~4.3 s). **FINAL (owner-approved 2026-07-19, source `s1-race-start.strudel`); REPURPOSED (owner):** fires when DRAWING begins, every round — not just at whole-game start (round 1's race start covers that moment; no separate lobby stinger planned). Mario Kart-style: three breathing unison duhs ~0.9 s apart (tuba F2 + marimba F4 + a ≤100 ms square transient), then "duh-BEEP" — a short arcade square GO at C6, envelope-limited to ~0.3 s. Wiring: the BEEP should land on the frame the drawing timer starts (mirror of the countdown cue's landing note). (First draft opened with a swell — owner cut it: short sounds don't build.)
 
-**S2 — Prompt reveal** (~1 s). Fast marimba run up F4–G4–A4–C5–D5 at grace-note speed (~60–80 ms per note), last note D5 accented with a little room. A curtain-flick "ta-da." No low end — it must never mask players reading the word aloud.
+**S2 — Prompt reveal** (~1.3 s). **FINAL (owner-approved 2026-07-19, source `s2-prompt-reveal.strudel`):** fast marimba run F4–G4–A4–C5 that doesn't stop at the landing — it climbs over through D5–F5 and finishes high on a held A5 ("ta-da-da-DAAA"). Single voice, no low end (never masks players reading the word aloud). Timing: fires at t=0 of the 4.0 s round intro; the S1 race start's duhs begin ~1.2 s later and its BEEP lands on drawing start — the pair scores the intro end-to-end. First candidate for trimming if playtests find rounds too noisy.
 
 **S3 — Time's up** — **probably not needed** (the timer cue's 6th note is the landing). If an edge path ever wants it: single damped thunk, tuba F2 + muted-guitar F3, staccato, ~0.5 s.
 
-**S4 — Winner announcement** (~3 s). THE fanfare, built from M1's hook voice (square + its −12 octave echo). Pickup C5–D5 (16th-note pace) → **F5 held** ~0.8 s with vibrato (`vib(5).vibmod(.3)`) → step up to **A5 held** with a fast marimba roll (A4+D5 alternating) underneath → release into a falling marimba sparkle D5–C5–A4. Saw/tuba bass F2 punctuates the two held-note downbeats. Loudest sound in the game except S7.
+**S4 — Winner announcement** (~2 s). **FINAL (owner-approved 2026-07-19, source `s4-winner.strudel`):** "duh duh duh-DUH" — marimba states C5… C5… quick C5-D5, landing on a held F5 with an octave sparkle and a single tuba F2 under the landing only. It fires at EVERY judge pick (per round), so it's short and human — no square lead, no build. (First draft was a 3 s layered fanfare; owner rejected the "spaceship tones" and length.)
 
-**S6 — Title awarded** (~0.8 s). Vibraphone two-note A4→D5, soft attack, M3a's delay (`.delay(.25).delaytime(.375)`), **zero bass content**, modest gain — designed to fire back-to-back during the ceremony (titles stack) without piling into mud. Wiring-session trick, one asset: pitch successive fires up one scale step per stacked title.
+**S6 — Title awarded** (~0.7 s). **FINAL (owner-approved 2026-07-19, source `s6-title-awarded.strudel`):** the winner motif's tail — "dh-DUH" (quick C5-D5 into F5) on marimba + high vibraphone with one short tuba root, compressed and tight-tailed for 3–6 back-to-back fires. Titles literally sound like a little piece of winning (quotes S4). Wiring trick, one asset: pitch each consecutive title one scale step higher — the ceremony becomes a rising ladder. (Quiet-delay draft and louder announce draft both rejected; owner wanted fanfare without repetition fatigue.)
 
-**S7 — Final podium** (4–5 s). S4's skeleton, orchestrated up: Fmaj7 e-piano stab (f3,a3,c4,e4) under each held note, a second rising phrase F5→A5→C6, and a final full-palette F-major unison (tuba F2, e-piano Fmaj7, marimba F5, square A5) left ringing ~1.5 s with the biggest room of any sound (~.5). The "roll credits" moment.
+**S7 — Final podium** (~4 s). **FINAL (owner-approved 2026-07-19, source `s7-final-podium.strudel`):** S4's "duh duh duh-DUH" motif stated, then answered a step higher; the second landing gets the warm Fmaj7 e-piano (M2's chord voice), a tuba root, and one high sparkle. Fires once, over silence, the instant the final standings (scores + title badges) appear. In Streamlined mode it's the only wrap-up sound. The game's single grand fanfare — the "roll credits" moment.
 
 **S8 — Round transition** (~1 s). Only if S2 alone feels thin in playtests: a page-turn — marimba falling pair D5→A4, then a C5 pickup ("...and next!"). Dry, quick, skippable.
 
 ## Interaction SFX
 
-1. **Button press** (~80 ms): single marimba F4, instant attack, decay ~.08, sustain 0, lpf ~3000, near-dry, quiet. A woody tick — matches the paper UI.
-2. **Big button** (START GAME variant, ~150 ms): same gesture with more mass — marimba F3 layered over a soft tuba F2, slightly longer decay. Same family, bigger body.
-3. **Done!/ready click** (~150 ms): two grace notes flicking upward, C5→F5 marimba ~40 ms apart, tiny room. A "check!" that feels rewarding to press.
-4. **All-ready chime** (~600 ms): vibraphone arpeggio F4–A4–C5 (~90 ms apart) with light delay. Bright and legible over the drawing music — it announces the early advance.
-5. **Toggle/checkbox** (~50 ms): whisper-quiet marimba tick — **A4 for ON, F4 for OFF** (pitch up = on, down = off).
+1. **Button press** (~80 ms). **FINAL (owner-approved 2026-07-19, source `sfx-button-press.strudel`):** triangle "tock" at F3 with a −3 semitone pitch drop (`penv`), lpf 1200, near-dry — the deep cousin of the approved chat pop, so the whole UI speaks one triangle-plus-bend voice. (Marimba tick, deeper marimba, and upright-bass drafts all rejected.)
+2. **Big button** (START GAME variant, ~150 ms): the same tock at F2 with decay ~.12 and a bit more gain — TODO, audition when convenient.
+3. **Done!/ready click** (~200 ms). **FINAL (owner-approved 2026-07-19, source `sfx-ready-click.strudel`):** two rising triangle notes F4→C5 — the "yes!" answer to the button press (same triangle UI voice, opposite direction: press bends down, ready hops up).
+4. **All-ready chime** (~400 ms). **FINAL (owner-approved 2026-07-19, source `sfx-all-ready.strudel`):** three rising triangle notes F4–A4–C5 — the completion of the ready click's two-note rise. Loud enough to announce the early advance over drawing music.
+5. **Toggle/checkbox** (~50 ms). **FINAL (owner-approved 2026-07-19, sources `sfx-toggle-on.strudel` / `sfx-toggle-off.strudel`):** whisper-quiet triangle ticks — **A4 = ON, F4 = OFF** (pitch up = on, down = off). Two renders.
 
 ## Social SFX
 
 6. **Chat pop** (~80 ms): soft triangle "bloop," pitch dropping A4→F4 across the note, sustain 0, dry, very quiet — after the drawing music this is the most-heard sound in the game; it must disappear into the background. (Wiring: randomize playback speed ±5% so rapid chats don't machine-gun.)
-7. **Player join** (~300 ms): warm e-piano rise F4→C5, small room. A little "hello."
-8. **Player leave** (~300 ms): the mirror — C5→F4, quieter, darker (lpf ~1500), faster decay. A soft "goodbye," NOT a sad trombone.
+7. **Player join** (~300 ms). **FINAL (owner-approved 2026-07-19, source `sfx-player-join.strudel`):** warm e-piano rise F4→C5, small room. A little "hello" in M2's lobby voice.
+8. **Player leave** (~300 ms). **FINAL (owner-approved 2026-07-19, source `sfx-player-leave.strudel`):** the mirror — C5→F4, quieter, darker (lpf 1600). A soft "goodbye," NOT a sad trombone.
 9. **Kudos given** (~600 ms): the special one — marimba + vibraphone in unison, grace C5→D5, with M3a's delay trailing two echoes. A warm gift-sparkle, not a slot machine. Sits slightly louder than the other social sounds.
 
 ## Round-flow SFX
@@ -52,5 +53,5 @@
 ## Canvas SFX (pen scratch CUT — owner, 2026-07-19)
 
 15. **Eraser** (~120 ms): two low-passed noise puffs (lpf ~900), ~60 ms each, whisper-quiet. One-shot per eraser stroke.
-16. **Text-stamp place** (~100 ms): paper thump — marimba F3 + a noise tap, a touch louder than button press (placing text is a deliberate act).
+16. **Text-stamp place** (~250 ms). **FINAL (owner-approved 2026-07-19, source `sfx-text-stamp.strudel`):** "rip-THUMP" — a crackly paper tear (crackle source, density 8) into a deep marimba F2 thump landing ~125 ms later. A touch louder than a button press; placing text is deliberate.
 17. **Undo poof** (~220 ms): an air puff — noise burst, bandpass sweeping ~1200→400 Hz, soft almost-reversed attack, **no pitch content** (spam-undo safe). Quiet. Also plays at undo markers in Slice 20 replays — it's part of the replay's drawn-then-poof gag, so keep it charming.

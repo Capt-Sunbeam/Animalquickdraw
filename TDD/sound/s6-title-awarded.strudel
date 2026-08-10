@@ -1,0 +1,22 @@
+// S6 — Title Awarded (each wrap-up ceremony title card; titles stack)
+// Status: DONE (owner-approved 2026-07-19, option C5 "compact and punchy")
+// The winner motif's tail ("dh-DUH") compressed to ~0.7 s — quotes S4 so titles sound like
+// a little piece of winning. Built for 3-6 back-to-back fires without annoyance.
+// Wiring trick (one asset): pitch each consecutive title one scale step higher (Candy Crush
+// escalation) — a ceremony becomes a rising ladder. Keep transposition range ~4-5 steps.
+// Render: one cycle (~1 s incl. tail), one-shot.
+// Paste into https://strudel.cc — spec: TDD/sound/stinger-sfx-spec.md
+
+setcpm(30)
+// One cycle = 2 s: dh-DUH. Render one cycle.
+
+stack(
+  n("[[3 4] 5]@1 ~ ~ ~").scale("F4:major:pentatonic").sound("gm_marimba")
+    .attack(.001).decay(.13).sustain(0).release(.06).gain(.5),
+  n("[[3 4] 5]@1 ~ ~ ~").scale("F5:major:pentatonic").sound("gm_vibraphone")
+    .attack(.005).decay(.25).sustain(0).release(.15)
+    .lpf(3800).gain(.36),
+  note("[~ f2]@1 ~ ~ ~").sound("gm_tuba")
+    .attack(.002).decay(.2).sustain(0).gain(.4)
+)
+.room(.22).size(2)

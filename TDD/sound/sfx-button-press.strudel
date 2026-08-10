@@ -1,0 +1,16 @@
+// SFX — Button press (any button)
+// Status: DONE (owner-approved 2026-07-19, option E: triangle "tock" with pitch drop)
+// The deep cousin of sfx-chat-pop (same triangle + pitch-bend family) — the whole UI clicks
+// and pops in one related voice.
+// BIG variant for START GAME (to audition later): same tock at f2, decay .12, gain .6.
+// Render: one hit, WAV. Audition pattern ticks once per second.
+// Paste into https://strudel.cc — spec: TDD/sound/stinger-sfx-spec.md
+
+setcpm(60)
+
+note("f3 ~ ~ ~")
+  .sound("triangle")
+  .attack(.001).decay(.08).sustain(0)
+  .penv(-3).pattack(.001).pdecay(.07)
+  .lpf(1200)
+  .gain(.5)

@@ -1,0 +1,13 @@
+// SFX — Player join (roster gains a player: lobby + late join)
+// Status: DONE (owner-approved 2026-07-19)
+// Warm two-note e-piano "hello", rising F4 -> C5. E-piano is M2's lobby voice — joins happen
+// in the lobby, so the sound speaks the room's language. Mirror of sfx-player-leave.
+// Render: one hit, WAV. Audition plays once per second.
+// Paste into https://strudel.cc — spec: TDD/sound/stinger-sfx-spec.md
+
+setcpm(60)
+
+note("[f4 c5@2] ~ ~ ~").sound("gm_epiano1")
+  .attack(.005).decay(.25).sustain(0).release(.15)
+  .lpf(2800).room(.15).size(2)
+  .gain(.4)

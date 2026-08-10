@@ -37,12 +37,12 @@ Optional later: M3 "last 10 seconds" intensity layer (same tempo, added urgency,
 
 | # | Moment | Trigger in game | Target length |
 |---|--------|-----------------|---------------|
-| S1 | Game start | Host presses START GAME → round intro | 2–4 s |
-| S2 | Prompt reveal | Round intro shows the word | 1–2 s |
+| S1 | Race start (repurposed, owner 2026-07-19) | Drawing begins, EVERY round; round 1's doubles as the game-start moment | **DONE ✓ (owner, 2026-07-19)** — "duh duh duh duh-BEEP" countdown; `sound/s1-race-start.strudel` |
+| S2 | Prompt reveal | Round intro shows the word (t=0 of the 4 s intro; S1's countdown fills the rest) | **DONE ✓ (owner, 2026-07-19)** — "ta-da-da-DAAA" climb-over run; `sound/s2-prompt-reveal.strudel` |
 | S3 | Time's up | Drawing timer hits zero | 1–2 s — **possibly superseded** by the timer cue's built-in 6th-note landing (owner cue design 2026-07-19); decide at wiring |
-| S4 | Winner announcement | Judge locks their pick → WinnerSpotlight | 2–4 s (the big one — fanfare) |
-| S6 | Title awarded | Each wrap-up title card (titles stack — may fire several times per player) | 1–2 s |
-| S7 | Final podium | Wrap-up standings appear (with title badges) | 3–5 s (second-biggest moment) |
+| S4 | Winner announcement | Judge locks their pick → WinnerSpotlight | **DONE ✓ (owner, 2026-07-19)** — ~2 s "duh duh duh-DUH" marimba sting; `sound/s4-winner.strudel` |
+| S6 | Title awarded | Each wrap-up title card (titles stack — may fire several times per player) | **DONE ✓ (owner, 2026-07-19)** — compact "dh-DUH"; `sound/s6-title-awarded.strudel` |
+| S7 | Final podium | Wrap-up standings appear (with title badges) | **DONE ✓ (owner, 2026-07-19)** — S4's motif answered higher, Fmaj7 landing; `sound/s7-final-podium.strudel` |
 | S8 | Round transition | RESOLUTION → next ROUND_INTRO | 1–2 s (can double as S2) |
 
 *(S5 "Superlative card reveal" removed 2026-07-14 — superlatives were cut with the Slice 19 emoji retirement. Id S5 retired, not reused.)*
@@ -52,18 +52,18 @@ Optional later: M3 "last 10 seconds" intensity layer (same tempo, added urgency,
 **Interaction set:**
 | Sound | Trigger |
 |-------|---------|
-| Button press | Any button (one generic + optionally a "big" variant for START GAME) |
+| Button press | Any button — **DONE ✓ (owner, 2026-07-19, `sound/sfx-button-press.strudel`)**; optional "big" START GAME variant still to audition |
 | Button hover | Optional — skip if it gets noisy |
-| Done!/ready click | Ready-up press (distinct, satisfying) |
-| All-ready chime | Everyone ready → early advance |
-| Toggle/checkbox | Settings toggles, Public checkbox |
+| Done!/ready click | Ready-up press — **DONE ✓ (owner, 2026-07-19, `sound/sfx-ready-click.strudel`)** |
+| All-ready chime | Everyone ready → early advance — **DONE ✓ (owner, 2026-07-19, `sound/sfx-all-ready.strudel`)** |
+| Toggle/checkbox | Settings toggles, Public checkbox — **DONE ✓ (owner, 2026-07-19, `sound/sfx-toggle-on/off.strudel`, 2 renders)** |
 
 **Social set:**
 | Sound | Trigger |
 |-------|---------|
 | Chat pop | Incoming chat message (not your own) |
-| Player join | Roster gains a player (lobby + late join) |
-| Player leave | Roster loses a player (softer than join) |
+| Player join | Roster gains a player (lobby + late join) — **DONE ✓ (owner, 2026-07-19, `sound/sfx-player-join.strudel`)** |
+| Player leave | Roster loses a player (softer than join) — **DONE ✓ (owner, 2026-07-19, `sound/sfx-player-leave.strudel`)** |
 | Kudos given | Kudos spend lands (slightly special — it's THE social currency now that reactions are gone) |
 
 **Round-flow set:**
@@ -81,7 +81,7 @@ Optional later: M3 "last 10 seconds" intensity layer (same tempo, added urgency,
 | Sound | Trigger |
 |-------|---------|
 | Eraser | Eraser strokes (one-shot per stroke — no looping stroke audio now that pen scratch is cut) |
-| Text place | Text stamp dropped on canvas |
+| Text place | Text stamp dropped on canvas — **DONE ✓ (owner, 2026-07-19, `sound/sfx-text-stamp.strudel`)** |
 | Undo poof | Undo action (also heard at undo markers in Slice 20 replays) |
 
 **Per-sound composing spec:** every stinger and SFX above is precisely described (voice, notes, envelope, length, character) in [`sound/stinger-sfx-spec.md`](sound/stinger-sfx-spec.md) (2026-07-19).

@@ -29,13 +29,22 @@
 | — | M4 | Judging/reveal theme | **CUT** (owner, 2026-07-19 — silence + stingers carry judging; see brief §1 note) |
 | — | M5 | Wrap-up/ceremony theme | **CUT** (owner, 2026-07-19 — stingers carry the ceremony; M2-early-start is the fallback) |
 | `cue-timer-warning.strudel` | — | 5 s escalating timer warning + landing note (drawing + judging, one-shot) | **DONE ✓** (2026-07-19) |
-| `s1-game-start.strudel` | S1 | Game start stinger | TODO |
-| `s2-prompt-reveal.strudel` | S2 | Prompt reveal stinger (can double as S8) | TODO |
+| `s1-race-start.strudel` | S1 | Race start — "duh duh duh duh-BEEP" countdown into drawing (every round; repurposed from whole-game start) | **DONE ✓** (2026-07-19) |
+| `s2-prompt-reveal.strudel` | S2 | Prompt reveal — "ta-da-da-DAAA" climb-over run (word appears; dovetails with S1) | **DONE ✓** (2026-07-19) |
 | `s3-times-up.strudel` | S3 | Time's up stinger (timer cue lands on this) | TODO |
-| `s4-winner.strudel` | S4 | Winner fanfare — the big one | TODO |
-| `s6-title-awarded.strudel` | S6 | Title card stinger (fires repeatedly — keep light) | TODO |
-| `s7-final-podium.strudel` | S7 | Final standings stinger | TODO |
+| `s4-winner.strudel` | S4 | Per-round winner sting — "duh duh duh-DUH" | **DONE ✓** (2026-07-19) |
+| `s6-title-awarded.strudel` | S6 | Title card — compact "dh-DUH" (S4's tail; wiring pitches each stack a step up) | **DONE ✓** (2026-07-19) |
+| `s7-final-podium.strudel` | S7 | Final podium — S4's motif answered higher; the game's one grand fanfare | **DONE ✓** (2026-07-19) |
 | `s8-round-transition.strudel` | S8 | Round transition (skip if S2 covers it) | TODO |
+| `sfx-chat-pop.strudel` | — | SFX: chat pop (incoming-message bloop) | **DONE ✓** (2026-07-19) |
+| `sfx-button-press.strudel` | — | SFX: button press (triangle "tock", chat pop's deep cousin) | **DONE ✓** (2026-07-19) |
+| `sfx-ready-click.strudel` | — | SFX: Done!/ready click (rising triangle pair — the "yes!" tock) | **DONE ✓** (2026-07-19) |
+| `sfx-all-ready.strudel` | — | SFX: all-ready chime (three-note triangle rise) | **DONE ✓** (2026-07-19) |
+| `sfx-toggle-on.strudel` | — | SFX: toggle ON tick (A4 triangle) | **DONE ✓** (2026-07-19) |
+| `sfx-toggle-off.strudel` | — | SFX: toggle OFF tick (F4 triangle) | **DONE ✓** (2026-07-19) |
+| `sfx-player-join.strudel` | — | SFX: player join (rising e-piano "hello") | **DONE ✓** (2026-07-19) |
+| `sfx-player-leave.strudel` | — | SFX: player leave (falling e-piano goodbye) | **DONE ✓** (2026-07-19) |
+| `sfx-text-stamp.strudel` | — | SFX: text stamp ("rip-THUMP" — paper tear + deep thump) | **DONE ✓** (2026-07-19) |
 
 (S5 retired 2026-07-14 with the emoji/superlatives removal — id not reused.)
 

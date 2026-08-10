@@ -1,0 +1,14 @@
+// SFX — All-ready chime (everyone ready -> early advance)
+// Status: DONE (owner-approved 2026-07-19)
+// The completion of sfx-ready-click: three rising triangle notes instead of two, slightly
+// louder — it has to announce the early advance over the drawing music.
+// Render: one hit, WAV. Audition chimes once per second.
+// Paste into https://strudel.cc — spec: TDD/sound/stinger-sfx-spec.md
+
+setcpm(60)
+
+note("[f4 a4 c5@2] ~ ~ ~")
+  .sound("triangle")
+  .attack(.001).decay(.14).sustain(0).release(.08)
+  .lpf(2600)
+  .gain(.5)

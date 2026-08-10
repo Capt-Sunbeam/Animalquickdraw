@@ -1,0 +1,14 @@
+// SFX — Done!/Ready click (ready-up press in DRAWING; also the Unready toggle's louder sibling moment)
+// Status: DONE (owner-approved 2026-07-19: "perfect")
+// The "yes!" answer to sfx-button-press: same triangle UI voice, opposite direction —
+// button press bends DOWN, ready hops UP (F4 -> C5).
+// Render: one hit, WAV. Audition pattern clicks once per second.
+// Paste into https://strudel.cc — spec: TDD/sound/stinger-sfx-spec.md
+
+setcpm(60)
+
+note("[f4 c5@2] ~ ~ ~")
+  .sound("triangle")
+  .attack(.001).decay(.1).sustain(0).release(.04)
+  .lpf(2400)
+  .gain(.45)
