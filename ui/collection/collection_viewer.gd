@@ -83,6 +83,7 @@ func _on_replay_pressed() -> void:
 	_replay = ReplayPlayer.new()
 	# Slice 1 duration cap stays ON here - the collection has no host plan.
 	_replay.load_doc(_doc, SPEEDS[_speed_index])
+	Audio.attach_replay_poof(_replay, _doc)  # Slice 21
 	_replay_texture = ImageTexture.create_from_image(_replay.get_image())
 	_rect.texture = _replay_texture
 	_replay_button.text = "Skip"

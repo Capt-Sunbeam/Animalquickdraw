@@ -21,7 +21,7 @@ const CLOSE_MESSAGES: Dictionary = {
 	"timeout": "Couldn't reach the host.",
 	# Slice 12: Steam join failures (invite path surfaces them here).
 	"not_found": "That game no longer exists.",
-	"version_mismatch": "Your game versions don't match - update Animal Quickdraw.",
+	"version_mismatch": "Your game versions don't match - update Scribble Safari.",
 }
 
 const OFFLINE_TOOLTIP: String = "Steam isn't running - restart Steam and try again"
@@ -41,6 +41,7 @@ static var _offline_dialog_shown: bool = false
 @onready var _toast: Toast = %Toast
 @onready var _avatar_button: Button = %AvatarButton
 @onready var _menu_chip: AvatarChip = %MenuChip
+@onready var _options_button: Button = %OptionsButton
 
 
 func _ready() -> void:
@@ -55,6 +56,10 @@ func _ready() -> void:
 		_public_button.tooltip_text = "Steam required - public games use the Steam lobby list"
 	_join_dialog.join_requested.connect(_on_join_code_entered)
 	_collection_button.pressed.connect(func() -> void: Nav.goto(Routes.COLLECTION))
+	# Slice 21: Options dialog (audio volumes) - code-built, no scene.
+	var options_dialog := OptionsDialog.new()
+	add_child(options_dialog)
+	_options_button.pressed.connect(options_dialog.open)
 	# Slice 11: the Avatar button's icon IS the local player's current chip.
 	_avatar_button.pressed.connect(func() -> void: Nav.goto(Routes.AVATAR_EDITOR))
 	_refresh_menu_chip()

@@ -203,7 +203,7 @@ N/A — no new autoloads, stores, or signals.
 ### macOS codesign + notarization (documented procedure — `tools/release/notarize_macos.md`)
 - [ ] Entitlements plist: `com.apple.security.cs.allow-jit`, `allow-unsigned-executable-memory`, `allow-dyld-environment-variables`, `disable-library-validation`
 - [ ] Godot preset codesigning with Developer ID + hardened runtime + entitlements (or manual `codesign --deep --force --options runtime --entitlements ...`)
-- [ ] `ditto -c -k --keepParent AnimalQuickdraw.app aq.zip` → `xcrun notarytool submit aq.zip --keychain-profile aq-notary --wait` → `xcrun stapler staple AnimalQuickdraw.app`
+- [ ] `ditto -c -k --keepParent ScribbleSafari.app ss.zip` → `xcrun notarytool submit ss.zip --keychain-profile aq-notary --wait` → `xcrun stapler staple ScribbleSafari.app`
 - [ ] Verify on clean machine: `spctl -a -vv`, first-launch OK
 
 ### Windows / Linux packaging

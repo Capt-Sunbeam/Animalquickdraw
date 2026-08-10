@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "strudel-extractor-test",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["tools/strudel_extractor/server.mjs", "--out", "/private/tmp/claude-501/-Users-me-Documents-GitHub-Animalquickdraw/91465f88-0a6c-4e29-b79f-c78aa6445e58/scratchpad/extractor_out"],
+      "port": 8123
+    },
+    {
+      "name": "strudel-extractor",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["tools/strudel_extractor/server.mjs"],
+      "port": 8123
+    }
+  ]
+}

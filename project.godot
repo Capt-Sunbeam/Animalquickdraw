@@ -10,11 +10,15 @@ config_version=5
 
 [application]
 
-config/name="Animal Quickdraw"
+config/name="Scribble Safari"
 config/version="0.1.0"
 run/main_scene="res://ui/menu/main_menu_screen.tscn"
 config/features=PackedStringArray("4.6")
 config/icon="res://icon.svg"
+
+[audio]
+
+buses/default_bus_layout="res://core/audio/default_bus_layout.tres"
 
 [autoload]
 
@@ -25,6 +29,7 @@ Save="*res://core/save/save_service.gd"
 Session="*res://game/session/session_manager.gd"
 Nav="*res://core/nav/scene_manager.gd"
 Stats="*res://core/stats/stats_service.gd"
+Audio="*res://core/audio/audio_service.gd"
 
 [debug]
 

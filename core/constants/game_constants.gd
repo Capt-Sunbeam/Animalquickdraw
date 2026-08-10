@@ -138,3 +138,9 @@ const KICK_DISCONNECT_GRACE_SEC: float = 1.0          # rpc_do_kicked flush wind
 const PUBLIC_NOTICE_VERSION: int = 1
 ## Placeholder wording - final text is Slice 15's legal pass (§12).
 const PUBLIC_NOTICE_TEXT: String = "Public games are played with strangers and are NOT moderated.\nDrawings and chat are player-created and may be offensive.\n18+ - join at your own risk."
+
+# --- Slice 21: Audio Wiring ---
+## Drawing-music rotation pool; index = bit position in
+## GameSettings.drawing_tracks. Append-only - mask bits persist in
+## last_lobby_settings, so reordering would silently swap hosts' picks.
+const DRAWING_MUSIC_TRACKS: Array[String] = ["m3-drawing-ambient", "m3-drawing-oompa"]

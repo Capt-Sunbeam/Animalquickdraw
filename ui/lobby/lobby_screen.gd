@@ -22,6 +22,8 @@ var _kick_target_peer: int = 0  # Slice 13: pending kick awaiting confirm
 @onready var _mode_option: OptionButton = %ModeOption
 @onready var _public_check: CheckBox = %PublicCheck
 @onready var _fluid_check: CheckBox = %FluidCheck
+@onready var _music_ambient_check: CheckBox = %MusicAmbientCheck
+@onready var _music_oompa_check: CheckBox = %MusicOompaCheck
 @onready var _mode_panel: ModeSettingsPanel = %ModePanel
 @onready var _chat: ChatPanel = %Chat
 @onready var _start_button: Button = %StartButton
@@ -98,6 +100,13 @@ func _setup_settings_controls() -> void:
 	if host:
 		_public_check.toggled.connect(_on_connectivity_toggled.bind(&"is_public"))
 		_fluid_check.toggled.connect(_on_connectivity_toggled.bind(&"fluid_rejoin"))
+	# Slice 21: drawing-music rotation - always-tunable (owner D4), so
+	# host-editable in every mode like the always-three.
+	_music_ambient_check.disabled = not host
+	_music_oompa_check.disabled = not host
+	if host:
+		_music_ambient_check.toggled.connect(_on_music_toggled)
+		_music_oompa_check.toggled.connect(_on_music_toggled)
 
 
 func _on_rounds_edited(value: float) -> void:
@@ -156,6 +165,21 @@ func _on_connectivity_toggled(pressed: bool, key: StringName) -> void:
 		Session.set_settings(s)
 
 
+## Slice 21: both checkboxes rebuild the bitmask; unchecking the last one
+## clamps back to ALL inside set_value, and the re-render snaps it on again.
+func _on_music_toggled(_pressed: bool) -> void:
+	if _updating_ui:
+		return
+	var mask: int = 0
+	if _music_ambient_check.button_pressed:
+		mask |= 1
+	if _music_oompa_check.button_pressed:
+		mask |= 2
+	var s: GameSettings = Session.settings.duplicate_settings()
+	if s.set_value(&"drawing_tracks", mask):
+		Session.set_settings(s)
+
+
 func _on_settings_changed(settings_dict: Dictionary) -> void:
 	_apply_settings_dict(settings_dict)
 
@@ -172,6 +196,8 @@ func _apply_settings_dict(d: Dictionary) -> void:
 	_mode_option.select(_mode_option.get_item_index(s.mode))
 	_public_check.button_pressed = s.is_public
 	_fluid_check.button_pressed = s.fluid_rejoin
+	_music_ambient_check.button_pressed = (s.drawing_tracks & 1) != 0
+	_music_oompa_check.button_pressed = (s.drawing_tracks & 2) != 0
 	_mode_panel.render(s)   # Slice 6: summary chips vs Custom surface
 	_updating_ui = false
 

@@ -260,3 +260,42 @@ func test_slice19_keys_preset_locked_outside_custom() -> void:
 	s.apply_preset(SettingsDefaults.Mode.CUSTOM)
 	assert_bool(s.is_locked(&"titles_enabled")).is_false()
 	assert_bool(s.is_locked(&"title_ceremony")).is_false()
+
+
+# --- Slice 21: drawing_tracks (audio wiring) ---
+
+
+func test_drawing_tracks_defaults_all_and_round_trips() -> void:
+	var s := GameSettings.new()
+	assert_int(s.drawing_tracks).is_equal(GameSettings.DRAWING_TRACKS_ALL)
+	s.drawing_tracks = 2
+	assert_int(GameSettings.from_dict(s.to_dict()).drawing_tracks).is_equal(2)
+	assert_int(GameSettings.from_dict({}).drawing_tracks).is_equal(GameSettings.DRAWING_TRACKS_ALL)
+
+
+func test_drawing_tracks_clamp_strips_invalid_bits_and_never_empty() -> void:
+	var s := GameSettings.new()
+	s.drawing_tracks = 0
+	s.clamp_to_limits()
+	assert_int(s.drawing_tracks).is_equal(GameSettings.DRAWING_TRACKS_ALL)
+	s.drawing_tracks = 1 | 8   # a valid bit plus garbage - garbage stripped
+	s.clamp_to_limits()
+	assert_int(s.drawing_tracks).is_equal(1)
+	s.drawing_tracks = 4       # garbage-only bits -> empty -> reset to ALL
+	s.clamp_to_limits()
+	assert_int(s.drawing_tracks).is_equal(GameSettings.DRAWING_TRACKS_ALL)
+
+
+func test_drawing_tracks_always_tunable_outside_custom() -> void:
+	var s := GameSettings.new()
+	s.apply_preset(SettingsDefaults.Mode.STREAMLINED)
+	assert_bool(s.is_locked(&"drawing_tracks")).is_false()
+	assert_bool(s.set_value(&"drawing_tracks", 2)).is_true()
+	assert_int(s.drawing_tracks).is_equal(2)
+
+
+func test_drawing_tracks_survives_preset_switch() -> void:
+	var s := GameSettings.new()
+	assert_bool(s.set_value(&"drawing_tracks", 1)).is_true()
+	s.apply_preset(SettingsDefaults.Mode.SOCIAL)
+	assert_int(s.drawing_tracks).is_equal(1)

@@ -39,11 +39,11 @@ Optional later: M3 "last 10 seconds" intensity layer (same tempo, added urgency,
 |---|--------|-----------------|---------------|
 | S1 | Race start (repurposed, owner 2026-07-19) | Drawing begins, EVERY round; round 1's doubles as the game-start moment | **DONE ✓ (owner, 2026-07-19)** — "duh duh duh duh-BEEP" countdown; `sound/s1-race-start.strudel` |
 | S2 | Prompt reveal | Round intro shows the word (t=0 of the 4 s intro; S1's countdown fills the rest) | **DONE ✓ (owner, 2026-07-19)** — "ta-da-da-DAAA" climb-over run; `sound/s2-prompt-reveal.strudel` |
-| S3 | Time's up | Drawing timer hits zero | 1–2 s — **possibly superseded** by the timer cue's built-in 6th-note landing (owner cue design 2026-07-19); decide at wiring |
+| S3 | Time's up | Drawing timer hits zero | **CUT (owner, 2026-08-10)** — the timer cue's built-in 6th-note landing is the time's-up sound |
 | S4 | Winner announcement | Judge locks their pick → WinnerSpotlight | **DONE ✓ (owner, 2026-07-19)** — ~2 s "duh duh duh-DUH" marimba sting; `sound/s4-winner.strudel` |
 | S6 | Title awarded | Each wrap-up title card (titles stack — may fire several times per player) | **DONE ✓ (owner, 2026-07-19)** — compact "dh-DUH"; `sound/s6-title-awarded.strudel` |
 | S7 | Final podium | Wrap-up standings appear (with title badges) | **DONE ✓ (owner, 2026-07-19)** — S4's motif answered higher, Fmaj7 landing; `sound/s7-final-podium.strudel` |
-| S8 | Round transition | RESOLUTION → next ROUND_INTRO | 1–2 s (can double as S2) |
+| S8 | Round transition | RESOLUTION → next ROUND_INTRO | **CUT (owner, 2026-08-10)** — S2 covers it |
 
 *(S5 "Superlative card reveal" removed 2026-07-14 — superlatives were cut with the Slice 19 emoji retirement. Id S5 retired, not reused.)*
 

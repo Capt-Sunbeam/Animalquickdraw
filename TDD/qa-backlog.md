@@ -259,7 +259,7 @@ Two owner-directed fix batches this session (decision log 2026-07-06 "Judging = 
 - [ ] Lobby metadata in a Steamworks debug dump matches the schema table (spot-check for Slice 13) ✅ AUTO (smoke verified write+read-back; eyeball once anyway)
 - [ ] Invite accepted while in another game → "Leave & join" confirm; declining leaves the current game untouched
 - [ ] Steam-quit boot: offline dialog once, Host/Join disabled with tooltip, collection + avatar editor fully usable
-- [ ] **Real App ID pass (owner-earmarked 2026-07-11, runs with Slice 15):** register the App ID, then the §9 swap procedure (APP_ID constant, delete `steam_appid.txt` from the shipped depot, Steamworks build config) and re-verify under the real ID: overlay shows "Animal Quickdraw", invites, **cold-launch "Join Game" with the game closed launches OUR exe** (unverifiable under Spacewar — Steam would launch Valve's app; until then simulate with manual `+connect_lobby <id>`), store-visible lobby names
+- [ ] **Real App ID pass (owner-earmarked 2026-07-11, runs with Slice 15):** register the App ID, then the §9 swap procedure (APP_ID constant, delete `steam_appid.txt` from the shipped depot, Steamworks build config) and re-verify under the real ID: overlay shows "Scribble Safari", invites, **cold-launch "Join Game" with the game closed launches OUR exe** (unverifiable under Spacewar — Steam would launch Valve's app; until then simulate with manual `+connect_lobby <id>`), store-visible lobby names
 
 ## Slice 13 — Public Lobbies & Moderation
 
@@ -305,6 +305,21 @@ Two owner-directed fix batches this session (decision log 2026-07-06 "Judging = 
 - [x] ~~D-press on EXPANDED palette swatches selects the color~~ — owner-confirmed live 2026-07-12 ("both fixes landed well")
 - [x] ~~**D-drag** (owner tweak, same day): hold D to drag the TEXT CHIP into the canvas and expanded-palette colors onto the + favorite slots~~ — owner-confirmed live 2026-07-12 ("it works now") after the motion-mask fix
 - [ ] Undo button enabled-state feel: greys out when the canvas is effectively blank even after heavy undo use
+
+## Slice 21 — Audio Wiring (added 2026-08-10)
+
+*Machine coverage: music-map table, payload track + hostile-id fallback, cue arm/disarm/pause-rearm, rotation bag (coverage/determinism/degenerate masks), settings round-trip/clamp/lock, volume clamp+persist via seam, ROUND_INTRO payload pin. The BLOCKING owner ear pass (mix, cue landing, S1 BEEP alignment) is in WHERE_WE_ARE next steps, not here. Batchables:*
+
+- [ ] Chat-pop ±5% pitch jitter: audible variety without sounding broken over a long chatty lobby
+- [ ] S6 pitch ladder feel when one player stacks 3+ titles (whole-step climb; does the top get chipmunky?)
+- [ ] Lobby join/leave one-shots during rapid join churn (SFX pool is polyphonic — is the pile-up charming or noisy?)
+- [ ] Replay undo poofs in FULL-reveal mode with an undo-heavy drawing (poof spam density)
+- [ ] Eraser one-shot per stroke: scrubby multi-stroke erasing retriggers — annoying or tactile?
+- [ ] Late joiner mid-round hears the fallback AMBIENT track until next round (never saw the ROUND_INTRO payload) — acceptable by design; confirm it's unnoticeable in practice
+- [ ] Pause fade-out (owner D2) during the below-minimum auto-pause: does silence + overlay read clearly?
+- [ ] HSlider default engine styling inside the paper theme (Esc menu + Options dialog) — ink-skin the grabber if it clashes
+- [ ] Options dialog paper skin: confirm the AcceptDialog theme carry-over looks right at all aspects
+- [ ] Music volume at 0 mutes the bus entirely (incl. cue-adjacent fades) — confirm the timer cue still carries the warning on SFX bus alone
 
 ## Design gaps / open items (not bugs — need decisions)
 

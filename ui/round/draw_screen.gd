@@ -24,6 +24,7 @@ var _ready_strip: ReadyStatusStrip = null
 
 
 func _ready() -> void:
+	_done_button.set_meta("click_sfx", "sfx-ready-click")  # Slice 21
 	_done_button.pressed.connect(_on_done_pressed)
 	_canvas.begin_drawing()
 	_ready_strip = ReadyStatusStrip.new()

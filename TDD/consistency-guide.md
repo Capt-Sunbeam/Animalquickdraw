@@ -1,10 +1,10 @@
-# Consistency & Integration Guide — Animal Quickdraw
+# Consistency & Integration Guide — Scribble Safari
 
-**Purpose:** Development standards and integration contracts for Animal Quickdraw. All slices must follow these patterns. Filled in from `pillars/03-consistency-guide-template.md`.
+**Purpose:** Development standards and integration contracts for Scribble Safari (formerly "Animal Quickdraw"). All slices must follow these patterns. Filled in from `pillars/03-consistency-guide-template.md`.
 
 **Version:** 1.0
 **Last Updated:** 2026-07-04
-**Project:** Animal Quickdraw
+**Project:** Scribble Safari
 
 ---
 

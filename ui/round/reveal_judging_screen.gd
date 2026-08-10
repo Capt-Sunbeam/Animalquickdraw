@@ -110,6 +110,9 @@ func _build_grid(entries: Array[Dictionary]) -> void:
 func _build_cell(drawing_id: String, doc_dict: Variant) -> Button:
 	var cell := Button.new()
 	cell.theme_type_variation = &"CardButton"
+	# Slice 21: the judge's latch sound (judge_pick_latched) covers picks;
+	# spectators clicking cards shouldn't tock either.
+	cell.set_meta("click_sfx", "none")
 	cell.custom_minimum_size = CELL_MIN_SIZE
 	cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	cell.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -204,6 +207,7 @@ func _on_reveal_beat(index: int, drawing_id: String, beat_secs: float) -> void:
 		# false: the planner timescale IS the plan (host-set target duration).
 		_replay.load_doc(parsed, ReplayPlanner.reveal_timescale(
 				doc, Session.game_settings.reveal_replay_secs, entry_count), false)
+		Audio.attach_replay_poof(_replay, parsed)  # Slice 21
 		_replay_texture = ImageTexture.create_from_image(_replay.get_image())
 		_stage_rect.texture = _replay_texture
 	else:

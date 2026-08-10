@@ -37,6 +37,9 @@ func _ready() -> void:
 	_pending_timer.wait_time = PENDING_TIMEOUT_SEC
 	_pending_timer.timeout.connect(_on_pending_timeout)
 	add_child(_pending_timer)
+	# Slice 21: the global kudos ding (kudos_total_changed) is this button's
+	# sound - the generic click would double up on the giver.
+	set_meta("click_sfx", "none")
 	pressed.connect(_on_pressed)
 	EventBus.kudos_total_changed.connect(_on_total_changed)
 	EventBus.kudos_given.connect(_on_kudos_given)

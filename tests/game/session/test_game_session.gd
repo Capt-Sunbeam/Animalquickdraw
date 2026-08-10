@@ -106,6 +106,8 @@ func test_start_fixes_judge_order_from_joined_order() -> void:
 	assert_str(str(intro["judge_player_id"])).is_equal("p0")
 	assert_int(int(intro["round_index"])).is_equal(0)
 	assert_int(int(intro["round_count"])).is_equal(2)
+	# Slice 21: every round intro carries this round's drawing-music track.
+	assert_bool(GameConstants.DRAWING_MUSIC_TRACKS.has(str(intro["music_track"]))).is_true()
 
 
 func test_judge_rotation_wraps_after_last_player() -> void:

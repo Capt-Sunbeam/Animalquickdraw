@@ -1,14 +1,32 @@
-# Decision Log: Animal Quickdraw
+# Decision Log: Scribble Safari
 
 **Purpose:** Track design decisions made during development. New entries are added at the top of the Decisions section.
 
-**Last Updated:** 2026-07-12
+**Last Updated:** 2026-08-10
 
 ---
 
 ## Decisions
 
 *New entries go here, at the top of this section.*
+
+---
+
+### Slice 21 (mini): audio wiring decisions - S3/S8 cut official, pause fades music, volume surface, always-tunable track picker
+**Date:** 2026-08-10 | **Slice:** 21 | **Decided by:** Owner (4-question decision pass at session start) | **Type:** Quick
+
+**Decision:** (1) **S3 "time's up" and S8 "round transition" are officially CUT** (were parked 2026-07-19): the timer cue's built-in 6th-note landing IS the time's-up sound; S2's ta-da covers round transitions. Ids retired, never reused. (2) **Music FADES TO SILENCE on pause** (owner chose over the keep-playing recommendation): `game_paused` fades out ~0.5 s, resume fades the phase's music back in; pause/unpause SFX still mark the moments. Falls out of the music map's PAUSED row - no special-case code. (3) **Volume surface** = shared `AudioSettingsPanel` (Master/Music/SFX sliders, live-apply, debounced persist to profile.json `audio`) mounted in the Esc `GameMenu` AND a new code-built main-menu Options dialog - the game's first options surface. (4) **`drawing_tracks` (M3 rotation bitmask) joins `ALWAYS_TUNABLE`** - music taste is preset-neutral; and like `round_count`/`pool_source` it is NOT carried by presets, so a mode switch never resets it. Kudos SFX confirmed GLOBAL (hooks `kudos_total_changed`, every peer hears it) per the owner's session-start framing.
+
+**Status:** [x] Implemented (600 tests green, +19) [x] Gates PASS ×3 [ ] **Owner ear pass (blocking)** - mix levels, cue landing, S1 BEEP alignment
+
+---
+
+### Game renamed: Animal Quickdraw -> Scribble Safari; bundle identifier pinned
+**Date:** 2026-08-10 | **Slice:** - (project-wide) | **Decided by:** Owner ("swap out the placeholder name... for the Real name") | **Type:** Quick
+
+**Decision:** "Animal Quickdraw" was always the placeholder; the shipping name is **Scribble Safari**. Swapped in: `project.godot` `config/name`, all three export paths (`scribble-safari.*`), menu/lobby title labels, both version-mismatch error strings, README, and living docs (WHERE_WE_ARE, consistency guide, sound README, Slice 15 TDD, qa-backlog overlay check). **Bundle identifier = `com.sunsparkstudioshq.scribblesafari`** - mirrors the owner's real domain (sunsparkstudioshq.com) for guaranteed uniqueness; it is an app ID, not a URL, and never resolves anywhere. Historical docs (session logs, completed slice TDDs, extractor render records) deliberately keep the old name - they are dated records. Repo folder rename left to the owner (git is owner-managed).
+
+**Status:** [x] Implemented [x] verify_lobby PASS post-swap [ ] Steamworks app name uses Scribble Safari at Slice 15 registration
 
 ---
 

@@ -28,6 +28,7 @@ func present(drawing_id: String, doc: Dictionary, author_name: String,
 		_player = ReplayPlayer.new()
 		# false: the timescale already encodes the host-set target duration.
 		_player.load_doc(parsed, timescale, false)
+		Audio.attach_replay_poof(_player, parsed)  # Slice 21
 		_player.finished.connect(_on_lap_done)
 		_texture = ImageTexture.create_from_image(_player.get_image())
 		_rect.texture = _texture

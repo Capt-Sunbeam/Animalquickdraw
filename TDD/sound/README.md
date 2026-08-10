@@ -1,4 +1,4 @@
-# Strudel Sound Sources — Animal Quickdraw
+# Strudel Sound Sources — Scribble Safari
 
 **Purpose:** Single source of truth for the Strudel "code" behind every music track, stinger, and composed SFX (owner-requested documentation feature, 2026-07-19). The audio files that ship in the game get rendered from these sources; if a rendered asset and its source ever disagree, the source here wins — re-render.
 
@@ -10,7 +10,7 @@
 
 1. Compose/iterate in the Strudel REPL (https://strudel.cc)
 2. When a track reaches "done" (or a milestone worth keeping), paste the full source into its file here
-3. Rendering to game assets (OGG loops / WAV one-shots into `assets/audio/`) happens in the future sound implementation session — record two full loop passes, trim the second at exact cycle boundaries for a click-free loop point
+3. Rendering to game assets (OGG loops / WAV one-shots into `assets/audio/`): run the **Strudel Extractor** (`node tools/strudel_extractor/server.mjs`, see its README) — it captures the live engine and slices on exact cycle boundaries by clock arithmetic (2026-08-10; supersedes the old two-pass/manual-trim plan). **All 25 assets rendered + owner-approved 2026-08-10.** **WIRED into the game 2026-08-10 (Slice 21, session 16)** — `Audio` autoload, buses, cue scheduling, rotation setting; see `TDD/21-audio-wiring.md`
 
 ## File conventions
 
@@ -18,24 +18,26 @@
 - Plain text, valid Strudel code — paste-ready. `//` comment header at the top of each file: id, status, where it plays, key/tempo
 - Superseded versions: don't keep old copies in-file; git history is the archive (owner commits)
 
-> **2026-07-19 (later):** Strudel's native export drops the global reverb/delay bus (confirmed on both strudel.cc and warm.strudel.cc) — hand-exports of these files are unusable. Rendering will instead use the **Strudel Sound Renderer** tool, spec'd in [`tools/sound_pipeline/DESIGN.md`](../../tools/sound_pipeline/DESIGN.md) (build scheduled for its own session). The cycle table below remains the authoritative source for render windows; the `.mask("<1 0>")` trick for s4/s7 applies only to hand-exports and is superseded by the tool's tail capture.
+> **2026-07-19 (later):** Strudel's native export drops the global reverb/delay bus (confirmed on both strudel.cc and warm.strudel.cc) — hand-exports of these files are unusable. Rendering uses the live-capture tool instead.
+>
+> **2026-08-09: the tool is BUILT — the Strudel Extractor** (`tools/strudel_extractor/`, renamed from the "Strudel Sound Renderer" spec at `tools/sound_pipeline/`). Run `node tools/strudel_extractor/server.mjs`, open the printed URL, Process. Render settings are set in the app (remembered automatically; no file headers, no source edits). The `.mask("<1 0>")` trick is fully retired — the tool captures one-shot tails natively. Owner decisions at the build session: **all music loops render from cycle 0** (intro cycles included; the phase-chosen start offsets below are superseded), s4/s7 windows shrink to 0→1.
 
-## Render settings (2026-07-19)
+## Render settings (2026-07-19; revised 2026-08-09)
 
-Per-file start/end cycles for converting sources to audio. Chosen so music loops close seamlessly (start/end land on the same mask state and modulation phase) and one-shots keep their tails. Music → OGG (loop points on import); cue/stingers/SFX → WAV.
+Per-file start/end cycles for converting sources to audio. One-shots keep their tails (the tool extends past the boundary to true silence). Music → OGG (loop points on import); cue/stingers/SFX → WAV.
 
 | File | Start cycle | End cycle | ≈ Length | Note |
 |------|-------------|-----------|----------|------|
 | `cue-timer-warning` | 0 | 6 | 6.0 s | one-shot; notes at 0–5 s, 6th = the landing |
 | `m1-main-menu` | 0 | 104 | 3:32 | the full arrangement; outro thins into the intro by design — loop the whole thing |
-| `m2-lobby` | 8 | 40 | 74 s | skips the 4-cycle bass intro; 32 cycles = full slow(32) filter period |
-| `m3-drawing-ambient` | 24 | 80 | 120 s | all layers on by 16; 56 cycles = full slow(14)+slow(8) periods |
-| `m3-drawing-oompa` | 16 | 64 | 96 s | all layers on by 8; 48 cycles = full slow(6)+slow(12) periods |
+| `m2-lobby` | 0 | 40 | 92 s | from cycle 0 (owner, 2026-08-09 — intro in the loop); spans the full slow(32) filter period |
+| `m3-drawing-ambient` | 0 | 80 | 2:51 | from cycle 0 (owner, 2026-08-09); spans the slow(14)+slow(8) periods |
+| `m3-drawing-oompa` | 0 | 64 | 2:10 | from cycle 0 (owner, 2026-08-09); spans the slow(6)+slow(12) periods |
 | `s1-race-start` | 0 | 1 | 4.3 s | tail dies inside the cycle |
 | `s2-prompt-reveal` | 0 | 1 | 2.0 s | |
-| `s4-winner` | 0 | 2 | 4.0 s | **temporarily append `.mask("<1 0>")` after `.size(2)`** — the landing rings past the cycle edge; the mask silences the repeat so 0→2 captures the tail. Remove after rendering |
+| `s4-winner` | 0 | 1 | ~2.5 s | tail captured natively by the extractor (mask trick retired) |
 | `s6-title-awarded` | 0 | 1 | 2.0 s | |
-| `s7-final-podium` | 0 | 2 | 8.0 s | **same `.mask("<1 0>")` trick after `.size(4)`** — Fmaj7 release rings past the cycle edge |
+| `s7-final-podium` | 0 | 1 | ~6 s | tail captured natively by the extractor (mask trick retired); measured 4.0 s music + ~2 s ring-out |
 | `sfx-all-ready` | 0 | 1 | 1.0 s | |
 | `sfx-button-press` | 0 | 1 | 1.0 s | |
 | `sfx-chat-pop` | 0 | 1 | 1.0 s | |
@@ -67,11 +69,11 @@ Trailing silence inside a one-shot render is harmless (trim in an editor later i
 | `cue-timer-warning.strudel` | — | 5 s escalating timer warning + landing note (drawing + judging, one-shot) | **DONE ✓** (2026-07-19) |
 | `s1-race-start.strudel` | S1 | Race start — "duh duh duh duh-BEEP" countdown into drawing (every round; repurposed from whole-game start) | **DONE ✓** (2026-07-19) |
 | `s2-prompt-reveal.strudel` | S2 | Prompt reveal — "ta-da-da-DAAA" climb-over run (word appears; dovetails with S1) | **DONE ✓** (2026-07-19) |
-| `s3-times-up.strudel` | S3 | Time's up stinger (timer cue lands on this) | TODO |
+| `s3-times-up.strudel` | S3 | Time's up stinger | **CUT** (owner, 2026-08-10 wiring session — the timer cue's landing note IS the time's-up sound; id retired) |
 | `s4-winner.strudel` | S4 | Per-round winner sting — "duh duh duh-DUH" | **DONE ✓** (2026-07-19) |
 | `s6-title-awarded.strudel` | S6 | Title card — compact "dh-DUH" (S4's tail; wiring pitches each stack a step up) | **DONE ✓** (2026-07-19) |
 | `s7-final-podium.strudel` | S7 | Final podium — S4's motif answered higher; the game's one grand fanfare | **DONE ✓** (2026-07-19) |
-| `s8-round-transition.strudel` | S8 | Round transition (skip if S2 covers it) | TODO |
+| `s8-round-transition.strudel` | S8 | Round transition | **CUT** (owner, 2026-08-10 wiring session — S2 covers it; id retired) |
 | `sfx-chat-pop.strudel` | — | SFX: chat pop (incoming-message bloop) | **DONE ✓** (2026-07-19) |
 | `sfx-button-press.strudel` | — | SFX: button press (triangle "tock", chat pop's deep cousin) | **DONE ✓** (2026-07-19) |
 | `sfx-ready-click.strudel` | — | SFX: Done!/ready click (rising triangle pair — the "yes!" tock) | **DONE ✓** (2026-07-19) |

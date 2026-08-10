@@ -17,6 +17,7 @@ var _client: SessionClient = null
 var _bundle: Dictionary = {}
 var _plan: Array[Dictionary] = []        # [{"kind": "title"|"standings", "entry": {}}]
 var _plan_index: int = -1
+var _s6_counts: Dictionary = {}  # Slice 21: pid -> title cards shown (S6 pitch ladder)
 var _card: Control = null
 var _player_names: Dictionary = {}       # platform_id -> {"name": String, "connected": bool}
 var _done: bool = false
@@ -119,10 +120,16 @@ func _next_card() -> void:
 				if not drawing.is_empty():
 					evidence.append(drawing)
 			var pid: String = str(entry.get("player_id", ""))
+			# Slice 21: S6 pitch ladder - a player's stacked titles climb a
+			# whole step per card (2^(2/12) per stack index).
+			var stack: int = int(_s6_counts.get(pid, 0))
+			Audio.play_sfx(&"s6-title-awarded", pow(2.0, stack / 6.0))
+			_s6_counts[pid] = stack + 1
 			card.present(entry, _name_of(pid), _connected(pid), evidence)
 			_card = card
 			_card_timer.start(maxf(0.1, card.display_secs()))
 		"standings":
+			Audio.play_sfx(&"s7-final-podium")  # Slice 21: the one grand fanfare
 			_skip_ceremony_button.visible = false   # Slice 19: vote is moot now
 			var panel: StandingsPanel = STANDINGS_PANEL.instantiate()
 			_stage.add_child(panel)

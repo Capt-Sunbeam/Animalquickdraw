@@ -165,7 +165,7 @@ func _start_join(listing: LobbyListing) -> void:
 			"not_found":
 				_toast.show_error("That game no longer exists.")
 			"version_mismatch":
-				_toast.show_error("Your game versions don't match - update Animal Quickdraw.")
+				_toast.show_error("Your game versions don't match - update Scribble Safari.")
 			_:
 				_toast.show_error("Couldn't join (%s)." % error_string(err))
 		_set_state(BrowserState.LISTED)

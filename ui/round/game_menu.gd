@@ -28,6 +28,15 @@ func _ready() -> void:
 	_pause_button.pressed.connect(_on_pause_pressed)
 	_leave_button.pressed.connect(_on_leave_pressed)
 	_pause_button.visible = Session.is_host()
+	# Slice 21: volume section (shared panel), right under Leave.
+	var vol_header := Label.new()
+	vol_header.text = "Volume"
+	var vol_panel := AudioSettingsPanel.new()
+	var items: Node = _leave_button.get_parent()
+	items.add_child(vol_header)
+	items.add_child(vol_panel)
+	items.move_child(vol_header, _leave_button.get_index() + 1)
+	items.move_child(vol_panel, _leave_button.get_index() + 2)
 	# Slice 13: the Esc menu is the in-game kick surface (host only).
 	_kick_header.visible = Session.is_host()
 	_kick_rows.visible = Session.is_host()

@@ -182,6 +182,7 @@ func play_replay(speed_multiplier: float) -> void:
 	_input_state = InputState.REPLAYING
 	_replay = ReplayPlayer.new()
 	_replay.load_doc(_doc, speed_multiplier)
+	Audio.attach_replay_poof(_replay, _doc)  # Slice 21
 
 
 func is_replaying() -> bool:
@@ -561,6 +562,8 @@ func _stroke_begin(internal_pos: Vector2) -> void:
 	_live_stroke.color_index = Palette.ERASE_COLOR_INDEX \
 			if _current_tool == CanvasToolbar.Tool.ERASER else _current_color_index
 	_live_stroke.size_index = _current_size_index
+	if _current_tool == CanvasToolbar.Tool.ERASER:
+		Audio.play_sfx(&"sfx-eraser")  # Slice 21: one-shot per stroke, local input only
 	_append_point(internal_pos, true)
 	_input_state = InputState.STROKING
 	_toolbar.set_undo_enabled(false)  # toolbar disabled while stroking (§5)
@@ -761,6 +764,7 @@ func _commit_text_at(anchor: Vector2i) -> void:
 	op.y = anchor.y
 	op.text = text
 	_doc.ops.append(op)
+	Audio.play_sfx(&"sfx-text-stamp")  # Slice 21
 	DocRasterizer.apply_op(_raster, op, _mask)
 	_texture_dirty = true
 	_refresh_undo_state()
@@ -802,6 +806,7 @@ func _press_undo() -> void:
 			or _doc.effective_ops().is_empty():
 		return  # stray Ctrl+Z on blank canvas / mid-stroke is a silent no-op
 	_doc.ops.append(UndoOp.new())
+	Audio.play_sfx(&"sfx-undo-poof")  # Slice 21
 	_full_reraster()
 	_refresh_undo_state()
 	op_undone.emit(_doc.effective_ops().size())

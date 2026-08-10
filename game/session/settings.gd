@@ -24,9 +24,18 @@ const WINNER_REPLAY_SECS_MAX: float = 30.0
 
 const SETTINGS_VERSION: int = 1
 
+## Slice 21: drawing-music rotation bitmask (bit 0 = M3a ambient, bit 1 =
+## M3b oompa; extensible). The enabled set can never be empty - clamp
+## resets 0 to ALL. Bit order matches Audio.DRAWING_TRACKS.
+const DRAWING_TRACKS_ALL: int = 3
+const DRAWING_TRACKS_VALID_MASK: int = 3
+
 ## The only keys editable while a preset (non-Custom) mode is selected
 ## (design brief §10). Everything else is locked to the preset's values.
-const ALWAYS_TUNABLE: Array[StringName] = [&"draw_time_sec", &"round_count", &"pool_source"]
+## drawing_tracks is always-tunable by owner decision (TDD 21 §6 D4) and,
+## like round_count/pool_source, is never carried by presets - music taste
+## survives mode switches.
+const ALWAYS_TUNABLE: Array[StringName] = [&"draw_time_sec", &"round_count", &"pool_source", &"drawing_tracks"]
 
 ## Slice 9: connectivity settings sit OUTSIDE the preset lock set - presets
 ## lock game-feel values; §9 declares these host-facing regardless of mode.
@@ -60,6 +69,8 @@ var winner_replay_secs: float = 8.0    # victory-lap replay target duration
 var is_public: bool = false            # flag only; real public lobbies land in Slice 13
 var fluid_rejoin: bool = true          # §9 anti-gaming toggle (ON = drop-in friendly)
 var fluid_rejoin_overridden: bool = false  # host touched the toggle; stop deriving
+# Slice 21 addition:
+var drawing_tracks: int = DRAWING_TRACKS_ALL  # bitmask of drawing-music tracks in rotation
 # comments_enabled removed by Slice 16 (captions retired for the in-image
 # text tool); stale profile dicts carrying the key are silently ignored.
 
@@ -84,6 +95,9 @@ func clamp_to_limits() -> void:
 			GameConstants.JUDGING_WINDOW_MIN_SEC, GameConstants.JUDGING_WINDOW_MAX_SEC)
 	if kudos_allotment != KUDOS_AUTO:
 		kudos_allotment = clampi(kudos_allotment, 0, GameConstants.KUDOS_ALLOTMENT_MAX)
+	drawing_tracks &= DRAWING_TRACKS_VALID_MASK
+	if drawing_tracks == 0:
+		drawing_tracks = DRAWING_TRACKS_ALL
 
 
 # --- Slice 6: presets, lock rule, freeze/snapshot ---
@@ -189,6 +203,7 @@ func _assign(key: StringName, value: Variant) -> bool:
 		&"pool_type_id": pool_type_id = str(value)
 		&"is_public": is_public = bool(value)
 		&"fluid_rejoin": fluid_rejoin = bool(value)
+		&"drawing_tracks": drawing_tracks = int(value)
 		_:
 			return false
 	return true
@@ -215,6 +230,7 @@ func to_dict() -> Dictionary:
 		"is_public": is_public,
 		"fluid_rejoin": fluid_rejoin,
 		"fluid_rejoin_overridden": fluid_rejoin_overridden,
+		"drawing_tracks": drawing_tracks,
 	}
 
 
@@ -243,6 +259,7 @@ static func from_dict(d: Dictionary) -> GameSettings:
 	s.is_public = bool(d.get("is_public", false))
 	s.fluid_rejoin = bool(d.get("fluid_rejoin", true))
 	s.fluid_rejoin_overridden = bool(d.get("fluid_rejoin_overridden", false))
+	s.drawing_tracks = int(d.get("drawing_tracks", DRAWING_TRACKS_ALL))
 	return s
 
 

@@ -41,6 +41,9 @@ var _settings: GameSettings
 var _roster: Roster
 var _scoring: Scoring = Scoring.new()
 var _pools: PromptPools = PromptPools.new()
+## Slice 21: shuffled drawing-music rotation bag (indices into
+## GameConstants.DRAWING_MUSIC_TRACKS); refilled when exhausted.
+var _music_bag: Array[int] = []
 var _pool_type: PoolType = null
 ## Judge rotation (Slice 3, cursor model since Slice 9). Fixed order at
 ## start; late joiners are inserted immediately behind the current judge
@@ -619,7 +622,27 @@ func _begin_round(index: int) -> void:
 		"round_count": _settings.round_count,
 		"judge_player_id": _round.judge_player_id,
 		"forfeits": _round_forfeits.duplicate(true),   # Slice 9: dodge announcements
+		"music_track": _next_music_track(),            # Slice 21: this round's drawing music
 	})
+
+
+## Slice 21: draws this round's drawing-music track from a shuffled bag over
+## the host's enabled set (GameSettings.drawing_tracks bitmask) - no repeats
+## until the set is exhausted, then reshuffle. Session rng keeps it
+## deterministic under a seed for tests.
+func _next_music_track() -> String:
+	if _music_bag.is_empty():
+		for i: int in GameConstants.DRAWING_MUSIC_TRACKS.size():
+			if _settings.drawing_tracks & (1 << i):
+				_music_bag.append(i)
+		if _music_bag.is_empty():  # hostile mask; clamp normally prevents this
+			_music_bag.append(0)
+		for i: int in range(_music_bag.size() - 1, 0, -1):
+			var j: int = rng.randi_range(0, i)
+			var tmp: int = _music_bag[i]
+			_music_bag[i] = _music_bag[j]
+			_music_bag[j] = tmp
+	return GameConstants.DRAWING_MUSIC_TRACKS[_music_bag.pop_front()]
 
 
 ## Slice 9: moves the judge cursor to the next entry whose player is

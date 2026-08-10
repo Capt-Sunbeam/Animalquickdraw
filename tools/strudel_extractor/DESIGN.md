@@ -1,6 +1,11 @@
-# Strudel Sound Renderer — Design Spec & Build Plan
+# Strudel Extractor — Design Spec & Build Plan
 
-**Status:** Owner-approved design (2026-07-19); build scheduled for its own session.
+**Status:** Owner-approved design (2026-07-19); revised at build-session start (2026-08-09) — see Revisions. Built 2026-08-09.
+
+**Revisions (2026-08-09, owner decisions at build session):**
+- **Named the Strudel Extractor**; lives in `tools/strudel_extractor/` (self-contained, copy-paste portable to other projects).
+- **No `// render:` headers — the 25 `.strudel` sources are never touched.** Render settings (start cycle, end cycle, format) are edited in the app UI and remembered in browser localStorage keyed by filename. No sidecar file either (owner: cycle timings are authored knowledge, not hard-won data — retyping a handful of exceptions on a new machine is cheaper than managing a settings file). Baked fallback default: `0..1 wav`.
+- **Drag-and-drop / file-picker queue additions:** individual `.strudel` files can be added to the list one at a time in addition to the `--in` folder scan; their settings are remembered the same way.
 **Why this exists:** Strudel's native export (strudel.cc AND warm.strudel.cc, checked 2026-07-19) renders through an offline path that **drops the global effects bus** — every sound with `room` (reverb) or `delay` exports without its space. All 25 Animal Quickdraw sources (`TDD/sound/`) except the chat pop use `room`, so hand-exports are unusable. Live playback is correct; therefore this tool **captures live playback programmatically** instead of using the exporter.
 
 **Product in one sentence:** a local web page (served by a zero-dependency Node script) that lists a folder of `.strudel` files, each row with cycle-window and WAV/OGG settings, and a Process button that plays each file through Strudel's real engine while tapping the master output, then writes finished audio files to an output folder.
@@ -13,13 +18,15 @@
 - **Correct by construction:** the capture taps the same live audio graph the strudel.cc site plays through (engine: `@strudel/web` / superdough). Reverb/delay busses included because we record what the engine actually outputs.
 - **Sample-accurate by arithmetic:** slice points come from the engine clock's cycle→time mapping, never from human timing or silence detection.
 - **Project-agnostic:** input and output folders are parameters. Defaults point at this repo, but the tool must work pointed at any folder of `.strudel` files (owner: reusable for other projects).
-- **Source of truth stays in the `.strudel` files** — including each file's render settings (see §4).
+- **The `.strudel` sources are read-only inputs** — the tool never edits them; render settings live in the app (see §4, revised 2026-08-09).
 
 ## 2. Architecture
 
 ```
-tools/sound_pipeline/
+tools/strudel_extractor/
   DESIGN.md            (this file)
+  README.md            usage + vendoring provenance (Milestone E)
+  IMPLEMENTATION-NOTES.md  what was actually built + deviations (Milestone E)
   server.mjs           zero-dependency Node server (node:http + node:fs only)
   ui/
     index.html         the tool page
@@ -32,7 +39,7 @@ tools/sound_pipeline/
 
 - **server.mjs** — `node server.mjs --in <dir> --out <dir> [--port 8123]`
   - Defaults: `--in TDD/sound` `--out assets/audio` (resolved from repo root).
-  - Serves `ui/` + `vendor/`; API: `GET /files` (list `.strudel` files + parsed render headers), `GET /file/<name>` (source text), `POST /save` (body: file bytes + name → writes into `--out`, refuses paths outside it).
+  - Serves `ui/` + `vendor/`; API: `GET /files` (list `.strudel` file names), `GET /file/<name>` (source text), `POST /save` (body: file bytes + name → writes into `--out`, refuses paths outside it).
   - No npm dependencies. Node ≥ 20 (host has v25).
 - **The page** — runs Strudel via the vendored bundle. Internet needed on first run per instrument (superdough fetches `gm_*` soundfonts from its CDN and caches them in the browser); after that, offline.
 - **Vendoring note for the build session:** grab the `@strudel/web` browser bundle (jsDelivr/unpkg, pin the version in a comment) and a wasm Vorbis encoder; commit both. Licenses: Strudel is AGPL — fine, the tool is internal and ships nothing into the game but the owner's rendered audio.
@@ -40,50 +47,45 @@ tools/sound_pipeline/
 ## 3. UI spec
 
 ```
-STRUDEL SOUND RENDERER          in: TDD/sound   out: assets/audio
+STRUDEL EXTRACTOR               in: TDD/sound   out: assets/audio
 ──────────────────────────────────────────────────────────────────
 ☑ cue-timer-warning   cycles [0  ]→[6  ]   ☑wav ☐ogg    done ✓
 ☑ m1-main-menu        cycles [0  ]→[104]   ☐wav ☑ogg    recording… 1:12/3:32
 ☑ m2-lobby            cycles [8  ]→[40 ]   ☐wav ☑ogg    queued
    … one row per file …
 ──────────────────────────────────────────────────────────────────
-[ Process files ]   [🔊 monitor: on/off]   overall: 3/25 · ~11 min left
+[ + add file ]  [ Process files ]  [🔊 monitor: on/off]  overall: 3/25 · ~11 min left
 ```
 
 - Rows auto-populate from `GET /files`, alphabetical. Checkbox = include in this run (all on by default).
-- Cycle boxes + format checkboxes prefill from each file's `// render:` header (§4); edits apply to this run only (the header stays authoritative — editing sources is out of scope for v1).
+- Cycle boxes + format checkboxes prefill from localStorage (keyed by filename); unknown files default `0..1 wav`. Any edit is auto-remembered — no save button, no file writes, sources never touched (2026-08-09 revision).
+- **+ add file** (and drag-and-drop onto the page): queue an individual `.strudel` file from anywhere on disk; it becomes a normal row (settings remembered by filename) and renders to the same output folder.
 - Both formats checkable → file renders to both.
 - Status per row: `queued → warming up → recording (mm:ss/mm:ss) → encoding → done ✓ / FAILED (reason)`.
 - Monitor toggle: capture is inside the graph, so system/page volume never affects the recording; the toggle only mutes what the owner hears.
 - Overall progress with time-remaining computed from cycle windows (durations are known exactly: `(end−start)×60/cpm`).
 
-## 4. Render header (added to each `.strudel` file)
+## 4. Render settings (in-app; REVISED 2026-08-09 — no file headers)
 
-One machine-readable comment line, anywhere in the header block:
+Three values per file: **start cycle, end cycle, format** (`wav|ogg|wav+ogg`). Set in the UI, auto-remembered in browser localStorage keyed by filename. Baked fallback for unknown files: `0..1 wav`. The `.strudel` sources are never edited and no settings file exists — timings are authored knowledge (the owner knows each song's cycle count); retyping a few exceptions on a fresh machine/browser is the accepted cost.
 
-```
-// render: 8..40 ogg
-```
+**Reference table for the 25 Animal Quickdraw files** (from `TDD/sound/README.md` "Render settings", 2026-07-19 — cycles chosen so loops close on identical mask state + modulation phase, one-shots keep tails). Most files are the default; the owner types only the exceptions:
 
-Format: `// render: <startCycle>..<endCycle> <wav|ogg|wav+ogg>`. Parsed by `GET /files`; missing header → row defaults 0..1 wav.
-
-**Authoritative table for the 25 Animal Quickdraw files** (from `TDD/sound/README.md` "Render settings", 2026-07-19 — cycles chosen so loops close on identical mask state + modulation phase, one-shots keep tails):
-
-| File | render line |
+| File | settings |
 |------|-------------|
-| cue-timer-warning | `// render: 0..6 wav` |
-| m1-main-menu | `// render: 0..104 ogg` |
-| m2-lobby | `// render: 8..40 ogg` |
-| m3-drawing-ambient | `// render: 24..80 ogg` |
-| m3-drawing-oompa | `// render: 16..64 ogg` |
-| s1-race-start | `// render: 0..1 wav` |
-| s2-prompt-reveal | `// render: 0..1 wav` |
-| s4-winner | `// render: 0..2 wav` |
-| s6-title-awarded | `// render: 0..1 wav` |
-| s7-final-podium | `// render: 0..2 wav` |
-| all 15 `sfx-*` | `// render: 0..1 wav` |
+| cue-timer-warning | `0..6 wav` |
+| m1-main-menu | `0..104 ogg` |
+| m2-lobby | `0..40 ogg` |
+| m3-drawing-ambient | `0..80 ogg` |
+| m3-drawing-oompa | `0..64 ogg` |
+| s1-race-start | `0..1 wav` |
+| s2-prompt-reveal | `0..1 wav` |
+| s4-winner | `0..1 wav` |
+| s6-title-awarded | `0..1 wav` |
+| s7-final-podium | `0..1 wav` |
+| all 15 `sfx-*` | `0..1 wav` |
 
-**Supersedes the manual `.mask("<1 0>")` trick:** the tool records the tail past the end-cycle boundary natively (§5), so s4/s7 need **no source edits** — their `0..2` windows shrink to `0..1` + tail capture. Build session: re-verify and update this table + the README to `0..1` for s4/s7 once tail capture works.
+**As-rendered values (2026-08-10, owner-approved):** (a) tail capture works — s4/s7 shrank from the mask-era `0..2` to `0..1` + native tail capture, no source edits, mask trick fully retired; (b) **all music loops render from cycle 0** (owner decision at build session — intro cycles belong in the loop files; the old phase-chosen start offsets 8/24/16 are retired).
 
 ## 5. Capture & slicing design
 
@@ -124,10 +126,10 @@ Format: `// render: <startCycle>..<endCycle> <wav|ogg|wav+ogg>`. Parsed by `GET 
 
 ## 9. Build-session bootstrap
 
-Read this file, then: (1) vendor the two libraries, (2) add the §4 render headers to the 25 files, (3) Milestone A. The 25 sources are owner-approved and **frozen** — do not modify them beyond adding the one header line each. Owner runs the tool via:
+Read this file, then: (1) vendor the two libraries, (2) Milestone A. The 25 sources are owner-approved and **frozen** — do not modify them at all (2026-08-09: header step deleted). Owner runs the tool via:
 
 ```
-node tools/sound_pipeline/server.mjs
+node tools/strudel_extractor/server.mjs
 ```
 
 then opens the printed localhost URL.

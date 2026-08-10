@@ -52,7 +52,7 @@ text = "Invite friends"
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_font_sizes/font_size = 22
-text = "Animal Quickdraw — Lobby"
+text = "Scribble Safari — Lobby"
 horizontal_alignment = 1
 
 [node name="LeaveButton" type="Button" parent="Margin/Root/TopBar"]
@@ -183,6 +183,27 @@ text = "Mode:"
 [node name="ModeOption" type="OptionButton" parent="Margin/Root/Main/SettingsPanel/SettingsMargin/SettingsBox/Columns/LeftCol/Grid"]
 unique_name_in_owner = true
 layout_mode = 2
+
+[node name="MusicLabel" type="Label" parent="Margin/Root/Main/SettingsPanel/SettingsMargin/SettingsBox/Columns/LeftCol/Grid"]
+layout_mode = 2
+size_flags_vertical = 4
+text = "Drawing music:"
+
+[node name="MusicBox" type="HBoxContainer" parent="Margin/Root/Main/SettingsPanel/SettingsMargin/SettingsBox/Columns/LeftCol/Grid"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="MusicAmbientCheck" type="CheckBox" parent="Margin/Root/Main/SettingsPanel/SettingsMargin/SettingsBox/Columns/LeftCol/Grid/MusicBox"]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Tracks rotate each round (at least one stays on)"
+text = "Ambient"
+
+[node name="MusicOompaCheck" type="CheckBox" parent="Margin/Root/Main/SettingsPanel/SettingsMargin/SettingsBox/Columns/LeftCol/Grid/MusicBox"]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Tracks rotate each round (at least one stays on)"
+text = "Oompa"
 
 [node name="ConnectivityBox" type="HBoxContainer" parent="Margin/Root/Main/SettingsPanel/SettingsMargin/SettingsBox/Columns/LeftCol"]
 layout_mode = 2
