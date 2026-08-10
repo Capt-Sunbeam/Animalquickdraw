@@ -18,6 +18,8 @@
 - Plain text, valid Strudel code — paste-ready. `//` comment header at the top of each file: id, status, where it plays, key/tempo
 - Superseded versions: don't keep old copies in-file; git history is the archive (owner commits)
 
+> **2026-07-19 (later):** Strudel's native export drops the global reverb/delay bus (confirmed on both strudel.cc and warm.strudel.cc) — hand-exports of these files are unusable. Rendering will instead use the **Strudel Sound Renderer** tool, spec'd in [`tools/sound_pipeline/DESIGN.md`](../../tools/sound_pipeline/DESIGN.md) (build scheduled for its own session). The cycle table below remains the authoritative source for render windows; the `.mask("<1 0>")` trick for s4/s7 applies only to hand-exports and is superseded by the tool's tail capture.
+
 ## Render settings (2026-07-19)
 
 Per-file start/end cycles for converting sources to audio. Chosen so music loops close seamlessly (start/end land on the same mask state and modulation phase) and one-shots keep their tails. Music → OGG (loop points on import); cue/stingers/SFX → WAV.
