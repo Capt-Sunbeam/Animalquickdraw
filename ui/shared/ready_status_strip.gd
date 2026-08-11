@@ -30,7 +30,9 @@ func setup(show_button: bool, show_names: bool, vertical_layout: bool) -> void:
 	if show_button and _button == null:
 		_button = Button.new()
 		_button.custom_minimum_size = Vector2(72, 32)
-		_button.set_meta("click_sfx", "sfx-ready-click")  # Slice 21
+		# B3 (2026-08-10): ready clicks are GLOBAL via ready_state_changed -
+		# the local click is silenced or the presser hears it twice.
+		_button.set_meta("click_sfx", "none")
 		_button.pressed.connect(_on_button_pressed)
 		add_child(_button)
 	_rows = VBoxContainer.new() if vertical_layout else HBoxContainer.new()

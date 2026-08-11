@@ -30,7 +30,6 @@ const SFX: Dictionary = {
 	&"sfx-all-ready": preload("res://assets/audio/sfx-all-ready.wav"),
 	&"sfx-button-press": preload("res://assets/audio/sfx-button-press.wav"),
 	&"sfx-chat-pop": preload("res://assets/audio/sfx-chat-pop.wav"),
-	&"sfx-eraser": preload("res://assets/audio/sfx-eraser.wav"),
 	&"sfx-judge-latch": preload("res://assets/audio/sfx-judge-latch.wav"),
 	&"sfx-kudos": preload("res://assets/audio/sfx-kudos.wav"),
 	&"sfx-pause": preload("res://assets/audio/sfx-pause.wav"),
@@ -44,6 +43,11 @@ const SFX: Dictionary = {
 	&"sfx-undo-poof": preload("res://assets/audio/sfx-undo-poof.wav"),
 	&"sfx-unpause": preload("res://assets/audio/sfx-unpause.wav"),
 }
+
+## Eraser scrub loops for the whole stroke (owner polish B2, 2026-08-10):
+## the WAV imports with loop_mode=Forward, so it lives OUTSIDE the one-shot
+## SFX map on a dedicated player - a looping stream must never enter the pool.
+const ERASER_LOOP_STREAM: AudioStream = preload("res://assets/audio/sfx-eraser.wav")
 
 ## The canonical drawing-track list (bit order) lives in
 ## GameConstants.DRAWING_MUSIC_TRACKS - the sim picks from it, we validate
@@ -79,6 +83,8 @@ var _music_tweens: Array[Tween] = [null, null]
 var _sfx_pool: Array[AudioStreamPlayer] = []
 var _sfx_next: int = 0
 var _cue_player: AudioStreamPlayer
+var _eraser_player: AudioStreamPlayer
+var _ready_ids_cache: PackedStringArray = PackedStringArray()
 
 var _route: String = Routes.MENU
 var _phase: int = -1  # NetIds.Phase; -1 = not in a game
@@ -104,6 +110,10 @@ func _ready() -> void:
 	_cue_player = AudioStreamPlayer.new()
 	_cue_player.bus = &"SFX"
 	add_child(_cue_player)
+	_eraser_player = AudioStreamPlayer.new()
+	_eraser_player.bus = &"SFX"
+	_eraser_player.stream = ERASER_LOOP_STREAM
+	add_child(_eraser_player)
 	_load_volumes()
 
 	EventBus.scene_changed.connect(_on_scene_changed)
@@ -121,6 +131,7 @@ func _ready() -> void:
 	EventBus.round_resolved.connect(_on_round_resolved)
 	EventBus.judge_pick_latched.connect(_on_judge_pick_latched)
 	EventBus.reveal_beat_started.connect(_on_reveal_beat_started)
+	EventBus.ready_state_changed.connect(_on_ready_state_changed)
 	get_tree().node_added.connect(_on_node_added)
 	_update_music()
 
@@ -172,6 +183,19 @@ func attach_replay_poof(player: ReplayPlayer, doc: DrawingDoc) -> void:
 
 func is_cue_armed() -> bool:
 	return _cue_deadline_ms > 0 and not _cue_played
+
+
+## Eraser scrub loop (owner polish B2): the canvas starts it on an ERASER
+## stroke begin and stops it on EVERY stroke end (commit is the single
+## funnel). Phase/scene changes stop it too - a teardown mid-stroke must
+## never leave the loop running.
+func start_eraser_loop() -> void:
+	if not _eraser_player.playing:
+		_eraser_player.play()
+
+
+func stop_eraser_loop() -> void:
+	_eraser_player.stop()
 
 
 ## kind: &"master" | &"music" | &"sfx". linear 0..1; applied immediately.
@@ -291,6 +315,8 @@ static func _now_ms() -> int:
 
 func _on_scene_changed(route: String) -> void:
 	_route = route
+	stop_eraser_loop()
+	_ready_ids_cache.clear()
 	if route != Routes.ROUND:
 		_phase = -1
 		_disarm_cue(true)
@@ -311,6 +337,8 @@ func _on_phase_changed(phase: NetIds.Phase, data: Dictionary) -> void:
 		_arm_cue(data)
 	else:
 		_disarm_cue(true)
+	stop_eraser_loop()          # B2 safety: no scrub survives a phase change
+	_ready_ids_cache.clear()    # B3: ready sets reset per phase (SessionClient rule)
 	if phase != NetIds.Phase.ROUND_INTRO:
 		_s1_deadline_ms = 0
 	_phase = phase
@@ -322,11 +350,16 @@ func _on_phase_changed(phase: NetIds.Phase, data: Dictionary) -> void:
 			if int(data.get("reveal_style", -1)) == GameSettings.RevealStyle.GRID:
 				play_sfx(&"sfx-reveal")
 		NetIds.Phase.ROUND_INTRO:
-			var track := str(data.get("music_track", ""))
-			# Tolerant-payload rule: unknown/missing id falls back (late
-			# joiners mid-round never saw this payload at all).
-			_drawing_track = StringName(track) if GameConstants.DRAWING_MUSIC_TRACKS.has(track) \
-					else FALLBACK_DRAWING_TRACK
+			var track := str(data.get("music_track", "missing"))
+			if track == "":
+				# Owner polish B1 (2026-08-10): "" is a deliberate host choice
+				# (no tracks selected) - the drawing phase stays silent.
+				_drawing_track = &""
+			else:
+				# Tolerant-payload rule: unknown/missing id falls back (late
+				# joiners mid-round never saw this payload at all).
+				_drawing_track = StringName(track) if GameConstants.DRAWING_MUSIC_TRACKS.has(track) \
+						else FALLBACK_DRAWING_TRACK
 			play_sfx(&"s2-prompt-reveal")
 			_s1_deadline_ms = int(data.get("deadline_ms", 0))
 			_s1_played = false
@@ -336,6 +369,9 @@ func _on_phase_changed(phase: NetIds.Phase, data: Dictionary) -> void:
 func _on_session_closed(_reason: String) -> void:
 	_phase = -1
 	_lobby_roster_count = -1
+	_drawing_track = FALLBACK_DRAWING_TRACK  # next game starts from defaults
+	_ready_ids_cache.clear()
+	stop_eraser_loop()
 	_disarm_cue(true)
 	_s1_deadline_ms = 0
 	_update_music()
@@ -400,6 +436,20 @@ func _on_judge_pick_latched() -> void:
 func _on_reveal_beat_started(_index: int, _drawing_id: String, _beat_secs: float) -> void:
 	# One curtain-pull per revealed canvas (ONE_AT_A_TIME beats; polish A2).
 	play_sfx(&"sfx-reveal")
+
+
+func _on_ready_state_changed(ready_ids: PackedStringArray) -> void:
+	# Ready-ups are GLOBAL (owner polish B3): every peer hears each new
+	# ready. Unready (id leaving the set) stays silent - the sound always
+	# means progress toward all-ready (owner call, 2026-08-10).
+	var grew := false
+	for id: String in ready_ids:
+		if not _ready_ids_cache.has(id):
+			grew = true
+			break
+	_ready_ids_cache = ready_ids.duplicate()
+	if grew:
+		play_sfx(&"sfx-ready-click")
 
 
 func _on_node_added(node: Node) -> void:

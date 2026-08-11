@@ -95,9 +95,10 @@ func clamp_to_limits() -> void:
 			GameConstants.JUDGING_WINDOW_MIN_SEC, GameConstants.JUDGING_WINDOW_MAX_SEC)
 	if kudos_allotment != KUDOS_AUTO:
 		kudos_allotment = clampi(kudos_allotment, 0, GameConstants.KUDOS_ALLOTMENT_MAX)
+	# Mask 0 is LEGAL (owner polish B1, 2026-08-10): none selected = silent
+	# drawing phase. Only invalid bits are stripped (supersedes the TDD 21
+	# never-empty rule - see decision log).
 	drawing_tracks &= DRAWING_TRACKS_VALID_MASK
-	if drawing_tracks == 0:
-		drawing_tracks = DRAWING_TRACKS_ALL
 
 
 # --- Slice 6: presets, lock rule, freeze/snapshot ---

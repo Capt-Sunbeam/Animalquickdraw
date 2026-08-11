@@ -635,8 +635,10 @@ func _next_music_track() -> String:
 		for i: int in GameConstants.DRAWING_MUSIC_TRACKS.size():
 			if _settings.drawing_tracks & (1 << i):
 				_music_bag.append(i)
-		if _music_bag.is_empty():  # hostile mask; clamp normally prevents this
-			_music_bag.append(0)
+		if _music_bag.is_empty():
+			# None selected is legal (owner polish B1, 2026-08-10): "" in the
+			# ROUND_INTRO payload = silent drawing phase on every peer.
+			return ""
 		for i: int in range(_music_bag.size() - 1, 0, -1):
 			var j: int = rng.randi_range(0, i)
 			var tmp: int = _music_bag[i]

@@ -44,6 +44,26 @@ func test_fill_commits_fill_op_at_clicked_pixel() -> void:
 	assert_int(fill.y).is_equal(88)
 
 
+func test_color_pick_while_erasing_returns_to_brush() -> void:
+	# Owner (2026-08-10): picking a color mid-erase means "draw with it".
+	_canvas._toolbar.select_tool(CanvasToolbar.Tool.ERASER)
+	assert_int(_canvas._current_tool).is_equal(CanvasToolbar.Tool.ERASER)
+	_canvas._palette.select_index(Palette.base_index(1))
+	assert_int(_canvas._current_tool).is_equal(CanvasToolbar.Tool.BRUSH)
+	# Picking while already on the brush changes nothing.
+	_canvas._palette.select_index(Palette.base_index(2))
+	assert_int(_canvas._current_tool).is_equal(CanvasToolbar.Tool.BRUSH)
+
+
+func test_stroke_begin_collapses_palette_overlay() -> void:
+	# Owner (2026-08-10): drawing dismisses the expanded All-colors overlay.
+	_canvas._palette.set_expanded(true)
+	assert_bool(_canvas._palette.is_expanded()).is_true()
+	_canvas._stroke_begin(Vector2(100.0, 100.0))
+	_canvas._stroke_end(Vector2(120.0, 120.0))
+	assert_bool(_canvas._palette.is_expanded()).is_false()
+
+
 func test_clear_is_recorded_as_an_op() -> void:
 	_canvas._press_clear()
 	assert_int(_canvas.get_doc().ops.size()).is_equal(1)

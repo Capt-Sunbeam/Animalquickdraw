@@ -34,7 +34,13 @@ func _ready() -> void:
 	add_child(_indicator)
 	add_child(VSeparator.new())
 	for family: int in Palette.FAMILY_COUNT:
-		var swatch := PaletteSwatch.new(Palette.base_index(family), SWATCH_SIZE)
+		# Greyscale's one-click swatch is BLACK (owner, 2026-08-10): the
+		# default brush color earns the main-row spot; the greys stay one
+		# click away in All colors. (A 13th swatch was rejected - the draw
+		# screen min-width sits at 1254 of 1280, no room - session-12 note.)
+		var idx: int = Palette.DEFAULT_COLOR_INDEX if family == Palette.FAMILY_GREYSCALE \
+				else Palette.base_index(family)
+		var swatch := PaletteSwatch.new(idx, SWATCH_SIZE)
 		swatch.tooltip_text = "Click to use - open All colors for shades"
 		swatch.pressed.connect(_on_swatch_pressed.bind(swatch))
 		add_child(swatch)

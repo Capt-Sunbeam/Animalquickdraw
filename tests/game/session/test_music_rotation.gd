@@ -39,7 +39,9 @@ func test_rotation_deterministic_under_seed() -> void:
 		assert_str(a._next_music_track()).is_equal(b._next_music_track())
 
 
-func test_hostile_empty_mask_falls_back_instead_of_hanging() -> void:
-	# clamp_to_limits normally prevents mask 0; the bag guards anyway.
+func test_empty_mask_yields_silence_marker() -> void:
+	# Owner polish B1 (2026-08-10): mask 0 is a legal host choice - the
+	# payload carries "" and every peer's drawing phase stays silent.
 	var session: GameSession = _make_session(0)
-	assert_str(session._next_music_track()).is_equal(GameConstants.DRAWING_MUSIC_TRACKS[0])
+	assert_str(session._next_music_track()).is_equal("")
+	assert_str(session._next_music_track()).is_equal("")  # stays empty, never hangs

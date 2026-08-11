@@ -52,6 +52,9 @@ func _ready() -> void:
 	_input.max_length = GameConstants.MAX_CHAT_LEN
 	_input.text_submitted.connect(_on_text_submitted)
 	_send_button.pressed.connect(_submit_current_text)
+	# C3 (owner polish, 2026-08-10): the Hide/Show control is tiny and its
+	# button border crowded the word - borderless bare glyph instead.
+	_toggle_button.theme_type_variation = &"EmojiButton"
 	_toggle_button.pressed.connect(_on_toggle_pressed)
 	_collapsed_strip.gui_input.connect(_on_strip_gui_input)
 	EventBus.chat_message_received.connect(_on_chat_message_received)

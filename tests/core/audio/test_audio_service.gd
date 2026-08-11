@@ -61,6 +61,15 @@ func test_drawing_plays_the_intro_payload_track() -> void:
 	assert_str(String(Audio.current_music())).is_equal("m3-drawing-oompa")
 
 
+func test_empty_track_id_means_silent_drawing() -> void:
+	# Owner polish B1 (2026-08-10): "" in the payload = host chose no tracks.
+	Audio._on_scene_changed(Routes.ROUND)
+	Audio._on_phase_changed(NetIds.Phase.ROUND_INTRO,
+			_deadline(4.0).merged({"music_track": ""}))
+	Audio._on_phase_changed(NetIds.Phase.DRAWING, _deadline(30.0))
+	assert_str(String(Audio.current_music())).is_equal("")
+
+
 func test_unknown_track_id_falls_back_to_ambient() -> void:
 	Audio._on_scene_changed(Routes.ROUND)
 	Audio._on_phase_changed(NetIds.Phase.ROUND_INTRO,

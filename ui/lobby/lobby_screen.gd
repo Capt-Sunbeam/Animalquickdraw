@@ -6,6 +6,7 @@ extends Control
 
 var _updating_ui: bool = false  # guards value_changed while applying syncs
 var _kick_target_peer: int = 0  # Slice 13: pending kick awaiting confirm
+var _options_dialog: OptionsDialog = null  # C2: the lobby Esc surface
 
 @onready var _player_list: PlayerList = %PlayerList
 @onready var _kick_confirm: ConfirmDialog = %KickConfirm
@@ -32,6 +33,14 @@ var _kick_target_peer: int = 0  # Slice 13: pending kick awaiting confirm
 @onready var _toast: Toast = %Toast
 
 
+func _unhandled_input(event: InputEvent) -> void:
+	# C2: Esc toggles the Options dialog (an open AcceptDialog swallows its
+	# own Esc to close, so this only ever fires to OPEN it).
+	if event.is_action_pressed(&"ui_cancel"):
+		_options_dialog.open()
+		get_viewport().set_input_as_handled()
+
+
 func _ready() -> void:
 	EventBus.roster_updated.connect(_on_roster_updated)
 	EventBus.lobby_settings_changed.connect(_on_settings_changed)
@@ -53,6 +62,12 @@ func _ready() -> void:
 	_kick_confirm.cancelled.connect(func() -> void: _kick_target_peer = 0)
 	EventBus.player_kicked.connect(func(_pid: String, display_name: String) -> void:
 		_toast.show_message("%s was kicked" % display_name))
+	# C2 (owner polish, 2026-08-10): Esc in the lobby opens the same Options
+	# dialog as the main menu (volume sliders; the only per-user settings
+	# that exist). Deliberately NOT the in-game GameMenu - no Pause here,
+	# kick lives on the roster rows, Leave is already a button.
+	_options_dialog = OptionsDialog.new()
+	add_child(_options_dialog)
 	_setup_settings_controls()
 	_start_button.pressed.connect(Session.start_game)
 	_start_button.visible = Session.is_host()

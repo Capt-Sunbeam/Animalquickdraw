@@ -4,6 +4,9 @@
 
 **Status legend:** 🎵 = needs new owner composing (Strudel → extractor render) before wiring · 🔧 = pure code
 
+> ## ✅ ALL ITEMS COMPLETE — implemented AND owner-confirmed 2026-08-10 (session 17)
+> Composing + rendering + wiring in one session; three owner playtest runs closed everything (plus a feedback batch: eraser-loop importer fix, black main-row swatch, overlay auto-collapse, color-pick exits eraser, peer box removed — decision log). This document is now a historical record; the remaining *scale* checks (8-player ready chorus / reveal density, GRID snippet, none-selected music feel) live in **qa-backlog §21**, not here.
+
 ---
 
 ## A. Audio — composing needed first 🎵
@@ -24,6 +27,8 @@ Owner: judging and reveal "feel kind of dead". Refined spec (owner, 2026-08-10):
 ---
 
 ## B. Audio — wiring changes only 🔧
+
+> **B1 + B2 + B3 ALL IMPLEMENTED 2026-08-10** (same session as A): B1 empty mask legal (clamp reset deleted, `""` payload = silent drawing; tests reworked), B2 eraser loop (import `loop_mode=Forward`, dedicated player, commit-funnel stop + teardown safety stops), B3 global ready-up on `ready_state_changed` growth (**unready silent — owner call**; local metas → `"none"`). Decision-log entry written. 603 tests, 3 gates PASS. **Remaining: owner feel pass** (combined with A's ear pass).
 
 ### B1. Drawing-track picker: allow ANY subset, including none
 Current behavior (unchecking the last track snaps back to all) is wrong. Owner spec: select as many, as few, **or none**; none = no background music during drawing; **default stays all-selected** (already true today).
@@ -46,6 +51,8 @@ The Done!/ready click currently plays only for the presser (local `click_sfx` me
 ---
 
 ## C. UI / menus 🔧
+
+> **C1 + C2 + C3 ALL IMPLEMENTED 2026-08-10:** C1 Exit-game button (bottom of menu list, after the dev sandbox). C2 **deviation:** lobby Esc opens the shared `OptionsDialog` instead of a bespoke LobbyMenu — volumes are the only per-user settings that exist, and AcceptDialog gives Esc-to-close + paper skin for free (decision log); revisit if the lobby ever needs more surface. C3 chat toggle → `EmojiButton` variation (borderless). **Remaining: owner look check** in the combined pass.
 
 ### C1. Exit-game button on the main menu
 Add an "Exit game" button to the main-menu button list (bottom, after Collection/Options) → `get_tree().quit()`. Trivial; `main_menu_screen.tscn` + one connect.

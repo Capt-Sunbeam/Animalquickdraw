@@ -24,7 +24,9 @@ var _ready_strip: ReadyStatusStrip = null
 
 
 func _ready() -> void:
-	_done_button.set_meta("click_sfx", "sfx-ready-click")  # Slice 21
+	# B3 (2026-08-10): ready clicks are GLOBAL via ready_state_changed - the
+	# local click is silenced or the presser hears it twice.
+	_done_button.set_meta("click_sfx", "none")
 	_done_button.pressed.connect(_on_done_pressed)
 	_canvas.begin_drawing()
 	_ready_strip = ReadyStatusStrip.new()

@@ -86,6 +86,11 @@ func _ready() -> void:
 	_toolbar.set_rotate_visible(show_rotate)
 	_palette.color_selected.connect(func(idx: int) -> void:
 		_current_color_index = idx
+		# Owner (2026-08-10): picking a color while erasing means "draw with
+		# it" - hop back to the brush (select_tool re-emits tool_selected,
+		# which updates _current_tool above).
+		if _current_tool == CanvasToolbar.Tool.ERASER:
+			_toolbar.select_tool(CanvasToolbar.Tool.BRUSH)
 		_refresh_text_chip())
 	_save_toggle.visible = show_save_toggle
 	_save_toggle.button_pressed = false  # off by default (brief §6)
@@ -556,6 +561,9 @@ func _push_key_button(canvas_pos: Vector2, is_press: bool) -> void:
 
 
 func _stroke_begin(internal_pos: Vector2) -> void:
+	# Owner (2026-08-10): starting to draw dismisses the expanded All-colors
+	# overlay - you picked, now you're drawing. (Idempotent when closed.)
+	_palette.set_expanded(false)
 	_live_stroke = Stroke.new()
 	# Eraser = a stroke in the canvas-background color (Slice 16): fully
 	# deterministic, replays visibly, and the palette selection is untouched.
@@ -563,7 +571,10 @@ func _stroke_begin(internal_pos: Vector2) -> void:
 			if _current_tool == CanvasToolbar.Tool.ERASER else _current_color_index
 	_live_stroke.size_index = _current_size_index
 	if _current_tool == CanvasToolbar.Tool.ERASER:
-		Audio.play_sfx(&"sfx-eraser")  # Slice 21: one-shot per stroke, local input only
+		# B2 (2026-08-10): scrub loops while the stroke lives; every stroke
+		# end funnels through _commit_live_stroke, which stops it. Local
+		# input only (replays and remote strokes stay silent, as before).
+		Audio.start_eraser_loop()
 	_append_point(internal_pos, true)
 	_input_state = InputState.STROKING
 	_toolbar.set_undo_enabled(false)  # toolbar disabled while stroking (§5)
@@ -614,6 +625,7 @@ func _append_point(internal_pos: Vector2, force: bool) -> void:
 
 
 func _commit_live_stroke() -> void:
+	Audio.stop_eraser_loop()   # B2: single stroke-end funnel (harmless if idle)
 	if _live_stroke == null:
 		return
 	var stroke: Stroke = _live_stroke
@@ -627,6 +639,7 @@ func _commit_live_stroke() -> void:
 
 
 func _fill_at(internal_pos: Vector2) -> void:
+	_palette.set_expanded(false)   # same dismissal rule as _stroke_begin
 	if _mask != null and not CircleMask.contains(internal_pos):
 		return   # circular mode: fill clicks outside the circle are ignored (§6)
 	var size: Vector2i = _doc.canvas_size()

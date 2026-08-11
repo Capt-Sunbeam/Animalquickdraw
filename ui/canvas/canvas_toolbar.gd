@@ -61,6 +61,20 @@ func _on_size_pressed(index: int) -> void:
 	size_selected.emit(index)
 
 
+## Programmatic tool switch (owner, 2026-08-10: picking a color while the
+## eraser is active hops back to the brush). Updates the toggle-group
+## visuals and emits tool_selected exactly like a user press would.
+func select_tool(tool: Tool) -> void:
+	match tool:
+		Tool.BRUSH:
+			_brush_button.button_pressed = true
+		Tool.FILL:
+			_fill_button.button_pressed = true
+		Tool.ERASER:
+			_eraser_button.button_pressed = true
+	tool_selected.emit(tool)
+
+
 func set_undo_enabled(enabled: bool) -> void:
 	_undo_button.disabled = not enabled
 

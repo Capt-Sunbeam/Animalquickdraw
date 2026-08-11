@@ -1,7 +1,7 @@
 extends Control
-## Placeholder main menu (skeleton exit state): dev Host/Join buttons wired
-## to Net, plus a connected-peers list for the two-instance gate. The real
-## menu grows in later slices (lobby: Slice 2; collection: Slice 8; ...).
+## Main menu: Host/Join/Public/Avatar/Options/Collection/Exit. (The
+## skeleton-era connected-peers list was removed 2026-08-10 - dead UI once
+## host/join started navigating straight to the lobby.)
 ##
 ## CI hooks (debug builds): --ci-host hosts and quits 0 when a peer
 ## connects; --ci-join joins and quits 0 when connected to the host.
@@ -31,7 +31,6 @@ static var _offline_dialog_shown: bool = false
 
 @onready var _status_label: Label = %StatusLabel
 @onready var _identity_label: Label = %IdentityLabel
-@onready var _peer_list: ItemList = %PeerList
 @onready var _host_button: Button = %HostButton
 @onready var _join_button: Button = %JoinButton
 @onready var _public_button: Button = %PublicButton
@@ -42,6 +41,7 @@ static var _offline_dialog_shown: bool = false
 @onready var _avatar_button: Button = %AvatarButton
 @onready var _menu_chip: AvatarChip = %MenuChip
 @onready var _options_button: Button = %OptionsButton
+@onready var _exit_button: Button = %ExitButton
 
 
 func _ready() -> void:
@@ -66,9 +66,8 @@ func _ready() -> void:
 	EventBus.local_avatar_changed.connect(_refresh_menu_chip)
 	_sandbox_button.visible = OS.is_debug_build()
 	_sandbox_button.pressed.connect(func() -> void: Nav.goto(Routes.CANVAS_SANDBOX))
-	EventBus.peer_connected.connect(_on_peer_connected)
-	EventBus.peer_disconnected.connect(_on_peer_disconnected)
-	_refresh_peer_list()
+	# C1 (owner polish, 2026-08-10): explicit way out, bottom of the list.
+	_exit_button.pressed.connect(func() -> void: get_tree().quit())
 	# Session returns players here after closes/rejects; explain why.
 	var close_reason: String = Session.consume_close_reason()
 	if close_reason == "kicked":
@@ -157,14 +156,6 @@ func _show_kicked_dialog() -> void:
 	dialog.popup_centered()
 
 
-func _on_peer_connected(_peer_id: int) -> void:
-	_refresh_peer_list()
-
-
-func _on_peer_disconnected(_peer_id: int) -> void:
-	_refresh_peer_list()
-
-
 func _set_buttons_enabled(enabled: bool) -> void:
 	_host_button.disabled = not enabled
 	_join_button.disabled = not enabled
@@ -177,15 +168,6 @@ func _refresh_menu_chip() -> void:
 	var doc: DrawingDoc = AvatarStore.load_doc()
 	_menu_chip.set_player(Platform.get_display_name(), Platform.get_platform_id(),
 			doc.to_dict() if doc != null else {})
-
-
-func _refresh_peer_list() -> void:
-	_peer_list.clear()
-	if not Net.has_active_peer():
-		return
-	_peer_list.add_item("You (peer %d)%s" % [Net.local_peer_id(), " [host]" if Net.is_host() else ""])
-	for peer_id: int in multiplayer.get_peers():
-		_peer_list.add_item("Peer %d%s" % [peer_id, " [host]" if peer_id == 1 else ""])
 
 
 # --- CI hooks (automated two-instance connect gate) ---

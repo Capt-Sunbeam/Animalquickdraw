@@ -314,7 +314,7 @@ Two owner-directed fix batches this session (decision log 2026-07-06 "Judging = 
 - [ ] S6 pitch ladder feel when one player stacks 3+ titles (whole-step climb; does the top get chipmunky?)
 - [ ] Lobby join/leave one-shots during rapid join churn (SFX pool is polyphonic — is the pile-up charming or noisy?)
 - [ ] Replay undo poofs in FULL-reveal mode with an undo-heavy drawing (poof spam density)
-- [ ] Eraser one-shot per stroke: scrubby multi-stroke erasing retriggers — annoying or tactile?
+- [x] ~~Eraser one-shot per stroke: scrubby multi-stroke erasing retriggers — annoying or tactile?~~ SUPERSEDED by the B2 loop (2026-08-10) — see the polish additions below
 - [ ] Late joiner mid-round hears the fallback AMBIENT track until next round (never saw the ROUND_INTRO payload) — acceptable by design; confirm it's unnoticeable in practice
 - [ ] Pause fade-out (owner D2) during the below-minimum auto-pause: does silence + overlay read clearly?
 - [ ] HSlider default engine styling inside the paper theme (Esc menu + Options dialog) — ink-skin the grabber if it clashes
@@ -323,11 +323,17 @@ Two owner-directed fix batches this session (decision log 2026-07-06 "Judging = 
 
 ### Polish wiring additions (2026-08-10, cue v2 + M6 + sfx-reveal)
 
-- [ ] M6 mix level vs voice chat + S4 (owner flagged it may want a lower `MUSIC_DB_OFFSET` trim — one number in `audio_service.gd`)
-- [ ] Cue v2 A4-landing feel at both timer endings (replaces the old "cue landing" batchable — landing is now the A4 beep, `CUE_LANDING_SEC = 4.046`)
-- [ ] Reveal snippet density in ONE_AT_A_TIME with 7–8 drawings (a curtain-pull every beat — charming or repetitive?)
+- [x] ~~M6 mix level vs voice chat + S4~~ owner-confirmed at 0 dB trim (2026-08-10 session 17); the `MUSIC_DB_OFFSET` knob remains if a bigger lobby ever wants it lower
+- [x] ~~Cue v2 A4-landing feel at both timer endings~~ owner-confirmed 2026-08-10 session 17 ("felt good"; landing = A4, `CUE_LANDING_SEC = 4.046`)
+- [ ] Reveal snippet density in ONE_AT_A_TIME with 7–8 drawings (3-player feel confirmed 2026-08-10; the scale question stays)
 - [ ] GRID reveal single snippet: does one curtain-pull for a whole grid read as intended?
-- [ ] Judging music-fade-into-cue (new JUDGING branch) — same smoothness check as the drawing fade
+- [x] ~~Judging music-fade-into-cue~~ owner-confirmed 2026-08-10 session 17
+- [x] ~~Eraser LOOP (B2): seamless scrub?~~ **owner-confirmed 2026-08-10 session 17 ("landed correctly")** after the importer-enum fix (`edit/loop_mode` 1=Disabled not Forward → 2; verified by headless resource probe — trust the probe, never the `.import` text)
+- [ ] Eraser loop on the point-flood stroke split (very long strokes force commit+restart — one-frame blip; audible?)
+- [ ] Global ready-up clicks (B3) in a 7–8 player lobby: charming chorus or noisy? (3-player feel confirmed 2026-08-10; unready silent by design)
+- [ ] None-selected drawing music (B1): does a fully silent drawing phase feel intended (cue still fires at T−4 s)?
+- [x] ~~Lobby Esc → Options dialog (C2)~~ owner-confirmed 2026-08-10 session 17
+- [x] ~~Chat toggle borderless (C3)~~ owner-confirmed 2026-08-10 session 17
 - [ ] **Gate flake watch (2026-08-10, pre-existing):** `verify_resilience` failed once with `[leaver] phase sequence mismatch: [2, 3, 3, 5, 6, 7]` (missed one phase during the rejoin window — the documented rejoiner-navigation race, first time it's bitten the phase log); passed 2/2 on rerun, host+stayer clean. Not audio-related (passive listeners). If it recurs, the leaver's phase recording needs the welcome-snapshot phase folded in
 
 ## Design gaps / open items (not bugs — need decisions)

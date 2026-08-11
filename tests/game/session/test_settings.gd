@@ -273,17 +273,19 @@ func test_drawing_tracks_defaults_all_and_round_trips() -> void:
 	assert_int(GameSettings.from_dict({}).drawing_tracks).is_equal(GameSettings.DRAWING_TRACKS_ALL)
 
 
-func test_drawing_tracks_clamp_strips_invalid_bits_and_never_empty() -> void:
+func test_drawing_tracks_clamp_strips_invalid_bits_and_empty_is_legal() -> void:
+	# Owner polish B1 (2026-08-10): mask 0 = silent drawing phase, a legal
+	# choice (supersedes the TDD 21 never-empty reset - see decision log).
 	var s := GameSettings.new()
 	s.drawing_tracks = 0
 	s.clamp_to_limits()
-	assert_int(s.drawing_tracks).is_equal(GameSettings.DRAWING_TRACKS_ALL)
+	assert_int(s.drawing_tracks).is_equal(0)
 	s.drawing_tracks = 1 | 8   # a valid bit plus garbage - garbage stripped
 	s.clamp_to_limits()
 	assert_int(s.drawing_tracks).is_equal(1)
-	s.drawing_tracks = 4       # garbage-only bits -> empty -> reset to ALL
+	s.drawing_tracks = 4       # garbage-only bits strip down to empty (legal)
 	s.clamp_to_limits()
-	assert_int(s.drawing_tracks).is_equal(GameSettings.DRAWING_TRACKS_ALL)
+	assert_int(s.drawing_tracks).is_equal(0)
 
 
 func test_drawing_tracks_always_tunable_outside_custom() -> void:

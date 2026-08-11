@@ -18,6 +18,12 @@ func test_default_selection_is_black() -> void:
 	assert_int(_picker.get_current_index()).is_equal(Palette.DEFAULT_COLOR_INDEX)
 
 
+func test_greyscale_row_swatch_is_black() -> void:
+	# Owner (2026-08-10): black earns the main-row one-click spot; the greys
+	# stay in the All-colors grid (width budget forbids a 13th swatch).
+	assert_int(_picker._base_swatches[0].color_index).is_equal(Palette.DEFAULT_COLOR_INDEX)
+
+
 func test_select_index_persists_until_next_pick() -> void:
 	var shade_index: int = 6 * Palette.SHADES_PER_FAMILY + 0  # lightest blue
 	_picker.select_index(shade_index)
