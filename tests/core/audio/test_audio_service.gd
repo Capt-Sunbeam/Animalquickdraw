@@ -69,12 +69,27 @@ func test_unknown_track_id_falls_back_to_ambient() -> void:
 	assert_str(String(Audio.current_music())).is_equal("m3-drawing-ambient")
 
 
-func test_judging_resolution_wrap_up_and_paused_are_silent() -> void:
+func test_reveal_resolution_wrap_up_and_paused_are_silent() -> void:
+	# JUDGING left this set 2026-08-10 (M6 - polish A2); REVEAL stays silent
+	# (the per-canvas snippet is SFX, not music).
 	Audio._on_scene_changed(Routes.ROUND)
-	for phase: int in [NetIds.Phase.REVEAL, NetIds.Phase.JUDGING,
+	for phase: int in [NetIds.Phase.REVEAL,
 			NetIds.Phase.RESOLUTION, NetIds.Phase.WRAP_UP, NetIds.Phase.PAUSED]:
 		Audio._on_phase_changed(phase, {})
 		assert_str(String(Audio.current_music())).is_equal("")
+
+
+func test_judging_plays_m6() -> void:
+	Audio._on_scene_changed(Routes.ROUND)
+	Audio._on_phase_changed(NetIds.Phase.JUDGING, _deadline(25.0))
+	assert_str(String(Audio.current_music())).is_equal("m6-judging")
+	Audio._on_phase_changed(NetIds.Phase.RESOLUTION, {})
+	assert_str(String(Audio.current_music())).is_equal("")
+
+
+func test_music_db_offsets_only_name_known_tracks() -> void:
+	for id: StringName in Audio.MUSIC_DB_OFFSET.keys():
+		assert_bool(Audio.MUSIC.has(id)).is_true()
 
 
 func test_paused_fades_drawing_music_out_and_resume_restores() -> void:

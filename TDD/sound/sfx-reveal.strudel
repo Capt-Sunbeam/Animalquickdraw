@@ -1,0 +1,31 @@
+// SFX — Canvas Reveal ("curtain pull")
+// Status: DONE (owner-approved 2026-08-10, polish session)
+// Plays: once per revealed canvas in the REVEAL phase (per one-at-a-time beat —
+//   EventBus.reveal_beat_started). Fulfills the brief §3 parked "Card flip/reveal" row.
+//   GRID-style sub-decision (play once on grid appearance vs not at all) is deferred to wiring.
+// Design: a fast marimba glitter up two octaves of F pentatonic, landing on an accented
+//   F5+F6 marimba octave — S4's landing language, so every reveal sounds like a tiny
+//   piece of winning.
+// Key: F major pentatonic | Tempo: setcpm(60), 1 cycle = 1 s
+// Render: one-shot WAV, cycles 0–1 (~1 s + ring-out tail).
+// Paste into https://strudel.cc — spec: TDD/sound/stinger-sfx-spec.md item 11
+
+setcpm(60)
+// One-shot per revealed canvas. Fast run + accented marimba landing.
+
+stack(
+  // RUN — a quick glitter up two octaves of F pentatonic...
+  n("0 1 2 3 4 5 6 7")
+    .scale("F4:major:pentatonic")
+    .sound("gm_marimba")
+    .attack(.001).decay(.1).sustain(0).release(.05)
+    .gain(saw.range(.3, .5)),
+
+  // ...landing on an accented F5+F6 marimba octave, the winner sting's punch.
+  n("~@7 [5,10]@1")
+    .scale("F4:major:pentatonic")
+    .sound("gm_marimba")
+    .attack(.001).decay(.3).sustain(0).release(.3)
+    .gain(.55)
+)
+.room(.25).size(3)

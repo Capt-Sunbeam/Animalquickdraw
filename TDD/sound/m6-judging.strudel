@@ -1,0 +1,37 @@
+// M6 — Judging Theme ("the underwater lobby")
+// Status: DONE (owner-approved 2026-08-10, polish session — reverses the M4 half of the
+//   2026-07-19 cut on its own written revisit condition; new id, M4 stays retired)
+// Plays: JUDGING phase, looping while the judge browses. Ambient by design — sits UNDER
+//   voice-chat joking and lets S4 land on top.
+// Character: M2's warmth at half the presence — held e-piano 7ths + soft pad, no melody,
+//   no bass walk, everything darker and further away. Lobby music heard through a wall.
+// Key: F major pentatonic | Chords: Fmaj7–Dm7–Bbmaj7–C7 | Tempo: 96 BPM (setcpm(96/4))
+// Render: OGG loop, cycles 0–16 (~40 s — spans the slow(16) filter period), loop=true on import.
+// Paste into https://strudel.cc — inventory: TDD/sound-design-brief.md §1, identity rules §0
+
+setcpm(96/4)
+
+// ═══ CHD — the 7th chords, darker and quieter than M2.
+chd$: note("<[f3,a3,c4,e4] [d3,f3,a3,c4] [bb2,d3,f3,a3] [c3,e3,g3,bb3]>")
+  .sound("gm_epiano1")
+  .attack(.1).decay(.6).sustain(.4).release(.8)
+  .lpf(sine.range(1000, 1900).slow(16)).lpq(2)
+  .room(.5).size(7)
+  .gain(.2)
+
+// ═══ SWL — the soft pad underneath, M2's, slower.
+swl$: note("<f2 d2 bb1 c2>")
+  .sound("triangle")
+  .attack(.5).decay(.5).sustain(.6).release(1)
+  .lpf(900).lpq(2)
+  .room(.5).size(7)
+  .gain(.17)
+
+// ═══ MAR — one quiet marimba note per chord, barely there.
+mar$: n("<0 ~ 2 ~>")
+  .scale("F4:major:pentatonic")
+  .sound("gm_marimba")
+  .attack(.001).decay(.2).sustain(0).release(.15)
+  .room(.4).size(5)
+  .gain(.18)
+  .pan(.6)

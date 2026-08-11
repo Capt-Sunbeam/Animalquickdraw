@@ -10,6 +10,14 @@ const MUSIC: Dictionary = {
 	&"m2-lobby": preload("res://assets/audio/m2-lobby.ogg"),
 	&"m3-drawing-ambient": preload("res://assets/audio/m3-drawing-ambient.ogg"),
 	&"m3-drawing-oompa": preload("res://assets/audio/m3-drawing-oompa.ogg"),
+	&"m6-judging": preload("res://assets/audio/m6-judging.ogg"),
+}
+
+## Per-track mix trim in dB, applied as the incoming fade target (0 = full
+## Music-bus level). Owner tuning knob - M6 may want to sit lower than the
+## other music (2026-08-10); adjust by ear in playtests, no re-render needed.
+const MUSIC_DB_OFFSET: Dictionary = {
+	&"m6-judging": 0.0,
 }
 
 const SFX: Dictionary = {
@@ -29,6 +37,7 @@ const SFX: Dictionary = {
 	&"sfx-player-join": preload("res://assets/audio/sfx-player-join.wav"),
 	&"sfx-player-leave": preload("res://assets/audio/sfx-player-leave.wav"),
 	&"sfx-ready-click": preload("res://assets/audio/sfx-ready-click.wav"),
+	&"sfx-reveal": preload("res://assets/audio/sfx-reveal.wav"),
 	&"sfx-text-stamp": preload("res://assets/audio/sfx-text-stamp.wav"),
 	&"sfx-toggle-off": preload("res://assets/audio/sfx-toggle-off.wav"),
 	&"sfx-toggle-on": preload("res://assets/audio/sfx-toggle-on.wav"),
@@ -43,9 +52,11 @@ const FALLBACK_DRAWING_TRACK: StringName = &"m3-drawing-ambient"
 
 const MUSIC_FADE_SEC: float = 0.5
 const CUE_MUSIC_FADE_SEC: float = 1.0
-## Measured landing-note onset in cue-timer-warning.wav: the cue starts so this
-## sample lands on the phase-change deadline (T-5.05 s).
-const CUE_LANDING_SEC: float = 5.05
+## Measured landing-note onset in cue-timer-warning.wav (v2, 2026-08-10): the
+## A4 beep IS the landing (owner: it must end the timer precisely) - the cue
+## starts so its onset lands on the phase-change deadline (T-4.046 s); four F4
+## beeps count down before it, trailing file silence rings past the change.
+const CUE_LANDING_SEC: float = 4.046
 ## Measured BEEP onset in s1-race-start.wav: S1 starts so the BEEP lands on the
 ## ROUND_INTRO deadline = the drawing-start frame.
 const S1_BEEP_SEC: float = 2.84
@@ -109,6 +120,7 @@ func _ready() -> void:
 	EventBus.player_kicked.connect(_on_player_lost)
 	EventBus.round_resolved.connect(_on_round_resolved)
 	EventBus.judge_pick_latched.connect(_on_judge_pick_latched)
+	EventBus.reveal_beat_started.connect(_on_reveal_beat_started)
 	get_tree().node_added.connect(_on_node_added)
 	_update_music()
 
@@ -120,8 +132,10 @@ func _process(_delta: float) -> void:
 			_cue_played = true
 			_cue_player.stream = SFX[&"cue-timer-warning"]
 			_cue_player.play(maxf(0.0, CUE_LANDING_SEC - remaining_ms / 1000.0))
-			# Owner requirement: drawing music fades smoothly INTO the cue.
-			if _phase == NetIds.Phase.DRAWING and _music_id != &"":
+			# Owner requirement: music fades smoothly INTO the cue - drawing
+			# tracks and (since M6, 2026-08-10) the judging music alike.
+			if (_phase == NetIds.Phase.DRAWING or _phase == NetIds.Phase.JUDGING) \
+					and _music_id != &"":
 				_crossfade_to(&"", CUE_MUSIC_FADE_SEC)
 	if _s1_deadline_ms > 0 and not _s1_played:
 		var remaining_ms := _s1_deadline_ms - _now_ms()
@@ -209,10 +223,13 @@ func _desired_music() -> StringName:
 				return &"m2-lobby"
 			NetIds.Phase.DRAWING:
 				return _drawing_track
+			NetIds.Phase.JUDGING:
+				# M6 (2026-08-10 polish): the M4 cut's revisit condition fired.
+				return &"m6-judging"
 			_:
-				# ROUND_INTRO (stingers own it), REVEAL/JUDGING/RESOLUTION/
-				# WRAP_UP (silence + stingers, M4/M5 cut), PAUSED (owner D2:
-				# fade to silence), pre-phase limbo.
+				# ROUND_INTRO (stingers own it), REVEAL/RESOLUTION/WRAP_UP
+				# (silence + stingers; M4/M5 cut, M6 covers judging only),
+				# PAUSED (owner D2: fade to silence), pre-phase limbo.
 				return &""
 	if _route == Routes.LOBBY:
 		return &"m2-lobby"
@@ -237,7 +254,7 @@ func _crossfade_to(id: StringName, fade_sec: float) -> void:
 	incoming.stream = MUSIC[id]
 	incoming.volume_db = SILENT_DB
 	incoming.play()
-	_fade(_music_active, 0.0, fade_sec, false)
+	_fade(_music_active, float(MUSIC_DB_OFFSET.get(id, 0.0)), fade_sec, false)
 
 
 func _fade(player_idx: int, to_db: float, sec: float, stop_after: bool) -> void:
@@ -298,6 +315,12 @@ func _on_phase_changed(phase: NetIds.Phase, data: Dictionary) -> void:
 		_s1_deadline_ms = 0
 	_phase = phase
 	match phase:
+		NetIds.Phase.REVEAL:
+			# GRID style has no beats - the whole grid pops in with the phase,
+			# so the reveal snippet fires once here (owner call, 2026-08-10).
+			# ONE_AT_A_TIME plays it per beat via reveal_beat_started instead.
+			if int(data.get("reveal_style", -1)) == GameSettings.RevealStyle.GRID:
+				play_sfx(&"sfx-reveal")
 		NetIds.Phase.ROUND_INTRO:
 			var track := str(data.get("music_track", ""))
 			# Tolerant-payload rule: unknown/missing id falls back (late
@@ -372,6 +395,11 @@ func _on_round_resolved(_result: Dictionary) -> void:
 
 func _on_judge_pick_latched() -> void:
 	play_sfx(&"sfx-judge-latch")
+
+
+func _on_reveal_beat_started(_index: int, _drawing_id: String, _beat_secs: float) -> void:
+	# One curtain-pull per revealed canvas (ONE_AT_A_TIME beats; polish A2).
+	play_sfx(&"sfx-reveal")
 
 
 func _on_node_added(node: Node) -> void:

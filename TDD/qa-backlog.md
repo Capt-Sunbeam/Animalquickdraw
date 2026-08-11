@@ -321,6 +321,15 @@ Two owner-directed fix batches this session (decision log 2026-07-06 "Judging = 
 - [ ] Options dialog paper skin: confirm the AcceptDialog theme carry-over looks right at all aspects
 - [ ] Music volume at 0 mutes the bus entirely (incl. cue-adjacent fades) — confirm the timer cue still carries the warning on SFX bus alone
 
+### Polish wiring additions (2026-08-10, cue v2 + M6 + sfx-reveal)
+
+- [ ] M6 mix level vs voice chat + S4 (owner flagged it may want a lower `MUSIC_DB_OFFSET` trim — one number in `audio_service.gd`)
+- [ ] Cue v2 A4-landing feel at both timer endings (replaces the old "cue landing" batchable — landing is now the A4 beep, `CUE_LANDING_SEC = 4.046`)
+- [ ] Reveal snippet density in ONE_AT_A_TIME with 7–8 drawings (a curtain-pull every beat — charming or repetitive?)
+- [ ] GRID reveal single snippet: does one curtain-pull for a whole grid read as intended?
+- [ ] Judging music-fade-into-cue (new JUDGING branch) — same smoothness check as the drawing fade
+- [ ] **Gate flake watch (2026-08-10, pre-existing):** `verify_resilience` failed once with `[leaver] phase sequence mismatch: [2, 3, 3, 5, 6, 7]` (missed one phase during the rejoin window — the documented rejoiner-navigation race, first time it's bitten the phase log); passed 2/2 on rerun, host+stayer clean. Not audio-related (passive listeners). If it recurs, the leaver's phase recording needs the welcome-snapshot phase folded in
+
 ## Design gaps / open items (not bugs — need decisions)
 
 - [x] ~~**No in-game pause/leave menu** (owner, 2026-07-06)~~ — RESOLVED: Slice 6 shipped the Esc menu (Resume/Leave + host pause); Slice 9 upgraded leave semantics (graceful leave = disconnect with rejoin memory, below-minimum pause, host End-game-now)

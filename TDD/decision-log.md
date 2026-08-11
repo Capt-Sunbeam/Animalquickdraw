@@ -12,6 +12,15 @@
 
 ---
 
+### Polish composing: judging gets music again (M6), reveal gets a per-canvas snippet, timer cue v2 loses its landing note
+**Date:** 2026-08-10 | **Slice:** 21 follow-up (polish) | **Decided by:** Owner (chat-iteration composing session) | **Type:** Quick
+
+**Decision:** (1) **M6 "underwater lobby" judging theme composed** — the 2026-07-19 M4 cut's own written revisit condition fired (owner after the session-16 ear pass: judging "feels kind of dead"). New id per the retired-ids rule; ambient by design (M2's held 7ths + soft pad at half presence, no melody/bass walk, ~40 s loop at 96 BPM) so it sits under voice chat and lets S4 land. REVEAL stays music-free but gains (2) **`sfx-reveal`** — a ~1 s "curtain pull" (F-pentatonic marimba run into S4's accented F5+F6 octave landing), fired once per reveal beat; fulfills the parked brief §3 card-flip row (GRID-style once-vs-never sub-decision deferred to wiring). (3) **Timer cue replaced (v2), and the landing note is GONE** — four identical triangle F4 beeps + one A4, nothing on the transition frame (owner cut the ding after auditioning bell/celesta landings). One cue serves both drawing and judging. Consequence (owner refinement post-render): **the A4 beep IS the landing** — it must hit the end of the timer precisely, so `CUE_LANDING_SEC` scheduling survives with the new measured value **4.046 s** (A4 onset; four F4 beeps count down T−4…T−1). No ding after it — the S3-cut rationale effectively transfers to the A4. Also: music-fade-into-cue extends to JUDGING now that M6 exists; M6 gets a per-track dB offset in the music map (owner may want it quieter than other music — tunable without re-render).
+
+**Status:** [x] Sources checked in (`m6-judging.strudel`, `sfx-reveal.strudel`, `cue-timer-warning.strudel` v2) + brief/spec/README updated [x] Rendered (extractor, same day — cue onsets verified at exact 1 s spacing; m6 40.000 s; sfx-reveal 2.29 s) [x] Wired same day (CUE_LANDING_SEC=4.046, M6 map/JUDGING row + db-offset knob, snippet per beat + once on GRID entry; 602 tests, 3 gates) [ ] Owner ear pass in-game
+
+---
+
 ### Slice 21 (mini): audio wiring decisions - S3/S8 cut official, pause fades music, volume surface, always-tunable track picker
 **Date:** 2026-08-10 | **Slice:** 21 | **Decided by:** Owner (4-question decision pass at session start) | **Type:** Quick
 
